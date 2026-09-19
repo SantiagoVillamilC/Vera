@@ -1,0 +1,1101 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/widgets/auth_background.dart';
+import 'package:vera/core/widgets/gradient_button.dart';
+import 'package:vera/core/widgets/pin_pad.dart';
+import 'package:vera/core/widgets/vera_logo.dart';
+
+enum _AccountType { persona, empresa }
+
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  int _step = 0; // 0: type, 1: personal, 2: identity, 3: password, 4: otp
+  _AccountType _accountType = _AccountType.persona;
+  final _formKey = GlobalKey<FormState>();
+
+  // Campos comunes
+  final _correoCtrl = TextEditingController();
+  final _celularCtrl = TextEditingController();
+  final _contrasenaCtrl = TextEditingController();
+  final _confirmarCtrl = TextEditingController();
+
+  // Persona
+  final _nombreCtrl = TextEditingController();
+  String _tipoDoc = 'CC';
+  final _numDocCtrl = TextEditingController();
+
+  // Empresa
+  final _razonSocialCtrl = TextEditingController();
+  final _nitCtrl = TextEditingController();
+  final _repNombreCtrl = TextEditingController();
+  String _repTipoDoc = 'CC';
+  final _repNumDocCtrl = TextEditingController();
+
+  bool _obscurePass = true;
+  bool _obscureConfirm = true;
+  String _challengeId = '';
+
+  @override
+  void dispose() {
+    for (final c in [
+      _correoCtrl, _celularCtrl, _contrasenaCtrl, _confirmarCtrl,
+      _nombreCtrl, _numDocCtrl, _razonSocialCtrl, _nitCtrl,
+      _repNombreCtrl, _repNumDocCtrl,
+    ]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _next() {
+    if (_step == 0) {
+      setState(() => _step = 1);
+      return;
+    }
+    if (!_formKey.currentState!.validate()) return;
+    if (_step < 3) {
+      setState(() => _step++);
+    } else {
+      // TODO: POST /auth/register → get challengeId → step 4
+      setState(() {
+        _challengeId = 'mock-challenge';
+        _step = 4;
+      });
+    }
+  }
+
+  void _back() {
+    if (_step == 0) {
+      context.go('/login');
+    } else {
+      setState(() => _step--);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_step == 4) {
+      return _OtpRegisterScreen(
+        correo: _correoCtrl.text,
+        celular: _celularCtrl.text,
+        challengeId: _challengeId,
+      );
+    }
+
+    return AuthBackground(
+      child: Column(
+        children: [
+          _TopBar(step: _step, totalSteps: 4, onBack: _back),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(28, 24, 28, 0),
+              child: _step == 0
+                  ? _TypeStep(
+                      selected: _accountType,
+                      onChanged: (t) => setState(() => _accountType = t),
+                    )
+                  : Form(
+                      key: _formKey,
+                      child: _stepContent(),
+                    ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(28, 16, 28, 36),
+            child: GradientButton(
+              label: _step < 3 ? 'Continuar' : 'Crear cuenta',
+              onPressed: _next,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stepContent() {
+    switch (_step) {
+      case 1:
+        return _accountType == _AccountType.persona
+            ? _PersonaStep(
+                correoCtrl: _correoCtrl,
+                celularCtrl: _celularCtrl,
+                nombreCtrl: _nombreCtrl,
+              )
+            : _EmpresaStep(
+                correoCtrl: _correoCtrl,
+                celularCtrl: _celularCtrl,
+                razonSocialCtrl: _razonSocialCtrl,
+                nitCtrl: _nitCtrl,
+              );
+      case 2:
+        return _accountType == _AccountType.persona
+            ? _PersonaIdentityStep(
+                tipoDoc: _tipoDoc,
+                onTipoDocChanged: (v) => setState(() => _tipoDoc = v!),
+                numDocCtrl: _numDocCtrl,
+              )
+            : _EmpresaRepStep(
+                repNombreCtrl: _repNombreCtrl,
+                repTipoDoc: _repTipoDoc,
+                onRepTipoDocChanged: (v) => setState(() => _repTipoDoc = v!),
+                repNumDocCtrl: _repNumDocCtrl,
+              );
+      case 3:
+        return _PasswordStep(
+          contrasenaCtrl: _contrasenaCtrl,
+          confirmarCtrl: _confirmarCtrl,
+          obscurePass: _obscurePass,
+          obscureConfirm: _obscureConfirm,
+          onTogglePass: () => setState(() => _obscurePass = !_obscurePass),
+          onToggleConfirm: () => setState(() => _obscureConfirm = !_obscureConfirm),
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+}
+
+// ──────────────────────────────────────────────
+// Top bar with step indicator
+// ──────────────────────────────────────────────
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.step, required this.totalSteps, required this.onBack});
+  final int step;
+  final int totalSteps;
+  final VoidCallback onBack;
+
+  static const _titles = [
+    'Crear cuenta',
+    'Tus datos',
+    'Tu identidad',
+    'Crea tu contraseña',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 20, 28, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              IconButton(
+                onPressed: onBack,
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: AppColors.textSecondary,
+                  size: 20,
+                ),
+                padding: EdgeInsets.zero,
+              ),
+              const Spacer(),
+              const VeraLogo(size: 22),
+            ],
+          ),
+          if (step > 0) ...[
+            const SizedBox(height: 8),
+            _StepBar(current: step, total: totalSteps),
+          ],
+          const SizedBox(height: 28),
+          Text(
+            _titles[step],
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.6,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _subtitle(step),
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  String _subtitle(int s) {
+    switch (s) {
+      case 0:
+        return '¿Eres persona natural o empresa?';
+      case 1:
+        return 'Información de contacto';
+      case 2:
+        return 'Verificamos quién eres';
+      case 3:
+        return 'Mínimo 8 caracteres';
+      default:
+        return '';
+    }
+  }
+}
+
+class _StepBar extends StatelessWidget {
+  const _StepBar({required this.current, required this.total});
+  final int current;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(total, (i) {
+        final active = i < current;
+        return Expanded(
+          child: Container(
+            margin: EdgeInsets.only(right: i < total - 1 ? 6 : 0),
+            height: 3,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(2),
+              gradient: active ? AppGradients.brand : null,
+              color: active ? null : AppColors.border,
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────
+// Step 0: Account type selector
+// ──────────────────────────────────────────────
+class _TypeStep extends StatelessWidget {
+  const _TypeStep({required this.selected, required this.onChanged});
+  final _AccountType selected;
+  final ValueChanged<_AccountType> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const SizedBox(height: 8),
+        _TypeCard(
+          type: _AccountType.persona,
+          icon: Icons.person_outline_rounded,
+          title: 'Persona natural',
+          subtitle: 'Cuenta personal para ti',
+          selected: selected == _AccountType.persona,
+          onTap: () => onChanged(_AccountType.persona),
+        ),
+        const SizedBox(height: 16),
+        _TypeCard(
+          type: _AccountType.empresa,
+          icon: Icons.business_outlined,
+          title: 'Empresa',
+          subtitle: 'Cuenta para tu negocio',
+          selected: selected == _AccountType.empresa,
+          onTap: () => onChanged(_AccountType.empresa),
+        ),
+      ],
+    );
+  }
+}
+
+class _TypeCard extends StatelessWidget {
+  const _TypeCard({
+    required this.type,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _AccountType type;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: selected ? AppGradients.brand : null,
+        color: selected ? null : AppColors.surfaceVariant,
+        border: Border.all(
+          color: selected ? Colors.transparent : AppColors.border,
+          width: 1,
+        ),
+        boxShadow: selected
+            ? [
+                BoxShadow(
+                  color: AppColors.gradientMid.withAlpha(80),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                )
+              ]
+            : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? Colors.white.withAlpha(30)
+                        : AppColors.border,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: selected ? Colors.white : AppColors.textSecondary,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 18),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: selected ? Colors.white : AppColors.textPrimary,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: selected
+                              ? Colors.white.withAlpha(180)
+                              : AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  selected
+                      ? Icons.check_circle_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                  color: selected ? Colors.white : AppColors.textMuted,
+                  size: 22,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────
+// Step 1a: Persona contact info
+// ──────────────────────────────────────────────
+class _PersonaStep extends StatelessWidget {
+  const _PersonaStep({
+    required this.correoCtrl,
+    required this.celularCtrl,
+    required this.nombreCtrl,
+  });
+
+  final TextEditingController correoCtrl;
+  final TextEditingController celularCtrl;
+  final TextEditingController nombreCtrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Label('Nombre completo'),
+        const SizedBox(height: 8),
+        _Field(
+          controller: nombreCtrl,
+          hint: 'Ej. María García López',
+          icon: Icons.person_outline_rounded,
+          capitalization: TextCapitalization.words,
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Ingresa tu nombre';
+            if (v.trim().split(' ').length < 2) return 'Escribe nombre y apellido';
+            return null;
+          },
+        ),
+        const SizedBox(height: 20),
+        _Label('Correo electrónico'),
+        const SizedBox(height: 8),
+        _Field(
+          controller: correoCtrl,
+          hint: 'tu@correo.com',
+          icon: Icons.mail_outline_rounded,
+          keyboardType: TextInputType.emailAddress,
+          validator: (v) {
+            if (v == null || v.isEmpty) return 'Ingresa tu correo';
+            if (!RegExp(r'^[\w.+-]+@[\w-]+\.\w+$').hasMatch(v)) {
+              return 'Correo inválido';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 20),
+        _Label('Número de celular'),
+        const SizedBox(height: 8),
+        _PhoneField(controller: celularCtrl),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+// ──────────────────────────────────────────────
+// Step 1b: Empresa contact info
+// ──────────────────────────────────────────────
+class _EmpresaStep extends StatelessWidget {
+  const _EmpresaStep({
+    required this.correoCtrl,
+    required this.celularCtrl,
+    required this.razonSocialCtrl,
+    required this.nitCtrl,
+  });
+
+  final TextEditingController correoCtrl;
+  final TextEditingController celularCtrl;
+  final TextEditingController razonSocialCtrl;
+  final TextEditingController nitCtrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Label('Razón social'),
+        const SizedBox(height: 8),
+        _Field(
+          controller: razonSocialCtrl,
+          hint: 'Ej. Mi Empresa S.A.S.',
+          icon: Icons.business_outlined,
+          capitalization: TextCapitalization.words,
+          validator: (v) => v == null || v.isEmpty ? 'Ingresa la razón social' : null,
+        ),
+        const SizedBox(height: 20),
+        _Label('NIT (con dígito de verificación)'),
+        const SizedBox(height: 8),
+        _Field(
+          controller: nitCtrl,
+          hint: 'Ej. 900123456-7',
+          icon: Icons.numbers_rounded,
+          validator: (v) => v == null || v.isEmpty ? 'Ingresa el NIT' : null,
+        ),
+        const SizedBox(height: 20),
+        _Label('Correo electrónico'),
+        const SizedBox(height: 8),
+        _Field(
+          controller: correoCtrl,
+          hint: 'empresa@correo.com',
+          icon: Icons.mail_outline_rounded,
+          keyboardType: TextInputType.emailAddress,
+          validator: (v) {
+            if (v == null || v.isEmpty) return 'Ingresa el correo';
+            if (!RegExp(r'^[\w.+-]+@[\w-]+\.\w+$').hasMatch(v)) {
+              return 'Correo inválido';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 20),
+        _Label('Celular de contacto'),
+        const SizedBox(height: 8),
+        _PhoneField(controller: celularCtrl),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+// ──────────────────────────────────────────────
+// Step 2a: Persona identity
+// ──────────────────────────────────────────────
+class _PersonaIdentityStep extends StatelessWidget {
+  const _PersonaIdentityStep({
+    required this.tipoDoc,
+    required this.onTipoDocChanged,
+    required this.numDocCtrl,
+  });
+
+  final String tipoDoc;
+  final ValueChanged<String?> onTipoDocChanged;
+  final TextEditingController numDocCtrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Label('Tipo de documento'),
+        const SizedBox(height: 8),
+        _DocTypeDropdown(value: tipoDoc, onChanged: onTipoDocChanged),
+        const SizedBox(height: 20),
+        _Label('Número de documento'),
+        const SizedBox(height: 8),
+        _Field(
+          controller: numDocCtrl,
+          hint: 'Sin puntos ni guiones',
+          icon: Icons.badge_outlined,
+          keyboardType: TextInputType.number,
+          formatters: [FilteringTextInputFormatter.digitsOnly],
+          validator: (v) => v == null || v.length < 6 ? 'Número inválido' : null,
+        ),
+        const SizedBox(height: 20),
+        _InfoBanner(),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+// ──────────────────────────────────────────────
+// Step 2b: Empresa representative
+// ──────────────────────────────────────────────
+class _EmpresaRepStep extends StatelessWidget {
+  const _EmpresaRepStep({
+    required this.repNombreCtrl,
+    required this.repTipoDoc,
+    required this.onRepTipoDocChanged,
+    required this.repNumDocCtrl,
+  });
+
+  final TextEditingController repNombreCtrl;
+  final String repTipoDoc;
+  final ValueChanged<String?> onRepTipoDocChanged;
+  final TextEditingController repNumDocCtrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Label('Nombre del representante legal'),
+        const SizedBox(height: 8),
+        _Field(
+          controller: repNombreCtrl,
+          hint: 'Nombre completo',
+          icon: Icons.person_outline_rounded,
+          capitalization: TextCapitalization.words,
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Ingresa el nombre';
+            if (v.trim().split(' ').length < 2) return 'Nombre y apellido';
+            return null;
+          },
+        ),
+        const SizedBox(height: 20),
+        _Label('Tipo de documento'),
+        const SizedBox(height: 8),
+        _DocTypeDropdown(value: repTipoDoc, onChanged: onRepTipoDocChanged),
+        const SizedBox(height: 20),
+        _Label('Número de documento'),
+        const SizedBox(height: 8),
+        _Field(
+          controller: repNumDocCtrl,
+          hint: 'Sin puntos ni guiones',
+          icon: Icons.badge_outlined,
+          keyboardType: TextInputType.number,
+          formatters: [FilteringTextInputFormatter.digitsOnly],
+          validator: (v) => v == null || v.length < 6 ? 'Número inválido' : null,
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+// ──────────────────────────────────────────────
+// Step 3: Password
+// ──────────────────────────────────────────────
+class _PasswordStep extends StatelessWidget {
+  const _PasswordStep({
+    required this.contrasenaCtrl,
+    required this.confirmarCtrl,
+    required this.obscurePass,
+    required this.obscureConfirm,
+    required this.onTogglePass,
+    required this.onToggleConfirm,
+  });
+
+  final TextEditingController contrasenaCtrl;
+  final TextEditingController confirmarCtrl;
+  final bool obscurePass;
+  final bool obscureConfirm;
+  final VoidCallback onTogglePass;
+  final VoidCallback onToggleConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Label('Contraseña'),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: contrasenaCtrl,
+          obscureText: obscurePass,
+          textInputAction: TextInputAction.next,
+          style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+          decoration: InputDecoration(
+            hintText: 'Mínimo 8 caracteres',
+            prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+            suffixIcon: IconButton(
+              onPressed: onTogglePass,
+              icon: Icon(
+                obscurePass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                size: 20,
+              ),
+            ),
+          ),
+          validator: (v) {
+            if (v == null || v.isEmpty) return 'Ingresa una contraseña';
+            if (v.length < 8) return 'Mínimo 8 caracteres';
+            return null;
+          },
+        ),
+        const SizedBox(height: 8),
+        _StrengthBar(controller: contrasenaCtrl),
+        const SizedBox(height: 20),
+        _Label('Confirmar contraseña'),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: confirmarCtrl,
+          obscureText: obscureConfirm,
+          textInputAction: TextInputAction.done,
+          style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+          decoration: InputDecoration(
+            hintText: 'Repite tu contraseña',
+            prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+            suffixIcon: IconButton(
+              onPressed: onToggleConfirm,
+              icon: Icon(
+                obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                size: 20,
+              ),
+            ),
+          ),
+          validator: (v) {
+            if (v == null || v.isEmpty) return 'Confirma tu contraseña';
+            if (v != contrasenaCtrl.text) return 'Las contraseñas no coinciden';
+            return null;
+          },
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+// ──────────────────────────────────────────────
+// OTP verification after register
+// ──────────────────────────────────────────────
+class _OtpRegisterScreen extends StatefulWidget {
+  const _OtpRegisterScreen({
+    required this.correo,
+    required this.celular,
+    required this.challengeId,
+  });
+  final String correo;
+  final String celular;
+  final String challengeId;
+
+  @override
+  State<_OtpRegisterScreen> createState() => _OtpRegisterScreenState();
+}
+
+class _OtpRegisterScreenState extends State<_OtpRegisterScreen> {
+  static const _otpLength = 6;
+  String _otp = '';
+  bool _loading = false;
+  int _resendSeconds = 60;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  void _startTimer() async {
+    while (mounted && _resendSeconds > 0) {
+      await Future.delayed(const Duration(seconds: 1));
+      if (mounted) setState(() => _resendSeconds--);
+    }
+  }
+
+  void _onDigit(String d) {
+    if (_otp.length >= _otpLength) return;
+    setState(() => _otp += d);
+    if (_otp.length == _otpLength) _verify();
+  }
+
+  void _onDelete() {
+    if (_otp.isEmpty) return;
+    setState(() => _otp = _otp.substring(0, _otp.length - 1));
+  }
+
+  void _verify() {
+    setState(() => _loading = true);
+    // TODO: POST /auth/register/verify-phone {correo, codigo}
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() => _loading = false);
+        context.go('/home');
+      }
+    });
+  }
+
+  String get _maskedCelular {
+    if (widget.celular.length < 4) return widget.celular;
+    return '+57 ••• ••• ${widget.celular.substring(widget.celular.length - 4)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AuthBackground(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(28, 20, 28, 0),
+            child: Row(
+              children: [
+                const SizedBox.shrink(),
+                const Spacer(),
+                const VeraLogo(size: 22),
+              ],
+            ),
+          ),
+          const Spacer(flex: 2),
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              gradient: AppGradients.brand,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.gradientMid.withAlpha(100),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 32),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Verifica tu número',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 26,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Enviamos un código por WhatsApp a\n$_maskedCelular',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 15,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 48),
+          _loading
+              ? const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation(AppColors.gradientStart),
+                )
+              : PinDots(length: _otpLength, filled: _otp.length),
+          const Spacer(flex: 1),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: NumPad(onDigit: _onDigit, onDelete: _onDelete),
+          ),
+          const SizedBox(height: 20),
+          _resendSeconds > 0
+              ? Text(
+                  'Reenviar en ${_resendSeconds}s',
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+                )
+              : TextButton(
+                  onPressed: () {
+                    setState(() => _resendSeconds = 60);
+                    _startTimer();
+                  },
+                  style: TextButton.styleFrom(foregroundColor: AppColors.gradientStart),
+                  child: const Text(
+                    'Reenviar código',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+          const Spacer(flex: 1),
+        ],
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────
+// Shared small widgets
+// ──────────────────────────────────────────────
+class _Label extends StatelessWidget {
+  const _Label(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: AppColors.textSecondary,
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0.2,
+      ),
+    );
+  }
+}
+
+class _Field extends StatelessWidget {
+  const _Field({
+    required this.controller,
+    required this.hint,
+    required this.icon,
+    this.keyboardType = TextInputType.text,
+    this.capitalization = TextCapitalization.none,
+    this.formatters,
+    this.validator,
+  });
+
+  final TextEditingController controller;
+  final String hint;
+  final IconData icon;
+  final TextInputType keyboardType;
+  final TextCapitalization capitalization;
+  final List<TextInputFormatter>? formatters;
+  final String? Function(String?)? validator;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      textInputAction: TextInputAction.next,
+      textCapitalization: capitalization,
+      inputFormatters: formatters,
+      style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+      decoration: InputDecoration(
+        hintText: hint,
+        prefixIcon: Icon(icon, size: 20),
+      ),
+      validator: validator,
+    );
+  }
+}
+
+class _PhoneField extends StatelessWidget {
+  const _PhoneField({required this.controller});
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: TextInputType.phone,
+      textInputAction: TextInputAction.next,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+      decoration: const InputDecoration(
+        hintText: '300 000 0000',
+        prefixIcon: Padding(
+          padding: EdgeInsets.only(left: 16, right: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('🇨🇴', style: TextStyle(fontSize: 18)),
+              SizedBox(width: 8),
+              Text('+57', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+              SizedBox(width: 8),
+              SizedBox(height: 18, child: VerticalDivider(color: AppColors.border, width: 1)),
+            ],
+          ),
+        ),
+        prefixIconConstraints: BoxConstraints(),
+      ),
+      validator: (v) {
+        if (v == null || v.isEmpty) return 'Ingresa tu celular';
+        if (v.length < 10) return 'Número inválido';
+        return null;
+      },
+    );
+  }
+}
+
+class _DocTypeDropdown extends StatelessWidget {
+  const _DocTypeDropdown({required this.value, required this.onChanged});
+  final String value;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      onChanged: onChanged,
+      dropdownColor: AppColors.surfaceVariant,
+      style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+      decoration: InputDecoration(
+        prefixIcon: const Icon(Icons.badge_outlined, size: 20),
+        filled: true,
+        fillColor: AppColors.surfaceVariant,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppColors.borderFocus, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      ),
+      items: const [
+        DropdownMenuItem(value: 'CC', child: Text('Cédula de ciudadanía')),
+        DropdownMenuItem(value: 'CE', child: Text('Cédula de extranjería')),
+        DropdownMenuItem(value: 'PA', child: Text('Pasaporte')),
+      ],
+    );
+  }
+}
+
+class _InfoBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.gradientMid.withAlpha(18),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.gradientMid.withAlpha(50)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.shield_outlined, color: AppColors.gradientStart, size: 20),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Tu información está protegida con encriptación de 256 bits.',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StrengthBar extends StatefulWidget {
+  const _StrengthBar({required this.controller});
+  final TextEditingController controller;
+
+  @override
+  State<_StrengthBar> createState() => _StrengthBarState();
+}
+
+class _StrengthBarState extends State<_StrengthBar> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_rebuild);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_rebuild);
+    super.dispose();
+  }
+
+  void _rebuild() => setState(() {});
+
+  int get _score {
+    final p = widget.controller.text;
+    if (p.isEmpty) return 0;
+    int s = 0;
+    if (p.length >= 8) s++;
+    if (RegExp(r'[A-Z]').hasMatch(p)) s++;
+    if (RegExp(r'[0-9]').hasMatch(p)) s++;
+    if (RegExp(r'[!@#\$%^&*]').hasMatch(p)) s++;
+    return s;
+  }
+
+  static const _colors = [
+    AppColors.border,
+    Color(0xFFFF5B79),
+    Color(0xFFFFB347),
+    Color(0xFF00D4FF),
+    Color(0xFF00E5A0),
+  ];
+  static const _labels = ['', 'Débil', 'Regular', 'Buena', 'Fuerte'];
+
+  @override
+  Widget build(BuildContext context) {
+    final s = _score;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: List.generate(4, (i) {
+            return Expanded(
+              child: Container(
+                margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
+                height: 3,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(2),
+                  color: i < s ? _colors[s] : AppColors.border,
+                ),
+              ),
+            );
+          }),
+        ),
+        if (s > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              'Contraseña ${_labels[s]}',
+              style: TextStyle(
+                color: _colors[s],
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
