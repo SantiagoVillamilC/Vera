@@ -1,9 +1,0 @@
-import 'package:flutter/material.dart';
-
-class ScanScreen extends StatelessWidget {
-  const ScanScreen({super.key});
-  @override
-  Widget build(BuildContext context) => const Scaffold(
-        body: Center(child: Text('Escanear factura')),
-      );
-}
