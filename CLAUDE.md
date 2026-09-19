@@ -2,11 +2,14 @@
 
 ## Stack
 
-- **Flutter** + Dart SDK ^3.12
-- **State management**: `flutter_riverpod` 2.x con code generation (`riverpod_annotation` + `riverpod_generator`)
-- **Navegación**: `go_router` 14.x con `MaterialApp.router`
-- **UI**: Material 3 (`useMaterial3: true`), tema claro/oscuro
-- **Org**: `com.xisfo`
+| Capa | Tecnología |
+|---|---|
+| Framework | Flutter 3.27+ / Dart SDK ^3.12 |
+| Estado | `flutter_riverpod` 2.x + `riverpod_annotation` (code gen) |
+| Navegación | `go_router` 14.x con `MaterialApp.router` |
+| Tipografía | `google_fonts` 6.x — Playfair Display (logo) |
+| Tema | Material 3, **dark-only** (`ThemeMode.dark` forzado) |
+| Org | `com.xisfo` |
 
 ## Comandos esenciales
 
@@ -39,29 +42,80 @@ flutter emulators
 
 ```
 lib/
-├── main.dart                         # ProviderScope + runApp
+├── main.dart                              # ProviderScope + runApp
 ├── app/
-│   ├── app.dart                      # MaterialApp.router, consume AppThemeMode
-│   └── router.dart                   # GoRouter — todas las rutas van aquí
+│   ├── app.dart                           # MaterialApp.router, dark-only
+│   └── router.dart                        # GoRouter — todas las rutas
 ├── core/
-│   └── theme/
-│       ├── app_theme.dart            # ThemeData light/dark (seed: Colors.indigo)
-│       ├── theme_provider.dart       # AppThemeMode notifier (@riverpod)
-│       └── theme_provider.g.dart     # generado — no editar
+│   ├── theme/
+│   │   ├── app_theme.dart                 # AppColors, AppGradients, ThemeData
+│   │   ├── theme_provider.dart            # AppThemeMode notifier (@riverpod)
+│   │   └── theme_provider.g.dart          # generado — no editar
+│   └── widgets/                           # componentes reutilizables globales
+│       ├── auth_background.dart           # fondo oscuro con blobs de luz
+│       ├── gradient_button.dart           # botón con gradiente de marca
+│       ├── pin_pad.dart                   # PinDots + NumPad para PIN/OTP
+│       ├── vera_animated_logo.dart        # logo animado (acordeón de tarjetas)
+│       └── vera_logo.dart                 # logo texto simple
 └── features/
-    └── <feature>/
-        ├── data/                     # repositorios, fuentes de datos, modelos
-        ├── domain/                   # entidades, casos de uso (opcional)
-        └── presentation/             # screens, widgets, providers de UI
+    ├── auth/
+    │   └── presentation/
+    │       ├── login_screen.dart          # LoginScreen, PinScreen, OtpLoginScreen
+    │       └── register_screen.dart       # RegisterScreen + OtpRegisterScreen
+    └── home/
+        └── presentation/
+            └── home_screen.dart           # placeholder post-login
 ```
 
 ### Convención para nuevas features
 
 1. Crear carpeta `lib/features/<nombre>/`
 2. Subdividir en `data/`, `domain/`, `presentation/` según complejidad
-3. Providers Riverpod van en `presentation/` (providers de UI) o `data/` (providers de repositorio)
+3. Providers Riverpod van en `presentation/` (UI) o `data/` (repositorio)
 4. Agregar ruta en `lib/app/router.dart`
-5. Correr `dart run build_runner build` tras crear providers
+5. Correr `dart run build_runner build` tras crear providers con `@riverpod`
+
+## Sistema de diseño
+
+Todos los tokens están en `lib/core/theme/app_theme.dart`.
+
+### AppColors — colores de marca
+
+```dart
+AppColors.background      // #07080F — fondo principal
+AppColors.surface         // #0F1020 — superficie de cards
+AppColors.surfaceVariant  // #161829 — inputs, chips
+AppColors.gradientStart   // #7B5EA7 — violeta claro (inicio del gradiente)
+AppColors.gradientMid     // #6C4FD9 — violeta medio
+AppColors.gradientEnd     // #4B3BC4 — violeta oscuro
+AppColors.accent          // #00D4FF — cyan
+AppColors.accentGreen     // #00E5A0 — verde éxito
+AppColors.error           // #FF5B79 — rojo
+AppColors.textPrimary     // #FFFFFF
+AppColors.textSecondary   // #8B8FAD
+AppColors.textMuted       // #454761
+AppColors.border          // #1E2038
+AppColors.borderGlass     // rgba blanco al 15%
+```
+
+### AppGradients
+
+```dart
+AppGradients.brand         // gradiente horizontal #7B5EA7 → #4B3BC4
+AppGradients.brandVertical // gradiente vertical
+AppGradients.card          // gradiente oscuro para cards
+```
+
+### Widgets del sistema de diseño
+
+| Widget | Uso |
+|---|---|
+| `AuthBackground` | Envuelve pantallas de auth; fondo con blobs de luz |
+| `GradientButton` | CTA principal con gradiente y glow. Acepta `loading`, `icon`, `onPressed: null` para estado disabled |
+| `PinDots` | Indicadores para PIN/OTP (`length`, `filled`) |
+| `NumPad` | Teclado numérico circular con `onDigit`, `onDelete`, `onBiometric` |
+| `VeraAnimatedLogo` | Logo completo con 3 tarjetas en acordeón + texto Playfair Display |
+| `VeraCardIcon` | Icono compacto animado para sub-pantallas |
 
 ## Providers Riverpod
 
@@ -84,21 +138,73 @@ El provider generado se llama `counterProvider`. Para leerlo: `ref.watch(counter
 
 ## Navegación (go_router)
 
-Todas las rutas se declaran en `lib/app/router.dart`. Usar `context.go('/ruta')` para navegar, `context.push('/ruta')` para apilar.
+Entry point: `/login` (sin landing page). Rutas actuales:
+
+| Ruta | Widget | Extra |
+|---|---|---|
+| `/login` | `LoginScreen` | — |
+| `/login/pin` | `PinScreen` | `String phone` |
+| `/login/otp` | `OtpLoginScreen` | `Map {phone, challengeId}` |
+| `/register` | `RegisterScreen` | — |
+| `/home` | `HomeScreen` | — |
+
+Navegar con `context.go('/ruta')` (reemplaza) o `context.push('/ruta')` (apila).
+
+## Flujo de autenticación
+
+### Login
+1. `LoginScreen` — celular (+57, 10 dígitos)
+2. `PinScreen` — PIN de 6 dígitos con `NumPad`
+3. `OtpLoginScreen` — código OTP de 6 dígitos vía WhatsApp
+
+### Registro
+1. Selector de tipo: `_AccountType.persona` | `_AccountType.empresa`
+2. Datos de contacto (campos distintos por tipo)
+3. Identidad (documento personal o representante legal)
+4. Contraseña (8–64 caracteres, barra de fortaleza)
+5. `_OtpRegisterScreen` — verificación de celular
+
+### Endpoints mapeados (TODO conectar backend)
+
+| Endpoint | Pantalla |
+|---|---|
+| `POST /auth/login` | `PinScreen._submit()` |
+| `POST /auth/login/verify-otp` | `OtpLoginScreen._verify()` |
+| `POST /auth/register` | `RegisterScreen._next()` (paso 3→4) |
+| `POST /auth/register/verify-phone` | `_OtpRegisterScreen._verify()` |
+
+> Las llamadas están marcadas con `// TODO` en cada pantalla. Usar `flutter_secure_storage` para tokens (nunca `SharedPreferences` en texto plano).
 
 ## Tema
 
-El notifier `AppThemeMode` (en `core/theme/theme_provider.dart`) controla el `ThemeMode` global:
-- `ref.read(appThemeModeProvider.notifier).toggle()` — alterna light/dark
-- `ref.read(appThemeModeProvider.notifier).setMode(ThemeMode.dark)` — fuerza modo
+La app usa **dark-only**. `AppTheme.dark` es el único tema activo en `app.dart`:
+
+```dart
+theme: AppTheme.dark,
+darkTheme: AppTheme.dark,
+themeMode: ThemeMode.dark,
+```
+
+El `theme_provider.dart` existe para futura funcionalidad pero actualmente no se consume.
 
 ## Reglas de código
 
-- Sin comentarios salvo que el WHY no sea obvio
 - Sin `setState` — usar Riverpod
 - Widgets sin estado → `ConsumerWidget`; con estado local → `ConsumerStatefulWidget`
+- Sin comentarios salvo que el *por qué* no sea obvio
 - Archivos `.g.dart` son generados — nunca editar manualmente
-- No agregar manejo de errores para casos que no pueden ocurrir
+- Sin manejo de errores para casos que no pueden ocurrir
+- Sin abstracciones prematuras — 3 líneas similares > helper innecesario
+
+## Ramas del repositorio
+
+| Rama | Propósito |
+|---|---|
+| `main` | Código estable / producción |
+| `develop` | Integración de features (base de PRs) |
+| `feat/*` | Features en desarrollo |
+
+Flujo: `feat/*` → PR → `develop` → PR → `main`.
 
 ## Skills disponibles
 
