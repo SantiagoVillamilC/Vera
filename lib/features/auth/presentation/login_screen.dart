@@ -281,7 +281,7 @@ class _PinScreenState extends State<PinScreen>
           ),
           const SizedBox(height: 16),
           TextButton(
-            onPressed: () {},
+            onPressed: () => context.push('/login/recovery', extra: widget.phone),
             style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
             child: const Text('¿Olvidaste tu PIN?', style: TextStyle(fontSize: 14)),
           ),
