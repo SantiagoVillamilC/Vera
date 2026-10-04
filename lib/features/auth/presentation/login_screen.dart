@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/auth_background.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
 import 'package:vera/core/widgets/pin_pad.dart';
 import 'package:vera/core/widgets/vera_animated_logo.dart';
 import 'package:vera/core/widgets/vera_logo.dart';
+import 'package:vera/features/auth/data/auth_repository.dart';
 
 // Step 1: phone number entry
 class LoginScreen extends StatefulWidget {
@@ -48,10 +50,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 'Bienvenido\nde nuevo.',
                 style: TextStyle(
                   color: AppColors.textPrimary,
-                  fontSize: 38,
+                  fontSize: 26,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: -0.8,
-                  height: 1.15,
+                  letterSpacing: -0.5,
+                  height: 1.2,
                 ),
               ),
               const SizedBox(height: 8),
@@ -176,6 +178,8 @@ class _PinScreenState extends State<PinScreen>
     with SingleTickerProviderStateMixin {
   static const _pinLength = 6;
   String _pin = '';
+  bool _loading = false;
+  final _repo = AuthRepository();
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
 
@@ -198,23 +202,42 @@ class _PinScreenState extends State<PinScreen>
   }
 
   void _onDigit(String d) {
-    if (_pin.length >= _pinLength) return;
+    if (_loading || _pin.length >= _pinLength) return;
     setState(() => _pin += d);
     if (_pin.length == _pinLength) _submit();
   }
 
   void _onDelete() {
-    if (_pin.isEmpty) return;
+    if (_loading || _pin.isEmpty) return;
     setState(() => _pin = _pin.substring(0, _pin.length - 1));
   }
 
-  void _submit() {
-    // TODO: validate PIN then call POST /auth/login
-    // On success, navigate to OTP screen with challengeId
-    context.push('/login/otp', extra: {
-      'phone': widget.phone,
-      'challengeId': 'mock-challenge-id',
-    });
+  Future<void> _submit() async {
+    setState(() => _loading = true);
+    try {
+      await _repo.login(celular: widget.phone, contrasena: _pin);
+      if (mounted) context.go('/home');
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _pin = '';
+      });
+      _shakeController.forward(from: 0);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _pin = '';
+      });
+      _shakeController.forward(from: 0);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error de conexión. Intenta de nuevo.')),
+      );
+    }
   }
 
   String get _maskedPhone {
@@ -262,14 +285,18 @@ class _PinScreenState extends State<PinScreen>
             style: const TextStyle(color: AppColors.textSecondary, fontSize: 16),
           ),
           const SizedBox(height: 48),
-          AnimatedBuilder(
-            animation: _shakeAnimation,
-            builder: (_, child) => Transform.translate(
-              offset: Offset(_shakeAnimation.value * (_shakeController.value < 0.5 ? 1 : -1), 0),
-              child: child,
-            ),
-            child: PinDots(length: _pinLength, filled: _pin.length),
-          ),
+          _loading
+              ? const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation(AppColors.gradientStart),
+                )
+              : AnimatedBuilder(
+                  animation: _shakeAnimation,
+                  builder: (_, child) => Transform.translate(
+                    offset: Offset(_shakeAnimation.value * (_shakeController.value < 0.5 ? 1 : -1), 0),
+                    child: child,
+                  ),
+                  child: PinDots(length: _pinLength, filled: _pin.length),
+                ),
           const Spacer(flex: 1),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -281,7 +308,7 @@ class _PinScreenState extends State<PinScreen>
           ),
           const SizedBox(height: 16),
           TextButton(
-            onPressed: () {},
+            onPressed: _loading ? null : () => context.push('/login/recovery'),
             style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
             child: const Text('¿Olvidaste tu PIN?', style: TextStyle(fontSize: 14)),
           ),

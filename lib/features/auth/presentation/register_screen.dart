@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/auth_background.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
 import 'package:vera/core/widgets/pin_pad.dart';
 import 'package:vera/core/widgets/vera_logo.dart';
+import 'package:vera/features/auth/data/auth_repository.dart';
 
 enum _AccountType { persona, empresa }
 
@@ -31,6 +33,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _nombreCtrl = TextEditingController();
   String _tipoDoc = 'CC';
   final _numDocCtrl = TextEditingController();
+  final _nacidaEnCtrl = TextEditingController();
+  final String _termsVersion = 'v1.0';
 
   // Empresa
   final _razonSocialCtrl = TextEditingController();
@@ -41,13 +45,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _obscurePass = true;
   bool _obscureConfirm = true;
+  bool _loading = false;
   String _challengeId = '';
+  String _celularParaOtp = '';
+  final _repo = AuthRepository();
 
   @override
   void dispose() {
     for (final c in [
       _correoCtrl, _celularCtrl, _contrasenaCtrl, _confirmarCtrl,
-      _nombreCtrl, _numDocCtrl, _razonSocialCtrl, _nitCtrl,
+      _nombreCtrl, _numDocCtrl, _nacidaEnCtrl, _razonSocialCtrl, _nitCtrl,
       _repNombreCtrl, _repNumDocCtrl,
     ]) {
       c.dispose();
@@ -55,7 +62,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  void _next() {
+  Future<void> _next() async {
     if (_step == 0) {
       setState(() => _step = 1);
       return;
@@ -63,12 +70,58 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (_step < 3) {
       setState(() => _step++);
-    } else {
-      // TODO: POST /auth/register → get challengeId → step 4
+      return;
+    }
+    // Step 3 → POST /v1/auth/register
+    setState(() => _loading = true);
+    try {
+      final consentimientos = [
+        ConsentimientoInput(
+          tipo: 'tratamiento_datos',
+          versionTexto: _termsVersion,
+          aceptado: true,
+        ),
+      ];
+      final RegisterResult result;
+      if (_accountType == _AccountType.persona) {
+        result = await _repo.registerPersona(
+          correo: _correoCtrl.text.trim(),
+          contrasena: _contrasenaCtrl.text,
+          celular: _celularCtrl.text.trim(),
+          nombreCompleto: _nombreCtrl.text.trim(),
+          tipoDocumento: _tipoDoc,
+          numeroDocumento: _numDocCtrl.text.trim(),
+          consentimientos: consentimientos,
+        );
+      } else {
+        result = await _repo.registerEmpresa(
+          razonSocial: _razonSocialCtrl.text.trim(),
+          nit: _nitCtrl.text.trim(),
+          correo: _correoCtrl.text.trim(),
+          contrasena: _contrasenaCtrl.text,
+          celular: _celularCtrl.text.trim(),
+          repNombre: _repNombreCtrl.text.trim(),
+          repTipoDoc: _repTipoDoc,
+          repNumDoc: _repNumDocCtrl.text.trim(),
+          consentimientos: consentimientos,
+        );
+      }
       setState(() {
-        _challengeId = 'mock-challenge';
+        _loading = false;
+        _challengeId = result.challengeId;
+        _celularParaOtp = _celularCtrl.text.trim();
         _step = 4;
       });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error de conexión. Intenta de nuevo.')),
+      );
     }
   }
 
@@ -85,7 +138,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_step == 4) {
       return _OtpRegisterScreen(
         correo: _correoCtrl.text,
-        celular: _celularCtrl.text,
+        celular: _celularParaOtp,
         challengeId: _challengeId,
       );
     }
@@ -112,7 +165,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             padding: const EdgeInsets.fromLTRB(28, 16, 28, 36),
             child: GradientButton(
               label: _step < 3 ? 'Continuar' : 'Crear cuenta',
-              onPressed: _next,
+              loading: _loading,
+              onPressed: _loading ? null : _next,
             ),
           ),
         ],
@@ -141,6 +195,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 tipoDoc: _tipoDoc,
                 onTipoDocChanged: (v) => setState(() => _tipoDoc = v!),
                 numDocCtrl: _numDocCtrl,
+                nacidaEnCtrl: _nacidaEnCtrl,
               )
             : _EmpresaRepStep(
                 repNombreCtrl: _repNombreCtrl,
@@ -156,6 +211,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           obscureConfirm: _obscureConfirm,
           onTogglePass: () => setState(() => _obscurePass = !_obscurePass),
           onToggleConfirm: () => setState(() => _obscureConfirm = !_obscureConfirm),
+          termsVersion: _termsVersion,
         );
       default:
         return const SizedBox.shrink();
@@ -539,11 +595,28 @@ class _PersonaIdentityStep extends StatelessWidget {
     required this.tipoDoc,
     required this.onTipoDocChanged,
     required this.numDocCtrl,
+    required this.nacidaEnCtrl,
   });
 
   final String tipoDoc;
   final ValueChanged<String?> onTipoDocChanged;
   final TextEditingController numDocCtrl;
+  final TextEditingController nacidaEnCtrl;
+
+  Future<void> _pickDate(BuildContext context) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime(now.year - 18, now.month, now.day),
+      firstDate: DateTime(1900),
+      lastDate: now,
+      helpText: 'Fecha de nacimiento',
+    );
+    if (picked != null) {
+      nacidaEnCtrl.text =
+          '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -563,6 +636,20 @@ class _PersonaIdentityStep extends StatelessWidget {
           keyboardType: TextInputType.number,
           formatters: [FilteringTextInputFormatter.digitsOnly],
           validator: (v) => v == null || v.length < 6 ? 'Número inválido' : null,
+        ),
+        const SizedBox(height: 20),
+        _Label('Fecha de nacimiento'),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () => _pickDate(context),
+          child: AbsorbPointer(
+            child: _Field(
+              controller: nacidaEnCtrl,
+              hint: 'YYYY-MM-DD',
+              icon: Icons.calendar_today_outlined,
+              validator: (v) => v == null || v.isEmpty ? 'Selecciona tu fecha de nacimiento' : null,
+            ),
+          ),
         ),
         const SizedBox(height: 20),
         _InfoBanner(),
@@ -638,6 +725,7 @@ class _PasswordStep extends StatelessWidget {
     required this.obscureConfirm,
     required this.onTogglePass,
     required this.onToggleConfirm,
+    required this.termsVersion,
   });
 
   final TextEditingController contrasenaCtrl;
@@ -646,6 +734,7 @@ class _PasswordStep extends StatelessWidget {
   final bool obscureConfirm;
   final VoidCallback onTogglePass;
   final VoidCallback onToggleConfirm;
+  final String termsVersion;
 
   @override
   Widget build(BuildContext context) {
@@ -703,6 +792,27 @@ class _PasswordStep extends StatelessWidget {
             return null;
           },
         ),
+        const SizedBox(height: 20),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceVariant,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline_rounded, color: AppColors.textMuted, size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Al crear tu cuenta aceptas los Términos y Condiciones ($termsVersion) de Vera.',
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+                ),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 24),
       ],
     );
@@ -731,6 +841,7 @@ class _OtpRegisterScreenState extends State<_OtpRegisterScreen> {
   String _otp = '';
   bool _loading = false;
   int _resendSeconds = 60;
+  final _repo = AuthRepository();
 
   @override
   void initState() {
@@ -746,25 +857,44 @@ class _OtpRegisterScreenState extends State<_OtpRegisterScreen> {
   }
 
   void _onDigit(String d) {
-    if (_otp.length >= _otpLength) return;
+    if (_loading || _otp.length >= _otpLength) return;
     setState(() => _otp += d);
     if (_otp.length == _otpLength) _verify();
   }
 
   void _onDelete() {
-    if (_otp.isEmpty) return;
+    if (_loading || _otp.isEmpty) return;
     setState(() => _otp = _otp.substring(0, _otp.length - 1));
   }
 
-  void _verify() {
+  Future<void> _verify() async {
     setState(() => _loading = true);
-    // TODO: POST /auth/register/verify-phone {correo, codigo}
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _loading = false);
-        context.go('/home');
-      }
-    });
+    try {
+      final result = await _repo.verifyPhone(
+        celular: widget.celular,
+        codigo: _otp,
+      );
+      if (!mounted) return;
+      context.go('/register/backup-codes', extra: result.codigosRespaldo);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() { _loading = false; _otp = ''; });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() { _loading = false; _otp = ''; });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error de conexión. Intenta de nuevo.')),
+      );
+    }
+  }
+
+  Future<void> _resend() async {
+    setState(() { _resendSeconds = 60; _otp = ''; });
+    _startTimer();
+    try {
+      await _repo.resendOtp(challengeId: widget.challengeId);
+    } catch (_) {}
   }
 
   String get _maskedCelular {
@@ -842,10 +972,7 @@ class _OtpRegisterScreenState extends State<_OtpRegisterScreen> {
                   style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
                 )
               : TextButton(
-                  onPressed: () {
-                    setState(() => _resendSeconds = 60);
-                    _startTimer();
-                  },
+                  onPressed: _resend,
                   style: TextButton.styleFrom(foregroundColor: AppColors.gradientStart),
                   child: const Text(
                     'Reenviar código',
