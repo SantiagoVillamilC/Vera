@@ -117,15 +117,74 @@ void main() {
   });
 
   group('totales', () {
-    test('ingresos y gastos se calculan por el signo de cada línea', () {
+    // Montos en centavos. Escenario del informe de revisión visual: recarga de
+    // 500.000, envío de 20.000 y una interbancaria de 100.000 rechazada.
+    Movimiento recarga() => _mov(_json(lineas: [
+          {'monto': '50000000', 'motivo': 'deposito'},
+        ]));
+    Movimiento envio20mil() => _mov(_json(lineas: [
+          {'monto': '-2000000', 'motivo': 'envio'},
+        ]));
+    Movimiento interbancariaRechazada() => _mov(_json(lineas: [
+          {'monto': '-10000000', 'motivo': 'envio'},
+          {'monto': '10000000', 'motivo': 'devolucion'},
+        ]));
+    Movimiento interbancariaAceptada() => _mov(_json(lineas: [
+          {'monto': '-10000000', 'motivo': 'envio'},
+        ]));
+
+    test('el envío rechazado y su devolución no cuentan como gasto ni ingreso',
+        () {
+      final movs = [recarga(), envio20mil(), interbancariaRechazada()];
+      expect(totalIngresos(movs), BigInt.from(50000000));
+      expect(totalGastos(movs), BigInt.from(2000000));
+    });
+
+    test('con una interbancaria aceptada además solo suma esa al gasto', () {
       final movs = [
-        _mov(),
+        recarga(),
+        envio20mil(),
+        interbancariaRechazada(),
+        interbancariaAceptada(),
+      ];
+      expect(totalIngresos(movs), BigInt.from(50000000));
+      expect(totalGastos(movs), BigInt.from(12000000));
+    });
+
+    test('una transferencia compensada con GMF se anula por completo', () {
+      expect(totalIngresos([_mov()]), BigInt.zero);
+      expect(totalGastos([_mov()]), BigInt.zero);
+    });
+
+    test('si el GMF no se devuelve, queda como gasto', () {
+      final m = _mov(_json(lineas: [
+        {'monto': '-10000000', 'motivo': 'envio'},
+        {'monto': '-40000', 'motivo': 'gravamen'},
+        {'monto': '10000000', 'motivo': 'devolucion'},
+      ]));
+      expect(totalIngresos([m]), BigInt.zero);
+      expect(totalGastos([m]), BigInt.from(40000));
+    });
+
+    test('el GMF de un envío normal cuenta como gasto junto con el envío', () {
+      final m = _mov(_json(lineas: [
+        {'monto': '-10000000', 'motivo': 'envio'},
+        {'monto': '-40000', 'motivo': 'gravamen'},
+      ]));
+      expect(totalGastos([m]), BigInt.from(10040000));
+    });
+
+    test('el resto de líneas se clasifica por el signo del monto', () {
+      final movs = [
         _mov(_json(lineas: [
-          {'monto': '1000000', 'motivo': 'deposito'},
+          {'monto': '1000000', 'motivo': 'transferencia_recibida'},
+        ])),
+        _mov(_json(lineas: [
+          {'monto': '-300', 'motivo': 'motivo_nuevo_del_backend'},
         ])),
       ];
-      expect(totalIngresos(movs), BigInt.from(51200000));
-      expect(totalGastos(movs), BigInt.from(50200000));
+      expect(totalIngresos(movs), BigInt.from(1000000));
+      expect(totalGastos(movs), BigInt.from(300));
     });
 
     test('sin movimientos los totales son cero', () {
@@ -134,7 +193,7 @@ void main() {
     });
 
     test('el gasto se devuelve en positivo', () {
-      expect(totalGastos([_mov()]), BigInt.from(50200000));
+      expect(totalGastos([envio20mil()]), BigInt.from(2000000));
     });
   });
 }

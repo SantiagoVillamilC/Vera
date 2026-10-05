@@ -29,15 +29,38 @@ List<FilaMovimiento> filasDe(Movimiento m) => [
         ),
     ];
 
-Iterable<BigInt> _montos(Iterable<Movimiento> ms) =>
-    ms.expand((m) => m.lineas).map((l) => l.montoCentavos);
+/// Saldos que cuentan para los totales de un movimiento. Dentro de un mismo
+/// movimiento el envío se compensa con su devolución y el GMF con la
+/// devolución del GMF: solo cuenta lo que queda de cada par (cero en una
+/// compensación completa). El resto de las líneas cuenta una a una.
+Iterable<BigInt> _saldosDelMovimiento(Movimiento m) {
+  var envio = BigInt.zero;
+  var gravamen = BigInt.zero;
+  final otras = <BigInt>[];
+  for (final l in m.lineas) {
+    switch (l.motivo) {
+      case MotivoLinea.envio || MotivoLinea.devolucion:
+        envio += l.montoCentavos;
+      case MotivoLinea.gravamen || MotivoLinea.devolucionGravamen:
+        gravamen += l.montoCentavos;
+      default:
+        otras.add(l.montoCentavos);
+    }
+  }
+  return [envio, gravamen, ...otras];
+}
 
-/// Suma de las líneas positivas (incluye devoluciones y devolución del GMF).
-BigInt totalIngresos(Iterable<Movimiento> movimientos) => _montos(movimientos)
+Iterable<BigInt> _saldos(Iterable<Movimiento> ms) =>
+    ms.expand(_saldosDelMovimiento);
+
+/// Suma de los saldos positivos. Una devolución no es un ingreso: solo
+/// compensa el envío (o el GMF) de su propio movimiento.
+BigInt totalIngresos(Iterable<Movimiento> movimientos) => _saldos(movimientos)
     .where((c) => c > BigInt.zero)
     .fold(BigInt.zero, (a, c) => a + c);
 
-/// Suma en positivo de las líneas negativas (el GMF cuenta como gasto).
-BigInt totalGastos(Iterable<Movimiento> movimientos) => _montos(movimientos)
+/// Suma en positivo de los saldos negativos (el GMF cuenta como gasto salvo
+/// que se haya devuelto).
+BigInt totalGastos(Iterable<Movimiento> movimientos) => _saldos(movimientos)
     .where((c) => c < BigInt.zero)
     .fold(BigInt.zero, (a, c) => a - c);

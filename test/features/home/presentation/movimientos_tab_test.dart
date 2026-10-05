@@ -248,13 +248,23 @@ void main() {
     expect(find.text('Depósito'), findsOneWidget);
   });
 
-  testWidgets('los totales salen del signo de cada línea', (tester) async {
+  testWidgets('los totales no cuentan la transferencia compensada',
+      (tester) async {
     final repo = FakeNucleoRepository()
-      ..onMovimientos = (_, _) async => pagina([movCompensado(1)]);
+      ..onMovimientos = (_, _) async => pagina([
+            mov(1, [(MotivoLinea.deposito, 50000000)]),
+            mov(2, [(MotivoLinea.envio, -2000000)]),
+            mov(3, [
+              (MotivoLinea.envio, -10000000),
+              (MotivoLinea.devolucion, 10000000),
+            ]),
+          ]);
     await _pump(tester, repo);
 
-    // Ingresos: 10.000 + 40. Gastos: 10.000 + 40.
-    expect(find.text('\$10.040'), findsNWidgets(2));
+    expect(find.text('\$500.000'), findsOneWidget);
+    expect(find.text('\$20.000'), findsOneWidget);
+    expect(find.text('\$600.000'), findsNothing);
+    expect(find.text('\$120.000'), findsNothing);
   });
 
   testWidgets('la compensación muestra filas con signo y ningún -\$0',
