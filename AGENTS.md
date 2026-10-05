@@ -66,8 +66,8 @@ lib/
             ├── enviar_screen.dart         # send money
             ├── enviar_llave_screen.dart   # send by Bre-B key
             ├── recargar_screen.dart       # top-up with url_pago and polling
-            ├── estadisticas_screen.dart   # Próximamente
-            └── tarjetas_tab.dart          # Próximamente
+            ├── estadisticas_screen.dart   # Balance y movimientos reales, resto de muestra (WIP)
+            └── tarjetas_tab.dart          # Datos de muestra (WIP)
 ```
 
 ---

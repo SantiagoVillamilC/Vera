@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -58,7 +57,7 @@ ApiException _api(String code, int status) =>
 
 class _Entorno {
   final repo = _FakeRepo();
-  final intent = IdempotencyIntent(random: Random(7));
+  final intent = IdempotencyIntent();
 }
 
 Future<_Entorno> _pump(WidgetTester tester) async {

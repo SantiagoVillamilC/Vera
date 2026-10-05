@@ -1,8 +1,10 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:uuid/data.dart';
+import 'package:uuid/rng.dart';
+import 'package:uuid/uuid.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/features/nucleo/data/idempotency_intent.dart';
 
@@ -18,7 +20,13 @@ void main() {
   final monto = BigInt.from(150000);
 
   late IdempotencyIntent intent;
-  setUp(() => intent = IdempotencyIntent(random: Random(7)));
+  setUp(() {
+    final uuid = Uuid();
+    final rng = MathRNG(seed: 7);
+    intent = IdempotencyIntent(
+      generador: () => uuid.v4(config: V4Options(null, rng)),
+    );
+  });
 
   group('formato de la clave', () {
     test('es un UUID v4 válido de menos de 128 caracteres', () {

@@ -166,18 +166,22 @@ class _BiometricKey extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final alTocar = onBiometric;
+    // Sin callback (SCRUM-81 pendiente) se oculta, con el mismo tamaño para
+    // no descentrar el 0.
+    if (alTocar == null) return const SizedBox(width: 76, height: 76);
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onBiometric,
+        onTap: alTocar,
         borderRadius: BorderRadius.circular(38),
         child: Container(
           width: 76,
           height: 76,
           decoration: const BoxDecoration(shape: BoxShape.circle),
-          child: Icon(
+          child: const Icon(
             Icons.fingerprint_rounded,
-            color: onBiometric != null ? AppColors.gradientStart : AppColors.textMuted,
+            color: AppColors.gradientStart,
             size: 34,
           ),
         ),

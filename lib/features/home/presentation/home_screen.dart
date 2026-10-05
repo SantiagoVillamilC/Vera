@@ -1,10 +1,14 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/format/pesos.dart';
+import 'package:vera/core/format/tarjeta_muestra.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
+import 'package:vera/core/widgets/wip_badge.dart';
 import 'package:vera/features/auth/data/auth_repository.dart';
 import 'package:vera/features/home/presentation/movimiento_vista.dart';
 import 'package:vera/features/home/presentation/movimientos_tab.dart';
@@ -125,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onNavTap(int i) {
     if (i == 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vera copilot próximamente')),
+        const SnackBar(content: Text('Vera copilot (WIP)')),
       );
       return;
     }
@@ -137,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
             repository: _nucleo,
             offsetLocal: widget.offsetLocal,
           ),
-        3 => const TarjetasTab(),
+        3 => TarjetasTab(session: widget.session),
         4 => PerfilTab(
             session: widget.session ?? defaultSessionStore,
             authRepository: widget.authRepository,
@@ -423,25 +427,29 @@ class _Header extends StatelessWidget {
         children: [
           Row(
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'En tu cuenta',
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    nombre ?? saludoGenerico,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'En tu cuenta',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      nombre ?? saludoGenerico,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -450,13 +458,20 @@ class _Header extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: Colors.white30),
                 ),
-                child: const Text(
-                  'Mis CVUs',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Mis CVUs',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(width: 6),
+                    WipBadge(),
+                  ],
                 ),
               ),
             ],
@@ -545,6 +560,13 @@ class _ActionsCard extends StatelessWidget {
     (Icons.account_balance_wallet_rounded, 'Remune-\nración', ''),
   ];
 
+  /// 52 del icono, 6 de separación y dos líneas de etiqueta (11 con altura
+  /// 1.3) que crecen con la escala de texto del sistema.
+  static double _alturaCelda(BuildContext context) {
+    final escala = MediaQuery.textScalerOf(context).scale(11) / 11;
+    return math.max(96, 58 + 2 * 11 * 1.3 * escala + 4);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -568,11 +590,11 @@ class _ActionsCard extends StatelessWidget {
             // Altura fija: con childAspectRatio la celda se encoge en pantallas
             // angostas y la etiqueta de dos líneas desborda.
             child: GridView(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 4,
                 mainAxisSpacing: 4,
                 crossAxisSpacing: 4,
-                mainAxisExtent: 96,
+                mainAxisExtent: _alturaCelda(context),
               ),
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -581,11 +603,7 @@ class _ActionsCard extends StatelessWidget {
                 return _ActionCell(
                   icon: icon,
                   label: label,
-                  onTap: route.isNotEmpty
-                      ? () => onAbrir(route)
-                      : () => ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Próximamente')),
-                          ),
+                  onTap: route.isNotEmpty ? () => onAbrir(route) : null,
                 );
               }).toList(),
             ),
@@ -607,25 +625,37 @@ class _ActionCell extends StatelessWidget {
 
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  /// Sin acción la celda queda marcada (WIP) y no responde al toque.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final enDesarrollo = onTap == null;
+    final cuerpo = GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Icon(icon, color: AppColors.gradientStart, size: 24),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Opacity(
+                opacity: enDesarrollo ? 0.6 : 1,
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Icon(icon, color: AppColors.gradientStart, size: 24),
+                ),
+              ),
+              if (enDesarrollo)
+                const Positioned(top: -6, right: -10, child: WipBadge()),
+            ],
           ),
           const SizedBox(height: 6),
           Text(
@@ -640,6 +670,12 @@ class _ActionCell extends StatelessWidget {
           ),
         ],
       ),
+    );
+    if (!enDesarrollo) return cuerpo;
+    return Semantics(
+      label: '${label.replaceAll('-\n', '').replaceAll('\n', ' ')}, en desarrollo',
+      excludeSemantics: true,
+      child: cuerpo,
     );
   }
 }
@@ -668,6 +704,7 @@ class _CardRow extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: const [
                 Text('VERA',
+                    textScaler: TextScaler.noScaling,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 9,
@@ -675,6 +712,7 @@ class _CardRow extends StatelessWidget {
                       letterSpacing: 1,
                     )),
                 Text('VISA',
+                    textScaler: TextScaler.noScaling,
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 8,
@@ -685,19 +723,21 @@ class _CardRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 14),
-          // Sin cifras inventadas: la tarjeta aún no existe en el backend.
+          // Datos de muestra compartidos con la pestaña Tarjetas.
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Vera Débito',
+                Text(tarjetaMuestraRotulo,
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     )),
                 SizedBox(height: 3),
-                Text('Próximamente',
+                Text(tarjetaMuestraNumero,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style:
                         TextStyle(color: AppColors.textMuted, fontSize: 13)),
               ],
@@ -741,12 +781,16 @@ class _MovimientosSection extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Últimos Movimientos',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
+            const Expanded(
+              child: Text(
+                'Últimos Movimientos',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
             TextButton(
