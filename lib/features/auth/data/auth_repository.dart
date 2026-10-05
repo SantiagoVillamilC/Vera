@@ -1,38 +1,53 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:async';
+import 'dart:io';
+
+import 'package:http/http.dart' as http;
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/app_config.dart';
+import 'package:vera/core/network/session_store.dart';
 
 class AuthRepository {
-  AuthRepository()
-      : _client = ApiClient(baseUrl: AppConfig.baseUrl),
-        _storage = const FlutterSecureStorage();
+  AuthRepository({
+    ApiClient? client,
+    SessionStore? session,
+    SessionNotifier? sessionNotifier,
+  })  : _session = session ?? defaultSessionStore,
+        // Con el cliente por defecto el repositorio notifica a la sesión global.
+        _sessionNotifier =
+            sessionNotifier ?? (client == null ? appSession : null),
+        _client = client ??
+            ApiClient(
+              baseUrl: AppConfig.baseUrl,
+              session: session ?? defaultSessionStore,
+              onSessionExpired: expireAppSession,
+            );
 
   final ApiClient _client;
-  final FlutterSecureStorage _storage;
-
-  static const _keyAccessToken = 'access_token';
-  static const _keyRefreshToken = 'refresh_token';
-  static const _keyNombreCompleto = 'nombre_completo';
-  static const _keyTipoCuenta = 'tipo_cuenta';
+  final SessionStore _session;
+  final SessionNotifier? _sessionNotifier;
 
   // ── Token + session storage ────────────────────────────────────
   Future<void> saveTokens({required String access, required String refresh}) =>
-      Future.wait([
-        _storage.write(key: _keyAccessToken, value: access),
-        _storage.write(key: _keyRefreshToken, value: refresh),
-      ]);
+      _session.saveTokens(access: access, refresh: refresh);
 
-  Future<String?> getAccessToken() => _storage.read(key: _keyAccessToken);
-  Future<String?> getRefreshToken() => _storage.read(key: _keyRefreshToken);
-  Future<String?> getNombreCompleto() => _storage.read(key: _keyNombreCompleto);
-  Future<String?> getTipoCuenta() => _storage.read(key: _keyTipoCuenta);
+  Future<String?> getAccessToken() => _session.readAccess();
+  Future<String?> getRefreshToken() => _session.readRefresh();
 
-  Future<void> clearTokens() => Future.wait([
-        _storage.delete(key: _keyAccessToken),
-        _storage.delete(key: _keyRefreshToken),
-        _storage.delete(key: _keyNombreCompleto),
-        _storage.delete(key: _keyTipoCuenta),
-      ]);
+  // El SessionStore abstracto solo expone tokens, el perfil vive en la
+  // implementacion segura.
+  Future<String?> getNombreCompleto() async {
+    final s = _session;
+    return s is FlutterSecureStorageSessionStore
+        ? s.readNombreCompleto()
+        : null;
+  }
+
+  Future<String?> getTipoCuenta() async {
+    final s = _session;
+    return s is FlutterSecureStorageSessionStore ? s.readTipoCuenta() : null;
+  }
+
+  Future<void> clearTokens() => _session.clear();
 
   // ── Helpers ───────────────────────────────────────────────────
   static String toE164(String phone) {
@@ -53,6 +68,7 @@ class AuthRepository {
     });
     final result = LoginResult.fromJson(data);
     await saveTokens(access: result.accessToken, refresh: result.refreshToken);
+    _sessionNotifier?.setAuthenticated(true);
     return result;
   }
 
@@ -122,14 +138,34 @@ class AuthRepository {
       _client.post('/v1/auth/otp/resend', {'challenge_id': challengeId});
 
   // ── Session ───────────────────────────────────────────────────
+  /// Cierra la sesión en el servidor (204) y SIEMPRE borra la local.
+  /// Un fallo de red se ignora porque el logout local ya basta. Cualquier
+  /// otro error (por ejemplo un 500) se propaga después de limpiar.
   Future<void> logout() async {
-    final refresh = await getRefreshToken();
-    if (refresh != null) {
+    try {
+      final refresh = await getRefreshToken();
+      if (refresh != null && refresh.isNotEmpty) {
+        final access = await getAccessToken();
+        await _client.post(
+          '/v1/auth/logout',
+          {'refresh_token': refresh},
+          bearerToken: access,
+          auth: access != null,
+        );
+      }
+    } on SocketException {
+      // Sin red: la sesión local se borra igual.
+    } on TimeoutException {
+      // Igual que sin red.
+    } on http.ClientException {
+      // Igual que sin red.
+    } finally {
       try {
-        await _client.post('/v1/auth/logout', {'refresh_token': refresh});
-      } catch (_) {}
+        await clearTokens();
+      } finally {
+        _sessionNotifier?.setAuthenticated(false);
+      }
     }
-    await clearTokens();
   }
 
   // ── Recovery ──────────────────────────────────────────────────

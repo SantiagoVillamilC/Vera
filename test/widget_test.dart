@@ -1,10 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vera/app/app.dart';
+import 'package:vera/core/network/session_store.dart';
 import 'package:vera/features/home/presentation/home_screen.dart';
 
 void main() {
-  testWidgets('App renders home screen', (WidgetTester tester) async {
+  testWidgets('App con sesion renders home screen', (WidgetTester tester) async {
+    appSession.setAuthenticated(true);
+    addTearDown(() => appSession.setAuthenticated(false));
     await tester.pumpWidget(
       const ProviderScope(child: App()),
     );

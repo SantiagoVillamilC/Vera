@@ -14,11 +14,10 @@ Cliente HTTP base. Parsea el envelope `{success, data, error, meta}` de todas la
 - Header `Authorization: Bearer <token>` opcional por llamado
 
 ### `lib/core/network/app_config.dart`
-URL base configurable en tiempo de compilación:
-```bash
-flutter run --dart-define=API_BASE_URL=https://api.vera.com
-```
+URL base configurable en tiempo de compilación.
 Default: `http://localhost:8080` para desarrollo local.
+
+Para configurar la URL según el entorno, ver la sección "Configurar la URL del backend" en [README.md](../README.md#configurar-la-url-del-backend).
 
 ### `lib/features/auth/data/auth_repository.dart`
 Repositorio con todos los llamados al API de auth. Incluye modelos tipados (`LoginResult`, `RegisterResult`, `VerifyPhoneResult`, `ConsentimientoInput`) y gestión de tokens con `flutter_secure_storage`.
@@ -154,6 +153,4 @@ Códigos relevantes para auth:
 
 | Item | Endpoint | Estado |
 |---|---|---|
-| Refresh automático de token | `POST /v1/auth/refresh` | No implementado en Flutter — tokens se guardan pero no se rotan |
-| Logout desde HomeScreen | `POST /v1/auth/logout` | Repositorio listo, pantalla no conectada |
 | `OtpLoginScreen` como 2FA | `POST /v1/auth/login/verify-otp` | Pantalla existe, no hay endpoint en el back todavía |

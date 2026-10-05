@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/api_client.dart';
+import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/auth_background.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
@@ -41,7 +42,7 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
@@ -205,7 +206,7 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() { _loading = false; _otp = ''; });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
     } catch (_) {
       if (!mounted) return;
       setState(() { _loading = false; _otp = ''; });
@@ -426,7 +427,7 @@ class _NewPinScreenState extends State<NewPinScreen> with SingleTickerProviderSt
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() { _loading = false; _pin = ''; _confirming = false; _firstPin = ''; });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
     } catch (_) {
       if (!mounted) return;
       setState(() { _loading = false; _pin = ''; _confirming = false; _firstPin = ''; });

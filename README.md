@@ -180,13 +180,40 @@ lib/
 
 ---
 
+## Configurar la URL del backend
+
+La app se conecta al backend mediante la variable de compilación `API_BASE_URL`. Hay varias formas de configurarla según el entorno:
+
+### Emulador Android
+```bash
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080
+```
+
+### Dispositivo físico o simulador iOS
+Reemplaza `IP_LOCAL` con la IP de tu computadora en la red local:
+```bash
+flutter run --dart-define=API_BASE_URL=http://IP_LOCAL:8080
+```
+
+### Alternativa: adb reverse (Android)
+Si prefieres usar `localhost` en un dispositivo físico Android:
+```bash
+adb reverse tcp:8080 tcp:8080
+flutter run --dart-define=API_BASE_URL=http://localhost:8080
+```
+
+**Valor por defecto:** `http://localhost:8080` (desarrollo local).
+
+> Nota: La producción (veraapp.tech) aún corre la versión V0 del API sin el núcleo financiero.
+
+---
+
 ## Variables de entorno / Configuración pendiente
 
 Los siguientes valores deben configurarse antes de conectar el backend:
 
 | Variable | Descripción |
 |---|---|
-| `BASE_URL` | URL base de la API REST |
 | Tokens JWT | Almacenar con `flutter_secure_storage` (pendiente de implementar) |
 | Biometría | Integrar `local_auth` para desbloqueo con huella |
 
