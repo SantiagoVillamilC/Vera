@@ -4,12 +4,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/features/home/presentation/home_screen.dart';
 import 'package:vera/features/home/presentation/movimientos_tab.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
 import 'fake_nucleo_repository.dart';
+import 'fake_session_store.dart';
 
 /// La fuente por defecto de las pruebas (Ahem) mide cada letra como un
 /// cuadrado, lo que provoca desbordes que no existen en el dispositivo. Para
@@ -45,7 +47,109 @@ Future<void> _pump(
   await tester.pump();
 }
 
+/// Monta el Home dentro de un router con destinos de prueba para verificar a
+/// dónde navegan los accesos rápidos.
+Future<GoRouter> _pumpConRouter(
+  WidgetTester tester, {
+  FakeSessionStore? session,
+  Size size = const Size(800, 1600),
+}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  final repo = FakeNucleoRepository();
+  final router = GoRouter(
+    routes: [
+      GoRoute(
+        path: '/',
+        builder: (_, _) => HomeScreen(
+          repository: repo,
+          session: session ?? FakeSessionStore(),
+        ),
+      ),
+      for (final ruta in ['/enviar', '/recargar', '/enviar-llave'])
+        GoRoute(
+          path: ruta,
+          builder: (_, _) => Scaffold(body: Text('destino $ruta')),
+        ),
+    ],
+  );
+  addTearDown(router.dispose);
+  await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+  await tester.pump();
+  await tester.pump();
+  return router;
+}
+
+String _ubicacion(GoRouter router) =>
+    router.routerDelegate.currentConfiguration.last.matchedLocation;
+
 void main() {
+  testWidgets('Recargar navega a /recargar sin SnackBar de Próximamente',
+      (tester) async {
+    final router = await _pumpConRouter(tester);
+
+    await tester.tap(find.text('Recargar'));
+    await tester.pumpAndSettle();
+
+    expect(_ubicacion(router), '/recargar');
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('Enviar por llave navega a /enviar-llave', (tester) async {
+    final router = await _pumpConRouter(tester);
+
+    await tester.tap(find.text('Enviar por llave'));
+    await tester.pumpAndSettle();
+
+    expect(_ubicacion(router), '/enviar-llave');
+  });
+
+  testWidgets('sin depósito pendiente no hay aviso de recarga pendiente',
+      (tester) async {
+    await _pumpConRouter(tester);
+
+    expect(find.text('Tienes una recarga pendiente'), findsNothing);
+  });
+
+  testWidgets('con depósito pendiente el aviso lleva a /recargar',
+      (tester) async {
+    final session = FakeSessionStore()..pendingDeposit = 'dep-1';
+    final router = await _pumpConRouter(tester, session: session);
+
+    expect(find.text('Tienes una recarga pendiente'), findsOneWidget);
+    await tester.tap(find.text('Tienes una recarga pendiente'));
+    await tester.pumpAndSettle();
+
+    expect(_ubicacion(router), '/recargar');
+  });
+
+  testWidgets('el aviso desaparece al volver si el depósito ya no está',
+      (tester) async {
+    final session = FakeSessionStore()..pendingDeposit = 'dep-1';
+    final router = await _pumpConRouter(tester, session: session);
+
+    await tester.tap(find.text('Tienes una recarga pendiente'));
+    await tester.pumpAndSettle();
+    session.pendingDeposit = null;
+    router.pop();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tienes una recarga pendiente'), findsNothing);
+  });
+
+  testWidgets('a 320x640 con aviso pendiente no hay desborde de RenderFlex',
+      (tester) async {
+    await _cargarRoboto();
+    await _pumpConRouter(
+      tester,
+      session: FakeSessionStore()..pendingDeposit = 'dep-1',
+      size: const Size(320, 640),
+    );
+
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('monta con una sola petición de saldo y una de movimientos',
       (tester) async {
     final repo = FakeNucleoRepository();

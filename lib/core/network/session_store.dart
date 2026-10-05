@@ -24,7 +24,13 @@ abstract class SessionStore {
   Future<SessionProfile> readProfile();
   Future<void> saveProfile(SessionProfile profile);
 
-  /// Borra tokens y perfil.
+  /// Id del depósito pendiente de la sesión actual, si lo hay.
+  Future<String?> readDepositoPendiente();
+  Future<void> saveDepositoPendiente(String id);
+  Future<void> clearDepositoPendiente();
+
+  /// Borra tokens, perfil y depósito pendiente, para que cerrar sesión o
+  /// entrar con otro usuario nunca ofrezca el depósito de otro.
   Future<void> clear();
 }
 
@@ -40,6 +46,19 @@ class FlutterSecureStorageSessionStore implements SessionStore {
   static const keyNombreCompleto = 'nombre_completo';
   static const keyRazonSocial = 'razon_social';
   static const keyTipoCuenta = 'tipo_cuenta';
+  static const keyDepositoPendiente = 'deposito_pendiente';
+
+  @override
+  Future<String?> readDepositoPendiente() =>
+      _storage.read(key: keyDepositoPendiente);
+
+  @override
+  Future<void> saveDepositoPendiente(String id) =>
+      _storage.write(key: keyDepositoPendiente, value: id);
+
+  @override
+  Future<void> clearDepositoPendiente() =>
+      _storage.delete(key: keyDepositoPendiente);
 
   @override
   Future<String?> readAccess() => _storage.read(key: keyAccessToken);
@@ -87,6 +106,7 @@ class FlutterSecureStorageSessionStore implements SessionStore {
         _storage.delete(key: keyNombreCompleto),
         _storage.delete(key: keyRazonSocial),
         _storage.delete(key: keyTipoCuenta),
+        _storage.delete(key: keyDepositoPendiente),
       ]);
 }
 

@@ -3,6 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/app/router.dart';
 import 'package:vera/core/network/session_store.dart';
+import 'package:vera/features/home/presentation/enviar_llave_screen.dart';
+import 'package:vera/features/home/presentation/recargar_screen.dart';
+
+import '../features/home/presentation/fake_nucleo_repository.dart';
+import '../features/home/presentation/fake_session_store.dart';
 
 String _location(GoRouter router) =>
     router.routerDelegate.currentConfiguration.uri.path;
@@ -13,7 +18,11 @@ void main() {
 
   Future<void> pumpApp(WidgetTester tester, {required bool authenticated}) async {
     session = SessionNotifier()..setAuthenticated(authenticated);
-    router = buildRouter(session);
+    router = buildRouter(
+      session,
+      nucleoRepository: FakeNucleoRepository(),
+      sessionStore: FakeSessionStore(),
+    );
     addTearDown(router.dispose);
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
     await tester.pump(const Duration(milliseconds: 100));
@@ -45,6 +54,32 @@ void main() {
     router.go('/estadisticas');
     await tester.pump(const Duration(milliseconds: 100));
     expect(_location(router), '/login');
+  });
+
+  testWidgets('sin sesion /recargar y /enviar-llave redirigen a /login',
+      (tester) async {
+    await pumpApp(tester, authenticated: false);
+    router.go('/recargar');
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(_location(router), '/login');
+    router.go('/enviar-llave');
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(_location(router), '/login');
+  });
+
+  testWidgets('con sesion /recargar y /enviar-llave abren su pantalla',
+      (tester) async {
+    await pumpApp(tester, authenticated: true);
+    router.go('/recargar');
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(_location(router), '/recargar');
+    expect(find.byType(RecargarScreen), findsOneWidget);
+    router.go('/enviar-llave');
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(_location(router), '/enviar-llave');
+    expect(find.byType(EnviarLlaveScreen), findsOneWidget);
   });
 
   testWidgets('sin sesion /register es accesible', (tester) async {

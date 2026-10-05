@@ -38,7 +38,16 @@ class FakeSessionStore implements SessionStore {
   @override
   Future<void> saveProfile(SessionProfile profile) async {}
 
-@override
+  @override
+  Future<String?> readDepositoPendiente() async => null;
+
+  @override
+  Future<void> saveDepositoPendiente(String id) async {}
+
+  @override
+  Future<void> clearDepositoPendiente() async {}
+
+  @override
   Future<void> clear() async {
     clearCalls++;
     access = null;
@@ -389,6 +398,10 @@ void main() {
       expect(ApiClient.defaultShortTimeout, const Duration(seconds: 20));
       expect(ApiClient.defaultMoneyTimeout, const Duration(seconds: 70));
       expect(ApiClient.isMoneyPath('POST', '/v1/depositos'), isTrue);
+      expect(
+        ApiClient.isMoneyPath('POST', '/v1/transferencias/interbancarias'),
+        isTrue,
+      );
       expect(ApiClient.isMoneyPath('GET', '/v1/depositos'), isFalse);
       expect(ApiClient.isMoneyPath('GET', '/v1/depositos/1'), isFalse);
     });
