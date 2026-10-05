@@ -319,6 +319,66 @@ void main() {
     );
   });
 
+  group('celular', () {
+    Future<void> hastaContrasenaConCelular(
+      WidgetTester tester,
+      String celular,
+    ) async {
+      await _continuar(tester);
+      await _escribir(tester, 0, 'María García');
+      await _escribir(tester, 1, 'maria@correo.com');
+      await _escribir(tester, 2, celular);
+      await _continuar(tester);
+      await _escribir(tester, 0, '12345678');
+      await _escribir(tester, 1, '1990-01-31');
+      await _continuar(tester);
+      await _escribir(tester, 0, 'contrasena-larga');
+      await _escribir(tester, 1, 'contrasena-larga');
+    }
+
+    testWidgets('el campo no admite más de 10 dígitos', (tester) async {
+      await _pump(tester, RegisterScreen(repository: _Servidor().repo));
+      await _continuar(tester);
+      await _escribir(tester, 2, '63105550404');
+
+      final campo = tester.widget<TextFormField>(
+        find.byType(TextFormField).at(2),
+      );
+      expect(campo.controller!.text, '6310555040');
+    });
+
+    testWidgets('con 11 dígitos pegados el cuerpo lleva +57 y 10 dígitos', (
+      tester,
+    ) async {
+      final servidor = _Servidor();
+      await _pump(tester, RegisterScreen(repository: servidor.repo));
+      await hastaContrasenaConCelular(tester, '63105550404');
+      await _marcarAmbas(tester);
+
+      await tester.tap(find.text('Crear cuenta'));
+      await tester.pumpAndSettle();
+
+      final celular = servidor.cuerpoDelRegistro['celular'] as String;
+      expect(celular, matches(RegExp(r'^\+57\d{10}$')));
+      await _cerrar(tester);
+    });
+
+    testWidgets('un celular pegado con el indicativo llega como +57 y 10', (
+      tester,
+    ) async {
+      final servidor = _Servidor();
+      await _pump(tester, RegisterScreen(repository: servidor.repo));
+      await hastaContrasenaConCelular(tester, '+57 310 555 0404');
+      await _marcarAmbas(tester);
+
+      await tester.tap(find.text('Crear cuenta'));
+      await tester.pumpAndSettle();
+
+      expect(servidor.cuerpoDelRegistro['celular'], '+573105550404');
+      await _cerrar(tester);
+    });
+  });
+
   group('botón Atrás del sistema', () {
     Future<bool> atras(WidgetTester tester, {bool animando = false}) async {
       final manejado = await tester.binding.handlePopRoute();

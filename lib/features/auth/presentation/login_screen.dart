@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vera/core/format/celular.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/auth_background.dart';
@@ -71,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   keyboardType: TextInputType.phone,
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _continue(),
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  inputFormatters: const [CelularColombianoFormatter()],
                   autofocus: true,
                   style: const TextStyle(
                     color: AppColors.textPrimary,

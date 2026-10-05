@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vera/core/format/celular.dart';
 import 'package:vera/core/format/nit.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
@@ -1248,7 +1249,7 @@ class _PhoneField extends StatelessWidget {
       controller: controller,
       keyboardType: TextInputType.phone,
       textInputAction: TextInputAction.next,
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      inputFormatters: const [CelularColombianoFormatter()],
       style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
       decoration: const InputDecoration(
         hintText: '300 000 0000',
