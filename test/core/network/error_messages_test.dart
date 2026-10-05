@@ -82,8 +82,8 @@ void main() {
     test('nunca contiene rayas largas, cortas ni punto y coma', () {
       for (final code in catalogo) {
         final msg = mensajeDeError(_api(code));
-        expect(msg, isNot(contains('—')));
-        expect(msg, isNot(contains('–')));
+        expect(msg, isNot(contains('\u2014')));
+        expect(msg, isNot(contains('\u2013')));
         expect(msg, isNot(contains(';')));
       }
     });
@@ -210,5 +210,11 @@ void main() {
       expect(mensajeDeError(sin), isNotEmpty);
       expect(mensajeDeError(sin), isNot(contains('English')));
     });
+  });
+
+  test('una FormatException da el mensaje genérico y no su texto', () {
+    final msg = mensajeDeError(const FormatException('Campo "monto" ausente'));
+    expect(msg, mensajeErrorGenerico);
+    expect(msg, isNot(contains('FormatException')));
   });
 }

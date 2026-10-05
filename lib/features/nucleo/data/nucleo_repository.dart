@@ -229,7 +229,7 @@ enum MotivoLinea {
         MotivoLinea.envio => 'Envío',
         MotivoLinea.gravamen => 'GMF',
         MotivoLinea.devolucion => 'Devolución',
-        MotivoLinea.devolucionGravamen => 'Dev. GMF',
+        MotivoLinea.devolucionGravamen => 'Devolución del GMF',
         MotivoLinea.desconocido => 'Movimiento',
       };
 
@@ -249,45 +249,83 @@ class LineaMovimiento {
   final BigInt montoCentavos;
   final MotivoLinea motivo;
 
-  factory LineaMovimiento.fromJson(Map<String, dynamic> j) => LineaMovimiento(
-        montoCentavos: _parseMonto(j['monto']),
-        motivo: MotivoLinea.fromString(j['motivo'] as String? ?? ''),
-      );
+  factory LineaMovimiento.fromJson(Map<String, dynamic> j) {
+    final motivo = j['motivo'];
+    if (motivo is! String) {
+      throw FormatException('Campo "motivo" ausente', motivo);
+    }
+    return LineaMovimiento(
+      montoCentavos: _parseMonto(j['monto']),
+      // Un motivo nuevo del backend no debe dejar en blanco todo el historial.
+      motivo: MotivoLinea.fromString(motivo),
+    );
+  }
 }
 
 class Movimiento {
   const Movimiento({
     required this.entryId,
     required this.ocurridoEn,
+    required this.registradoEn,
     required this.moneda,
     required this.lineas,
   });
 
   final int entryId;
   final DateTime ocurridoEn;
+  final DateTime registradoEn;
   final String moneda;
   final List<LineaMovimiento> lineas;
 
   /// Línea principal: la primera que no sea gravamen ni devolución de gravamen.
-  LineaMovimiento get lineaPrincipal =>
-      lineas.firstWhere(
-        (l) => l.motivo != MotivoLinea.gravamen && l.motivo != MotivoLinea.devolucionGravamen,
-        orElse: () => lineas.first,
+  /// Sin líneas devuelve una línea neutra en cero con motivo desconocido.
+  LineaMovimiento get lineaPrincipal {
+    if (lineas.isEmpty) {
+      return LineaMovimiento(
+        montoCentavos: BigInt.zero,
+        motivo: MotivoLinea.desconocido,
       );
+    }
+    return lineas.firstWhere(
+      (l) =>
+          l.motivo != MotivoLinea.gravamen &&
+          l.motivo != MotivoLinea.devolucionGravamen,
+      orElse: () => lineas.first,
+    );
+  }
 
-  /// Monto neto del movimiento (suma de todas las líneas).
+  /// Monto neto del movimiento (suma de todas las líneas). Una transferencia
+  /// compensada suma cero: no usarlo para mostrar, ver filasDe.
   BigInt get montoNeto =>
       lineas.fold(BigInt.zero, (acc, l) => acc + l.montoCentavos);
 
-  factory Movimiento.fromJson(Map<String, dynamic> j) => Movimiento(
-        entryId: j['entry_id'] as int? ?? 0,
-        ocurridoEn: _parseFecha(j['ocurrido_en'], 'ocurrido_en'),
-        moneda: j['moneda'] as String? ?? 'COP',
-        lineas: (j['lineas'] as List? ?? [])
-            .cast<Map<String, dynamic>>()
-            .map(LineaMovimiento.fromJson)
-            .toList(),
-      );
+  factory Movimiento.fromJson(Map<String, dynamic> j) {
+    final entryId = j['entry_id'];
+    final moneda = j['moneda'];
+    final lineas = j['lineas'];
+    if (entryId is! int) {
+      throw FormatException('Campo "entry_id" ausente', entryId);
+    }
+    if (moneda is! String) {
+      throw FormatException('Campo "moneda" ausente', moneda);
+    }
+    if (lineas is! List) {
+      throw FormatException('Campo "lineas" ausente', lineas);
+    }
+    return Movimiento(
+      entryId: entryId,
+      ocurridoEn: _parseFecha(j['ocurrido_en'], 'ocurrido_en'),
+      registradoEn: _parseFecha(j['registrado_en'], 'registrado_en'),
+      moneda: moneda,
+      lineas: [
+        for (final l in lineas)
+          if (l is Map<String, dynamic>)
+            LineaMovimiento.fromJson(l)
+          else
+            throw FormatException('Línea de movimiento inválida', l),
+      ],
+    );
+  }
 }
 
 class MovimientosPage {

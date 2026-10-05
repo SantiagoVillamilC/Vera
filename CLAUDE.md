@@ -4,8 +4,8 @@
 
 | Capa | Tecnología |
 |---|---|
-| Framework | Flutter 3.27+ / Dart SDK ^3.12 |
-| Estado | `flutter_riverpod` 2.x + `riverpod_annotation` (code gen) |
+| Framework | Flutter 3.47.2 / Dart SDK ^3.12 |
+| Estado | `setState` en widgets. `flutter_riverpod` 2.x + `riverpod_annotation` solo para el tema |
 | Navegación | `go_router` 14.x con `MaterialApp.router` |
 | Tipografía | `google_fonts` 6.x — Playfair Display (logo) |
 | Tema | Material 3, **dark-only** (`ThemeMode.dark` forzado) |
@@ -60,20 +60,25 @@ lib/
 └── features/
     ├── auth/
     │   └── presentation/
-    │       ├── login_screen.dart          # LoginScreen, PinScreen, OtpLoginScreen
+    │       ├── login_screen.dart          # LoginScreen, PinScreen
+    │       ├── recovery_screen.dart       # Recuperación de cuenta
+    │       ├── backup_codes_screen.dart   # Códigos de respaldo reales
     │       └── register_screen.dart       # RegisterScreen + OtpRegisterScreen
     └── home/
         └── presentation/
-            └── home_screen.dart           # placeholder post-login
+            ├── home_screen.dart           # saldo y movimientos reales
+            ├── enviar_screen.dart         # envío de dinero
+            ├── estadisticas_screen.dart   # Próximamente
+            └── tarjetas_tab.dart          # Próximamente
 ```
 
 ### Convención para nuevas features
 
 1. Crear carpeta `lib/features/<nombre>/`
 2. Subdividir en `data/`, `domain/`, `presentation/` según complejidad
-3. Providers Riverpod van en `presentation/` (UI) o `data/` (repositorio)
+3. El estado local va con `setState`. Riverpod solo si hace falta un provider global
 4. Agregar ruta en `lib/app/router.dart`
-5. Correr `dart run build_runner build` tras crear providers con `@riverpod`
+5. Correr `dart run build_runner build` solo si se crean providers con `@riverpod`
 
 ## Sistema de diseño
 
@@ -117,9 +122,9 @@ AppGradients.card          // gradiente oscuro para cards
 | `VeraAnimatedLogo` | Logo completo con 3 tarjetas en acordeón + texto Playfair Display |
 | `VeraCardIcon` | Icono compacto animado para sub-pantallas |
 
-## Providers Riverpod
+## Providers Riverpod (solo el tema)
 
-Usar siempre code generation con `@riverpod`:
+Riverpod solo se usa para el tema. Si se agrega un provider, usar code generation con `@riverpod`:
 
 ```dart
 // lib/features/home/presentation/counter_provider.dart
@@ -142,20 +147,26 @@ Entry point: `/login` (sin landing page). Rutas actuales:
 
 | Ruta | Widget | Extra |
 |---|---|---|
-| `/login` | `LoginScreen` | — |
+| `/login` | `LoginScreen` | - |
 | `/login/pin` | `PinScreen` | `String phone` |
-| `/login/otp` | `OtpLoginScreen` | `Map {phone, challengeId}` |
-| `/register` | `RegisterScreen` | — |
-| `/home` | `HomeScreen` | — |
+| `/login/recovery` | `RecoveryScreen` | - |
+| `/login/recovery/otp` | `RecoveryOtpScreen` | `Map {correo, challengeId}` |
+| `/login/recovery/new-pin` | `NewPinScreen` | `String` (reset_token) |
+| `/register` | `RegisterScreen` | - |
+| `/register/backup-codes` | `BackupCodesScreen` | `List<String>` (códigos reales) |
+| `/home` | `HomeScreen` | - |
+| `/enviar` | `EnviarScreen` | - |
+| `/estadisticas` | `EstadisticasScreen` | - |
 
 Navegar con `context.go('/ruta')` (reemplaza) o `context.push('/ruta')` (apila).
 
 ## Flujo de autenticación
 
-### Login
-1. `LoginScreen` — celular (+57, 10 dígitos)
-2. `PinScreen` — PIN de 6 dígitos con `NumPad`
-3. `OtpLoginScreen` — código OTP de 6 dígitos vía WhatsApp
+### Login (sin OTP intermedio)
+1. `LoginScreen`: celular (+57, 10 dígitos)
+2. `PinScreen`: hoy un PIN de 6 dígitos con `NumPad`. El contrato (`openapi.yaml`, `LoginRequest.contrasena`) exige una contraseña de 8 a 64 caracteres, así que el cambio de pantalla está pendiente (lote de auth).
+
+Cerrar sesión está pendiente: el botón de Perfil aún no hace nada (`AuthRepository.logout()` existe pero no está conectado).
 
 ### Registro
 1. Selector de tipo: `_AccountType.persona` | `_AccountType.empresa`
@@ -164,16 +175,9 @@ Navegar con `context.go('/ruta')` (reemplaza) o `context.push('/ruta')` (apila).
 4. Contraseña (8–64 caracteres, barra de fortaleza)
 5. `_OtpRegisterScreen` — verificación de celular
 
-### Endpoints mapeados (TODO conectar backend)
+### Endpoints conectados
 
-| Endpoint | Pantalla |
-|---|---|
-| `POST /auth/login` | `PinScreen._submit()` |
-| `POST /auth/login/verify-otp` | `OtpLoginScreen._verify()` |
-| `POST /auth/register` | `RegisterScreen._next()` (paso 3→4) |
-| `POST /auth/register/verify-phone` | `_OtpRegisterScreen._verify()` |
-
-> Las llamadas están marcadas con `// TODO` en cada pantalla. Usar `flutter_secure_storage` para tokens (nunca `SharedPreferences` en texto plano).
+Ver `docs/conexion-backend-auth.md` y `docs/conexion-backend-nucleo.md`. Los tokens se guardan con `flutter_secure_storage` (nunca `SharedPreferences` en texto plano).
 
 ## Tema
 
@@ -189,8 +193,8 @@ El `theme_provider.dart` existe para futura funcionalidad pero actualmente no se
 
 ## Reglas de código
 
-- Sin `setState` — usar Riverpod
-- Widgets sin estado → `ConsumerWidget`; con estado local → `ConsumerStatefulWidget`
+- Se usa `setState` en widgets con estado local. Riverpod solo para el tema
+- Los repositorios se inyectan por constructor y sus constructores sin argumentos deben seguir funcionando
 - Sin comentarios salvo que el *por qué* no sea obvio
 - Archivos `.g.dart` son generados — nunca editar manualmente
 - Sin manejo de errores para casos que no pueden ocurrir

@@ -5,6 +5,24 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Unreleased] limpieza de código muerto, mocks y documentación
+
+### Removed
+- `OtpLoginScreen` y la ruta `/login/otp`: el login no tiene OTP intermedio.
+- Códigos de respaldo de ejemplo en `BackupCodesScreen`.
+- Cifras, movimientos, tarjeta y nombres inventados en `EstadisticasScreen`, `TarjetasTab` y `PerfilTab`.
+
+### Changed
+- `BackupCodesScreen` sin códigos reales muestra un error en español con un botón que va a `/login`.
+- `EstadisticasScreen` y `TarjetasTab` muestran "Próximamente". `PerfilTab` muestra "Mi cuenta" sin datos de ejemplo.
+- Documentación (`README.md`, `CLAUDE.md`, `AGENTS.md`, `docs/`) alineada con el código: rutas actuales, Flutter 3.47.2, `setState` con Riverpod solo para el tema, `idempotency_key` implementada y tabla de errores del núcleo reconstruida desde el contrato.
+
+### Pendiente (lote de auth)
+- `PinScreen` aún pide un PIN de 6 dígitos y el contrato exige una contraseña de 8 a 64 caracteres.
+- El botón "Cerrar sesión" de Perfil aún no hace nada.
+
+---
+
 ## [Unreleased] — feat/auth-ui
 
 ### Added
