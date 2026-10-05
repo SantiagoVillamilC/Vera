@@ -58,7 +58,7 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> {
             ),
             const SizedBox(height: 10),
             const Text(
-              'Guarda estos códigos en un lugar seguro. Cada uno solo puede usarse una vez para recuperar tu cuenta si pierdes acceso a tu PIN.',
+              'Guarda estos códigos en un lugar seguro. Cada uno solo puede usarse una vez para recuperar tu cuenta si pierdes acceso a tu contraseña.',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.55),
             ),
             const SizedBox(height: 28),
@@ -80,8 +80,8 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> {
             ),
             const SizedBox(height: 24),
             GradientButton(
-              label: 'Ir a mi cuenta',
-              onPressed: _confirmed ? () => context.go('/home') : null,
+              label: 'Ir a iniciar sesión',
+              onPressed: _confirmed ? () => context.go('/login') : null,
             ),
             const SizedBox(height: 40),
           ],

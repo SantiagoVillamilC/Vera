@@ -2,21 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/network/error_messages.dart';
+import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
+import 'package:vera/features/auth/data/auth_repository.dart';
 import 'package:vera/features/home/presentation/movimiento_vista.dart';
 import 'package:vera/features/home/presentation/movimientos_tab.dart';
 import 'package:vera/features/home/presentation/tarjetas_tab.dart';
 import 'package:vera/features/home/presentation/perfil_tab.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
-// TODO: leer desde AuthRepository.getNombreCompleto() (flutter_secure_storage)
-const _mockNombre = 'Elisa';
+/// Saludo cuando no hay nombre guardado.
+const saludoGenerico = 'Hola';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, this.repository, this.offsetLocal});
+  const HomeScreen({
+    super.key,
+    this.repository,
+    this.offsetLocal,
+    this.session,
+    this.authRepository,
+  });
+
+  /// Por defecto la sesión real.
+  final SessionStore? session;
+
+  /// Por defecto el repositorio de autenticación real (cierre de sesión).
+  final AuthRepository? authRepository;
 
   /// Por defecto el repositorio real.
   final NucleoRepository? repository;
@@ -36,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
       widget.repository ?? NucleoRepository();
   BigInt? _saldoCentavos;
   bool _errorSaldo = false;
+  String? _nombre;
   late Future<MovimientosPage> _movimientos;
 
   @override
@@ -43,6 +58,17 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _movimientos = _nucleo.getMovimientos(limit: 3);
     _cargarSaldo();
+    _cargarNombre();
+  }
+
+  Future<void> _cargarNombre() async {
+    try {
+      final perfil =
+          await (widget.session ?? defaultSessionStore).readProfile();
+      if (mounted) setState(() => _nombre = nombreDePerfil(perfil));
+    } catch (_) {
+      // Sin perfil legible se queda el saludo genérico.
+    }
   }
 
   Future<void> _cargarSaldo() async {
@@ -91,8 +117,12 @@ class _HomeScreenState extends State<HomeScreen> {
             offsetLocal: widget.offsetLocal,
           ),
         3 => const TarjetasTab(),
-        4 => const PerfilTab(),
+        4 => PerfilTab(
+            session: widget.session ?? defaultSessionStore,
+            authRepository: widget.authRepository,
+          ),
         _ => _InicioTab(
+            nombre: _nombre,
             saldoVisible: _saldoVisible,
             saldoCentavos: _saldoCentavos,
             errorSaldo: _errorSaldo,
@@ -233,6 +263,7 @@ class _BottomNav extends StatelessWidget {
 
 class _InicioTab extends StatelessWidget {
   const _InicioTab({
+    required this.nombre,
     required this.saldoVisible,
     required this.onToggleSaldo,
     required this.saldoCentavos,
@@ -244,6 +275,7 @@ class _InicioTab extends StatelessWidget {
     required this.onReintentarMovimientos,
   });
 
+  final String? nombre;
   final bool saldoVisible;
   final VoidCallback onToggleSaldo;
   final BigInt? saldoCentavos;
@@ -259,6 +291,7 @@ class _InicioTab extends StatelessWidget {
     return Column(
       children: [
         _Header(
+          nombre: nombre,
           saldoVisible: saldoVisible,
           onToggleSaldo: onToggleSaldo,
           saldoCentavos: saldoCentavos,
@@ -299,12 +332,14 @@ class _InicioTab extends StatelessWidget {
 
 class _Header extends StatelessWidget {
   const _Header({
+    required this.nombre,
     required this.saldoVisible,
     required this.onToggleSaldo,
     required this.saldoCentavos,
     required this.errorSaldo,
   });
 
+  final String? nombre;
   final bool saldoVisible;
   final VoidCallback onToggleSaldo;
   final BigInt? saldoCentavos;
@@ -359,16 +394,15 @@ class _Header extends StatelessWidget {
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
+                children: [
+                  const Text(
                     'En tu cuenta',
                     style: TextStyle(color: Colors.white70, fontSize: 13),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
-                    // TODO: reemplazar con AuthRepository.getNombreCompleto()
-                    _mockNombre,
-                    style: TextStyle(
+                    nombre ?? saludoGenerico,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

@@ -22,7 +22,15 @@ class _FakeSession implements SessionStore {
     required String refresh,
   }) async {}
 
+  
+
   @override
+  Future<SessionProfile> readProfile() async => const SessionProfile();
+
+  @override
+  Future<void> saveProfile(SessionProfile profile) async {}
+
+@override
   Future<void> clear() async {}
 }
 

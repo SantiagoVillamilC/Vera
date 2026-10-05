@@ -178,17 +178,17 @@ lib/
 | Ruta | Pantalla | Descripción |
 |---|---|---|
 | `/login` | `LoginScreen` | Ingreso de número de celular |
-| `/login/pin` | `PinScreen` | PIN de 6 dígitos |
+| `/login/pin` | `PinScreen` | Contraseña de 8 a 64 caracteres (campo oculto) |
 | `/login/recovery` | `RecoveryScreen` | Recuperación de cuenta (correo) |
 | `/login/recovery/otp` | `RecoveryOtpScreen` | Código OTP y código de respaldo |
-| `/login/recovery/new-pin` | `NewPinScreen` | Nueva contraseña con `reset_token` |
+| `/login/recovery/new-pin` | `NewPinScreen` | Nueva contraseña de 8 a 64 caracteres con `reset_token` |
 | `/register` | `RegisterScreen` | Registro multi-paso |
 | `/register/backup-codes` | `BackupCodesScreen` | Códigos de respaldo reales (`extra`: `List<String>`) |
 | `/home` | `HomeScreen` | Inicio (post-autenticación) |
 | `/enviar` | `EnviarScreen` | Envío de dinero |
 | `/estadisticas` | `EstadisticasScreen` | Próximamente |
 
-El login no tiene OTP intermedio: celular y luego `PinScreen`. Hoy `PinScreen` pide un PIN de 6 dígitos en pantalla, pero el contrato (`openapi.yaml`, `LoginRequest.contrasena`) exige una contraseña de 8 a 64 caracteres. Ese cambio de pantalla está pendiente y es del lote de auth.
+El login no tiene OTP intermedio: celular y luego `PinScreen`. `PinScreen` y `NewPinScreen` conservan el nombre y la ruta, pero piden una contraseña de 8 a 64 caracteres en un campo oculto (`LoginRequest.contrasena`). El registro pide aceptar `tratamiento_datos` y `whatsapp_optin` (ambos `v1`) y deshabilita el botón hasta marcar las dos casillas. Tras los códigos de respaldo se va a `/login`. El rango de 8 a 64 es un supuesto del lote 0 (`openapi.yaml:1091-1097`), por confirmar con Santiago y Valeria.
 
 ---
 
@@ -229,7 +229,7 @@ Los siguientes valores deben configurarse antes de conectar el backend:
 | Tokens JWT | Se guardan con `flutter_secure_storage` (implementado en `AuthRepository`) |
 | Biometría | Integrar `local_auth` para desbloqueo con huella |
 
-> Cerrar sesión está pendiente: el botón de Perfil aún no hace nada (la lógica existe en `AuthRepository.logout()`, falta conectarla en el lote de auth). Estadísticas y Tarjetas muestran "Próximamente" porque no tienen contrato en el backend.
+> Cerrar sesión está conectado: el botón de Perfil llama a `AuthRepository.logout()` (Bearer y refresh token), borra tokens y perfil, y vuelve a `/login`. El saludo del Home usa el nombre guardado. Pendientes: contexto de empresa en login (N-17), textos legales de consentimiento (decisión 2), salida del lado del servidor (N-6, S8) y biometría (SCRUM-81). Estadísticas y Tarjetas muestran "Próximamente" porque no tienen contrato en el backend.
 
 ---
 

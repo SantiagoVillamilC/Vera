@@ -103,7 +103,7 @@ El token se lee de `flutter_secure_storage` con la llave `'access_token'`
 - Carga `NucleoRepository.getSaldo()` en `initState`; estados: spinner → monto real → error
 - Preview de últimos 3 movimientos vía `FutureBuilder<MovimientosPage>` (limit: 3)
 - Saldo mock eliminado
-- El saludo con el nombre sigue siendo un valor de ejemplo, pendiente del lote de auth
+- El saludo usa el nombre guardado con la sesión (nombre completo o razón social). Sin nombre guardado muestra "Hola"
 
 ### `MovimientosTab` ✅ Real
 - StatefulWidget; carga `getMovimientos(limit: 50)` en `initState`

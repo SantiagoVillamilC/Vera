@@ -141,16 +141,21 @@ context.push('/path', extra: x); // push with extra data
 
 ### Login (2 screens, no intermediate OTP)
 1. `LoginScreen`: phone number (+57, 10 digits)
-2. `PinScreen`: today a 6-digit PIN via `NumPad`. The contract (`openapi.yaml`, `LoginRequest.contrasena`) requires a password of 8 to 64 characters, so this screen change is pending and belongs to the auth batch.
+2. `PinScreen`: a hidden password field, 8 to 64 characters (`LoginRequest.contrasena`). The name and the `/login/pin` route are kept. `NewPinScreen` (`/login/recovery/new-pin`) uses the same rule. `NumPad` and `PinDots` still exist for the OTP screens.
 
-Logout is pending: the Perfil button does nothing yet (`AuthRepository.logout()` exists but is not wired).
+Logout: the Perfil button calls `AuthRepository.logout()` (Bearer and refresh token), clears tokens and profile, and goes to `/login`. The Home greeting uses the stored name.
+
+Screens take the repository through an optional constructor parameter (real one by default) so widget tests can inject fakes.
+
+Pending: N-17 (company context at login), legal consent texts (decision 2), server-side sign-out for N-6 (S8), biometrics (SCRUM-81), and the batch 0 assumption of an 8 to 64 character password (`openapi.yaml:1091-1097`), to be confirmed by Santiago and Valeria.
 
 ### Register (4 steps + OTP)
 1. Account type: `persona` (natural person) | `empresa` (company)
 2. Contact info — persona: name, email, phone | empresa: razón social, NIT, email, phone
 3. Identity — persona: document type+number | empresa: legal representative info
-4. Password (8–64 chars, real-time strength bar)
-5. Phone OTP verification
+4. Password (8 to 64 chars, real-time strength bar) and consent checkboxes `tratamiento_datos` and `whatsapp_optin` (both `v1`), button disabled until both are checked
+5. Phone OTP verification, resend via `POST /v1/auth/otp/resend` with the current `challenge_id` (the counter restarts only on 200)
+6. `BackupCodesScreen`, then `/login`
 
 ### Backend endpoints
 

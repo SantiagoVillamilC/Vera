@@ -33,19 +33,14 @@ class AuthRepository {
   Future<String?> getAccessToken() => _session.readAccess();
   Future<String?> getRefreshToken() => _session.readRefresh();
 
-  // El SessionStore abstracto solo expone tokens, el perfil vive en la
-  // implementacion segura.
-  Future<String?> getNombreCompleto() async {
-    final s = _session;
-    return s is FlutterSecureStorageSessionStore
-        ? s.readNombreCompleto()
-        : null;
-  }
+  Future<SessionProfile> getProfile() => _session.readProfile();
 
-  Future<String?> getTipoCuenta() async {
-    final s = _session;
-    return s is FlutterSecureStorageSessionStore ? s.readTipoCuenta() : null;
-  }
+  /// Nombre de la persona o, si no hay, la razón social.
+  Future<String?> getNombreAMostrar() async =>
+      (await _session.readProfile()).nombreAMostrar;
+
+  Future<String?> getTipoCuenta() async =>
+      (await _session.readProfile()).tipoCuenta;
 
   Future<void> clearTokens() => _session.clear();
 
@@ -67,12 +62,46 @@ class AuthRepository {
       'contrasena': contrasena,
     });
     final result = LoginResult.fromJson(data);
+    // Orden estricto: el router construye el Home al autenticar, así que
+    // el perfil ya debe estar guardado para entonces.
     await saveTokens(access: result.accessToken, refresh: result.refreshToken);
+    await _session.saveProfile(SessionProfile(
+      nombreCompleto: result.nombreCompleto,
+      razonSocial: result.razonSocial,
+      tipoCuenta: result.tipoCuenta,
+    ));
     _sessionNotifier?.setAuthenticated(true);
     return result;
   }
 
   // ── Register ──────────────────────────────────────────────────
+  /// El backend exige tratamiento_datos y whatsapp_optin aceptados, ambos con
+  /// version_texto v1 (ConsentRequired en caso contrario).
+  static const versionConsentimientos = 'v1';
+
+  static List<ConsentimientoInput> _consentimientosRequeridos({
+    required bool aceptaTratamientoDatos,
+    required bool aceptaWhatsappOptin,
+  }) {
+    if (!aceptaTratamientoDatos || !aceptaWhatsappOptin) {
+      throw ArgumentError(
+        'El registro exige aceptar tratamiento_datos y whatsapp_optin.',
+      );
+    }
+    return const [
+      ConsentimientoInput(
+        tipo: 'tratamiento_datos',
+        versionTexto: versionConsentimientos,
+        aceptado: true,
+      ),
+      ConsentimientoInput(
+        tipo: 'whatsapp_optin',
+        versionTexto: versionConsentimientos,
+        aceptado: true,
+      ),
+    ];
+  }
+
   Future<RegisterResult> registerPersona({
     required String correo,
     required String contrasena,
@@ -80,8 +109,13 @@ class AuthRepository {
     required String nombreCompleto,
     required String tipoDocumento,
     required String numeroDocumento,
-    required List<ConsentimientoInput> consentimientos,
+    required bool aceptaTratamientoDatos,
+    required bool aceptaWhatsappOptin,
   }) async {
+    final consentimientos = _consentimientosRequeridos(
+      aceptaTratamientoDatos: aceptaTratamientoDatos,
+      aceptaWhatsappOptin: aceptaWhatsappOptin,
+    );
     final data = await _client.post('/v1/auth/register', {
       'tipo_cuenta': 'persona',
       'correo': correo,
@@ -104,8 +138,13 @@ class AuthRepository {
     required String repNombre,
     required String repTipoDoc,
     required String repNumDoc,
-    required List<ConsentimientoInput> consentimientos,
+    required bool aceptaTratamientoDatos,
+    required bool aceptaWhatsappOptin,
   }) async {
+    final consentimientos = _consentimientosRequeridos(
+      aceptaTratamientoDatos: aceptaTratamientoDatos,
+      aceptaWhatsappOptin: aceptaWhatsappOptin,
+    );
     final data = await _client.post('/v1/auth/register', {
       'tipo_cuenta': 'empresa',
       'razon_social': razonSocial,
@@ -134,7 +173,11 @@ class AuthRepository {
     return VerifyPhoneResult.fromJson(data);
   }
 
-  Future<void> resendOtp({required String challengeId}) =>
+  /// Reenvía el código sobre el mismo desafío: el challenge_id no cambia.
+  /// El contrato (openapi.yaml, ResendOtpRequest) solo acepta challenge_id y el
+  /// backend rechaza campos desconocidos, por eso `proposito` no se envía: es
+  /// solo contexto del llamador (el servidor lo devuelve en la respuesta).
+  Future<void> resendOtp({required String challengeId, String? proposito}) =>
       _client.post('/v1/auth/otp/resend', {'challenge_id': challengeId});
 
   // ── Session ───────────────────────────────────────────────────

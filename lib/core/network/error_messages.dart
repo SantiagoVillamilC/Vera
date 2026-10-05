@@ -51,7 +51,7 @@ const _porCodigo = <String, String>{
   'OtpTooManyAttempts':
       'Superaste el límite de intentos del código. Solicita uno nuevo.',
   'OtpResendCooldown':
-      'Debes esperar un momento antes de pedir otro código.',
+      'Espera cerca de un minuto antes de pedir otro código.',
   'RefreshInvalid': 'Tu sesión venció. Inicia sesión de nuevo.',
   'RefreshReused':
       'Detectamos un uso inusual de tu sesión. Inicia sesión de nuevo por seguridad.',
@@ -74,7 +74,7 @@ const _porCodigo = <String, String>{
   'PhoneChangeCooldown':
       'Cambiaste tu celular hace poco. Espera antes de hacerlo otra vez.',
   'TooManyRequests':
-      'Hiciste demasiadas solicitudes. Espera un momento e intenta de nuevo.',
+      'Hiciste demasiadas solicitudes. Intenta de nuevo más tarde.',
   'NotImplemented': 'Esta función aún no está disponible.',
   'PayloadTooLarge': 'Los datos enviados son demasiado grandes.',
   'RecipientNotFound': 'No encontramos al destinatario. Revisa los datos.',
@@ -115,6 +115,11 @@ const _etiquetas = <String, ({String nombre, bool masculino})>{
   'correo': (nombre: 'correo', masculino: true),
   'nit': (nombre: 'NIT', masculino: true),
   'razon_social': (nombre: 'razón social', masculino: false),
+  'nombre_completo': (nombre: 'nombre completo', masculino: true),
+  'representante_legal.nombre_completo': (
+    nombre: 'nombre del representante legal',
+    masculino: true,
+  ),
   'codigo': (nombre: 'código', masculino: true),
   'monto': (nombre: 'monto', masculino: true),
   'llave': (nombre: 'llave', masculino: false),
@@ -147,6 +152,8 @@ String _mensajeDeCampo(String campo, String regla, String? param) {
       return 'El correo no es válido';
     case 'nit':
       return 'El NIT no es válido';
+    case 'nombre':
+      return '$articulo $nombre no es válido, usa solo letras sin números ni símbolos';
     case 'number':
       return '$articulo $nombre debe contener solo números';
     case 'gt':

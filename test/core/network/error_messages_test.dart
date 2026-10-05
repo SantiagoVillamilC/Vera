@@ -142,6 +142,32 @@ void main() {
       expect(detallesDeCampo(e), ['El número de celular no es válido']);
     });
 
+    test('nombre con dígitos (regla nombre)', () {
+      final e = _api('ValidationError', details: [
+        {'field': 'nombre_completo', 'rule': 'nombre'},
+      ]);
+      expect(detallesDeCampo(e), [
+        'El nombre completo no es válido, usa solo letras sin números ni símbolos',
+      ]);
+    });
+
+    test('nombre del representante legal (regla nombre)', () {
+      final e = _api('ValidationError', details: [
+        {'field': 'representante_legal.nombre_completo', 'rule': 'nombre'},
+      ]);
+      expect(detallesDeCampo(e), [
+        'El nombre del representante legal no es válido, usa solo letras sin números ni símbolos',
+      ]);
+    });
+
+    test('nombre completo max 200', () {
+      final e = _api('ValidationError', details: [
+        {'field': 'nombre_completo', 'rule': 'max', 'param': '200'},
+      ]);
+      expect(detallesDeCampo(e),
+          ['El nombre completo debe tener como máximo 200 caracteres']);
+    });
+
     test('correo email', () {
       final e = _api('ValidationError', details: [
         {'field': 'correo', 'rule': 'email'},

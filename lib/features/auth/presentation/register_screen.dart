@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vera/core/format/nit.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
@@ -12,8 +13,15 @@ import 'package:vera/features/auth/data/auth_repository.dart';
 
 enum _AccountType { persona, empresa }
 
+// Límites del contrato (openapi.yaml): contraseña de 8 a 64, nombres hasta 200.
+const _minContrasena = 8;
+const _maxContrasena = 64;
+const _maxNombre = 200;
+
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen({super.key, this.repository});
+
+  final AuthRepository? repository;
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -35,7 +43,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _tipoDoc = 'CC';
   final _numDocCtrl = TextEditingController();
   final _nacidaEnCtrl = TextEditingController();
-  final String _termsVersion = 'v1.0';
 
   // Empresa
   final _razonSocialCtrl = TextEditingController();
@@ -47,9 +54,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscurePass = true;
   bool _obscureConfirm = true;
   bool _loading = false;
+  // Los consentimientos nunca arrancan marcados: el usuario los acepta a mano.
+  bool _aceptaTratamientoDatos = false;
+  bool _aceptaWhatsappOptin = false;
   String _challengeId = '';
   String _celularParaOtp = '';
-  final _repo = AuthRepository();
+  late final AuthRepository _repo = widget.repository ?? AuthRepository();
 
   @override
   void dispose() {
@@ -63,6 +73,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  bool get _consentimientosCompletos =>
+      _aceptaTratamientoDatos && _aceptaWhatsappOptin;
+
   Future<void> _next() async {
     if (_step == 0) {
       setState(() => _step = 1);
@@ -74,15 +87,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
     // Step 3 → POST /v1/auth/register
+    if (!_consentimientosCompletos) return;
     setState(() => _loading = true);
     try {
-      final consentimientos = [
-        ConsentimientoInput(
-          tipo: 'tratamiento_datos',
-          versionTexto: _termsVersion,
-          aceptado: true,
-        ),
-      ];
       final RegisterResult result;
       if (_accountType == _AccountType.persona) {
         result = await _repo.registerPersona(
@@ -92,7 +99,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           nombreCompleto: _nombreCtrl.text.trim(),
           tipoDocumento: _tipoDoc,
           numeroDocumento: _numDocCtrl.text.trim(),
-          consentimientos: consentimientos,
+          aceptaTratamientoDatos: _aceptaTratamientoDatos,
+          aceptaWhatsappOptin: _aceptaWhatsappOptin,
         );
       } else {
         result = await _repo.registerEmpresa(
@@ -104,7 +112,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           repNombre: _repNombreCtrl.text.trim(),
           repTipoDoc: _repTipoDoc,
           repNumDoc: _repNumDocCtrl.text.trim(),
-          consentimientos: consentimientos,
+          aceptaTratamientoDatos: _aceptaTratamientoDatos,
+          aceptaWhatsappOptin: _aceptaWhatsappOptin,
         );
       }
       setState(() {
@@ -137,10 +146,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     if (_step == 4) {
-      return _OtpRegisterScreen(
+      return OtpRegisterScreen(
         correo: _correoCtrl.text,
         celular: _celularParaOtp,
         challengeId: _challengeId,
+        repository: _repo,
       );
     }
 
@@ -162,12 +172,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
             ),
           ),
+          if (_step == 3 && !_consentimientosCompletos)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(28, 12, 28, 0),
+              child: Text(
+                'Marca las dos casillas para crear la cuenta.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(28, 16, 28, 36),
             child: GradientButton(
               label: _step < 3 ? 'Continuar' : 'Crear cuenta',
               loading: _loading,
-              onPressed: _loading ? null : _next,
+              onPressed: _loading || (_step == 3 && !_consentimientosCompletos)
+                  ? null
+                  : _next,
             ),
           ),
         ],
@@ -212,7 +233,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           obscureConfirm: _obscureConfirm,
           onTogglePass: () => setState(() => _obscurePass = !_obscurePass),
           onToggleConfirm: () => setState(() => _obscureConfirm = !_obscureConfirm),
-          termsVersion: _termsVersion,
+          aceptaTratamientoDatos: _aceptaTratamientoDatos,
+          aceptaWhatsappOptin: _aceptaWhatsappOptin,
+          onTratamientoDatosChanged: (v) =>
+              setState(() => _aceptaTratamientoDatos = v ?? false),
+          onWhatsappOptinChanged: (v) =>
+              setState(() => _aceptaWhatsappOptin = v ?? false),
         );
       default:
         return const SizedBox.shrink();
@@ -292,7 +318,7 @@ class _TopBar extends StatelessWidget {
       case 2:
         return 'Verificamos quién eres';
       case 3:
-        return 'Mínimo 8 caracteres';
+        return 'Entre 8 y 64 caracteres';
       default:
         return '';
     }
@@ -491,9 +517,11 @@ class _PersonaStep extends StatelessWidget {
           hint: 'Ej. María García López',
           icon: Icons.person_outline_rounded,
           capitalization: TextCapitalization.words,
+          maxLength: _maxNombre,
           validator: (v) {
             if (v == null || v.trim().isEmpty) return 'Ingresa tu nombre';
             if (v.trim().split(' ').length < 2) return 'Escribe nombre y apellido';
+            if (v.trim().length > _maxNombre) return 'Máximo $_maxNombre caracteres';
             return null;
           },
         ),
@@ -551,16 +579,27 @@ class _EmpresaStep extends StatelessWidget {
           hint: 'Ej. Mi Empresa S.A.S.',
           icon: Icons.business_outlined,
           capitalization: TextCapitalization.words,
-          validator: (v) => v == null || v.isEmpty ? 'Ingresa la razón social' : null,
+          maxLength: _maxNombre,
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Ingresa la razón social';
+            if (v.trim().length > _maxNombre) return 'Máximo $_maxNombre caracteres';
+            return null;
+          },
         ),
         const SizedBox(height: 20),
         _Label('NIT (con dígito de verificación)'),
         const SizedBox(height: 8),
         _Field(
           controller: nitCtrl,
-          hint: 'Ej. 900123456-7',
+          hint: 'Ej. 900123456-8',
           icon: Icons.numbers_rounded,
-          validator: (v) => v == null || v.isEmpty ? 'Ingresa el NIT' : null,
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Ingresa el NIT';
+            if (!esNitValido(v)) {
+              return 'El NIT no es válido. Revisa el dígito de verificación.';
+            }
+            return null;
+          },
         ),
         const SizedBox(height: 20),
         _Label('Correo electrónico'),
@@ -688,9 +727,11 @@ class _EmpresaRepStep extends StatelessWidget {
           hint: 'Nombre completo',
           icon: Icons.person_outline_rounded,
           capitalization: TextCapitalization.words,
+          maxLength: _maxNombre,
           validator: (v) {
             if (v == null || v.trim().isEmpty) return 'Ingresa el nombre';
             if (v.trim().split(' ').length < 2) return 'Nombre y apellido';
+            if (v.trim().length > _maxNombre) return 'Máximo $_maxNombre caracteres';
             return null;
           },
         ),
@@ -726,7 +767,10 @@ class _PasswordStep extends StatelessWidget {
     required this.obscureConfirm,
     required this.onTogglePass,
     required this.onToggleConfirm,
-    required this.termsVersion,
+    required this.aceptaTratamientoDatos,
+    required this.aceptaWhatsappOptin,
+    required this.onTratamientoDatosChanged,
+    required this.onWhatsappOptinChanged,
   });
 
   final TextEditingController contrasenaCtrl;
@@ -735,7 +779,10 @@ class _PasswordStep extends StatelessWidget {
   final bool obscureConfirm;
   final VoidCallback onTogglePass;
   final VoidCallback onToggleConfirm;
-  final String termsVersion;
+  final bool aceptaTratamientoDatos;
+  final bool aceptaWhatsappOptin;
+  final ValueChanged<bool?> onTratamientoDatosChanged;
+  final ValueChanged<bool?> onWhatsappOptinChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -748,9 +795,11 @@ class _PasswordStep extends StatelessWidget {
           controller: contrasenaCtrl,
           obscureText: obscurePass,
           textInputAction: TextInputAction.next,
+          maxLength: _maxContrasena,
           style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
           decoration: InputDecoration(
-            hintText: 'Mínimo 8 caracteres',
+            counterText: '',
+            hintText: 'Entre 8 y 64 caracteres',
             prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
             suffixIcon: IconButton(
               onPressed: onTogglePass,
@@ -762,7 +811,8 @@ class _PasswordStep extends StatelessWidget {
           ),
           validator: (v) {
             if (v == null || v.isEmpty) return 'Ingresa una contraseña';
-            if (v.length < 8) return 'Mínimo 8 caracteres';
+            if (v.length < _minContrasena) return 'Mínimo $_minContrasena caracteres';
+            if (v.length > _maxContrasena) return 'Máximo $_maxContrasena caracteres';
             return null;
           },
         ),
@@ -775,8 +825,10 @@ class _PasswordStep extends StatelessWidget {
           controller: confirmarCtrl,
           obscureText: obscureConfirm,
           textInputAction: TextInputAction.done,
+          maxLength: _maxContrasena,
           style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
           decoration: InputDecoration(
+            counterText: '',
             hintText: 'Repite tu contraseña',
             prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
             suffixIcon: IconButton(
@@ -794,25 +846,18 @@ class _PasswordStep extends StatelessWidget {
           },
         ),
         const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceVariant,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.info_outline_rounded, color: AppColors.textMuted, size: 18),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Al crear tu cuenta aceptas los Términos y Condiciones ($termsVersion) de Vera.',
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
-                ),
-              ),
-            ],
-          ),
+        // Etiquetas cortas y neutras: los textos legales siguen pendientes.
+        _ConsentTile(
+          key: const Key('consentimiento_tratamiento_datos'),
+          value: aceptaTratamientoDatos,
+          onChanged: onTratamientoDatosChanged,
+          label: 'Autorizo el tratamiento de mis datos personales',
+        ),
+        _ConsentTile(
+          key: const Key('consentimiento_whatsapp_optin'),
+          value: aceptaWhatsappOptin,
+          onChanged: onWhatsappOptinChanged,
+          label: 'Acepto recibir mensajes por WhatsApp',
         ),
         const SizedBox(height: 24),
       ],
@@ -823,26 +868,33 @@ class _PasswordStep extends StatelessWidget {
 // ──────────────────────────────────────────────
 // OTP verification after register
 // ──────────────────────────────────────────────
-class _OtpRegisterScreen extends StatefulWidget {
-  const _OtpRegisterScreen({
+/// Pública para poder montarla en pruebas de widget sin recorrer el registro.
+class OtpRegisterScreen extends StatefulWidget {
+  const OtpRegisterScreen({
+    super.key,
     required this.correo,
     required this.celular,
     required this.challengeId,
+    required this.repository,
   });
   final String correo;
   final String celular;
   final String challengeId;
+  final AuthRepository repository;
 
   @override
-  State<_OtpRegisterScreen> createState() => _OtpRegisterScreenState();
+  State<OtpRegisterScreen> createState() => _OtpRegisterScreenState();
 }
 
-class _OtpRegisterScreenState extends State<_OtpRegisterScreen> {
+class _OtpRegisterScreenState extends State<OtpRegisterScreen> {
   static const _otpLength = 6;
   String _otp = '';
   bool _loading = false;
+  bool _resending = false;
+  // N-6: sin reenvíos ni desafío vigente no hay forma de verificar desde aquí.
+  bool _sinSalida = false;
   int _resendSeconds = 60;
-  final _repo = AuthRepository();
+  AuthRepository get _repo => widget.repository;
 
   @override
   void initState() {
@@ -858,13 +910,13 @@ class _OtpRegisterScreenState extends State<_OtpRegisterScreen> {
   }
 
   void _onDigit(String d) {
-    if (_loading || _otp.length >= _otpLength) return;
+    if (_loading || _sinSalida || _otp.length >= _otpLength) return;
     setState(() => _otp += d);
     if (_otp.length == _otpLength) _verify();
   }
 
   void _onDelete() {
-    if (_loading || _otp.isEmpty) return;
+    if (_loading || _sinSalida || _otp.isEmpty) return;
     setState(() => _otp = _otp.substring(0, _otp.length - 1));
   }
 
@@ -879,23 +931,46 @@ class _OtpRegisterScreenState extends State<_OtpRegisterScreen> {
       context.go('/register/backup-codes', extra: result.codigosRespaldo);
     } on ApiException catch (e) {
       if (!mounted) return;
-      setState(() { _loading = false; _otp = ''; });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
+      setState(() {
+        _loading = false;
+        _otp = '';
+        _sinSalida = _esCallejonSinSalida(e);
+      });
+      if (!_sinSalida) _avisar(mensajeDeError(e));
     } catch (_) {
       if (!mounted) return;
       setState(() { _loading = false; _otp = ''; });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error de conexión. Intenta de nuevo.')),
-      );
+      _avisar('Error de conexión. Intenta de nuevo.');
     }
   }
 
+  static bool _esCallejonSinSalida(ApiException e) =>
+      e.code == 'OtpTooManyResends' || e.code == 'ChallengeInvalid';
+
+  void _avisar(String mensaje) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text(mensaje)));
+
+  /// El contador de 60 s solo reinicia cuando el backend respondió 200.
   Future<void> _resend() async {
-    setState(() { _resendSeconds = 60; _otp = ''; });
-    _startTimer();
+    if (_resending || _sinSalida) return;
+    setState(() => _resending = true);
     try {
       await _repo.resendOtp(challengeId: widget.challengeId);
-    } catch (_) {}
+      if (!mounted) return;
+      setState(() {
+        _resending = false;
+        _resendSeconds = 60;
+        _otp = '';
+      });
+      _startTimer();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _resending = false;
+        _sinSalida = e is ApiException && _esCallejonSinSalida(e);
+      });
+      if (!_sinSalida) _avisar(mensajeDeError(e));
+    }
   }
 
   String get _maskedCelular {
@@ -903,8 +978,67 @@ class _OtpRegisterScreenState extends State<_OtpRegisterScreen> {
     return '+57 ••• ••• ${widget.celular.substring(widget.celular.length - 4)}';
   }
 
+  Widget _callejonSinSalida() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 44),
+          const SizedBox(height: 20),
+          const Text(
+            'Esta verificación ya no puede continuar',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Pediste demasiados códigos o el código ya no es válido. Inicia sesión o recupera tu cuenta para seguir.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.55),
+          ),
+          const SizedBox(height: 28),
+          GradientButton(
+            label: 'Iniciar sesión',
+            onPressed: () => context.go('/login'),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () => context.go('/login/recovery'),
+            style: TextButton.styleFrom(foregroundColor: AppColors.gradientStart),
+            child: const Text(
+              'Recuperar mi cuenta',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_sinSalida) {
+      return AuthBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(top: 20, bottom: 36),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(28, 0, 28, 40),
+                  child: Align(alignment: Alignment.centerRight, child: VeraLogo(size: 22)),
+                ),
+                _callejonSinSalida(),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return AuthBackground(
       child: Column(
         children: [
@@ -973,7 +1107,7 @@ class _OtpRegisterScreenState extends State<_OtpRegisterScreen> {
                   style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
                 )
               : TextButton(
-                  onPressed: _resend,
+                  onPressed: _resending ? null : _resend,
                   style: TextButton.styleFrom(foregroundColor: AppColors.gradientStart),
                   child: const Text(
                     'Reenviar código',
@@ -990,6 +1124,39 @@ class _OtpRegisterScreenState extends State<_OtpRegisterScreen> {
 // ──────────────────────────────────────────────
 // Shared small widgets
 // ──────────────────────────────────────────────
+class _ConsentTile extends StatelessWidget {
+  const _ConsentTile({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    required this.label,
+  });
+
+  final bool value;
+  final ValueChanged<bool?> onChanged;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return CheckboxListTile(
+      value: value,
+      onChanged: onChanged,
+      contentPadding: EdgeInsets.zero,
+      controlAffinity: ListTileControlAffinity.leading,
+      activeColor: AppColors.accentGreen,
+      side: const BorderSide(color: AppColors.border, width: 1.5),
+      title: Text(
+        label,
+        style: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 14,
+          height: 1.4,
+        ),
+      ),
+    );
+  }
+}
+
 class _Label extends StatelessWidget {
   const _Label(this.text);
   final String text;
@@ -1017,6 +1184,7 @@ class _Field extends StatelessWidget {
     this.capitalization = TextCapitalization.none,
     this.formatters,
     this.validator,
+    this.maxLength,
   });
 
   final TextEditingController controller;
@@ -1026,17 +1194,20 @@ class _Field extends StatelessWidget {
   final TextCapitalization capitalization;
   final List<TextInputFormatter>? formatters;
   final String? Function(String?)? validator;
+  final int? maxLength;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
+      maxLength: maxLength,
       keyboardType: keyboardType,
       textInputAction: TextInputAction.next,
       textCapitalization: capitalization,
       inputFormatters: formatters,
       style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
       decoration: InputDecoration(
+        counterText: '',
         hintText: hint,
         prefixIcon: Icon(icon, size: 20),
       ),
