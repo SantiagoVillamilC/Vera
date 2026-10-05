@@ -5,6 +5,22 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Unreleased] controles sin destino marcados (WIP)
+
+### Added
+- Insignia `WipBadge` en los controles sin destino o sin acción: cuatro accesos rápidos del Home (Pagar servicios, Pedir tarjeta, Mis claves, Remuneración), la pastilla "Mis CVUs", la campana de Enviar, las siete filas de menú de Perfil, el chip "Agregar" de Tarjetas y "Ver todos" y el menú de Estadísticas.
+- Etiqueta semántica "en desarrollo" en los accesos rápidos sin destino.
+- Pruebas de widget de las marcas, del `NumPad` y de la cuadrícula a 320x640 y 360x640 con escala de texto 1.0 y 1.3.
+
+### Changed
+- Estadísticas y Tarjetas muestran datos de muestra por decisión de Christian (D6): el contrato no tiene endpoint de estadísticas ni de tarjetas. El Balance de estadísticas y la lista de movimientos son reales.
+- Los accesos rápidos sin destino ya no muestran el SnackBar "Próximamente" y no responden al toque. El micrófono y la pestaña de Copilot muestran "Vera copilot (WIP)".
+- Las filas de Perfil sin acción pierden el chevrón y los subtítulos que prometían funciones inexistentes.
+- La tecla biométrica del `NumPad` se oculta, con el mismo tamaño para no descentrar el 0, hasta que exista el callback (SCRUM-81).
+- La altura de las celdas de accesos rápidos crece con la escala de texto. El título "Últimos Movimientos" se recorta con puntos suspensivos y la mini tarjeta no escala su texto, para evitar desbordes con escala 1.3.
+
+---
+
 ## [Unreleased] home conectado: recarga y envío por llave
 
 ### Added

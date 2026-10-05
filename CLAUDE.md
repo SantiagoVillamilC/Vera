@@ -70,8 +70,8 @@ lib/
             ├── enviar_screen.dart         # envío de dinero
             ├── enviar_llave_screen.dart   # envío por llave Bre-B
             ├── recargar_screen.dart       # recarga con url_pago y sondeo
-            ├── estadisticas_screen.dart   # Próximamente
-            └── tarjetas_tab.dart          # Próximamente
+            ├── estadisticas_screen.dart   # Balance y movimientos reales, resto de muestra (WIP)
+            └── tarjetas_tab.dart          # Datos de muestra (WIP)
 ```
 
 ### Convención para nuevas features

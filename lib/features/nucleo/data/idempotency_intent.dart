@@ -1,5 +1,6 @@
-import 'dart:math';
-
+import 'package:uuid/data.dart';
+import 'package:uuid/rng.dart';
+import 'package:uuid/uuid.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
 
@@ -10,9 +11,17 @@ import 'package:vera/core/widgets/estado_vista.dart';
 /// el resultado anterior fue desconocido, reintentar con la misma clave evita
 /// duplicar el envío.
 class IdempotencyIntent {
-  IdempotencyIntent({Random? random}) : _random = random ?? Random.secure();
+  /// [generador] permite inyectar claves deterministas en pruebas. Por defecto
+  /// usa UUID v4 de la librería con el generador criptográfico explícito.
+  IdempotencyIntent({String Function()? generador})
+      : _generador = generador ?? _uuidSeguro;
 
-  final Random _random;
+  static const _uuid = Uuid();
+
+  static String _uuidSeguro() =>
+      _uuid.v4(config: V4Options(null, const CryptoRNG()));
+
+  final String Function() _generador;
 
   String? _key;
   String? _destino;
@@ -27,7 +36,7 @@ class IdempotencyIntent {
     }
     _destino = destino;
     _monto = monto;
-    return _key = _uuidV4();
+    return _key = _generador();
   }
 
   /// Cualquier 2xx, sea cual sea el estado del envío.
@@ -57,15 +66,5 @@ class IdempotencyIntent {
     // Cualquier otro fallo (por ejemplo una respuesta 2xx ilegible) deja el
     // resultado sin confirmar.
     return true;
-  }
-
-  String _uuidV4() {
-    final b = List<int>.generate(16, (_) => _random.nextInt(256));
-    b[6] = (b[6] & 0x0f) | 0x40;
-    b[8] = (b[8] & 0x3f) | 0x80;
-    String hex(int from, int to) => [
-          for (var i = from; i < to; i++) b[i].toRadixString(16).padLeft(2, '0'),
-        ].join();
-    return '${hex(0, 4)}-${hex(4, 6)}-${hex(6, 8)}-${hex(8, 10)}-${hex(10, 16)}';
   }
 }

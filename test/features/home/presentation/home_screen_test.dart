@@ -278,12 +278,13 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('la tarjeta de débito se marca como Próximamente sin cifras',
+  testWidgets('la tarjeta mini muestra el rótulo y el número enmascarado',
       (tester) async {
     await _pump(tester, FakeNucleoRepository());
 
-    expect(find.text('Próximamente'), findsWidgets);
-    expect(find.textContaining('4417'), findsNothing);
+    expect(find.text('Vera Débito'), findsOneWidget);
+    expect(find.text('•••• •••• •••• 4417'), findsOneWidget);
+    expect(find.text('Próximamente'), findsNothing);
   });
 
   testWidgets('el preview no se bloquea si el saldo falla', (tester) async {

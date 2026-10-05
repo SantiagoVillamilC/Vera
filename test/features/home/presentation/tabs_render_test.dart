@@ -4,6 +4,9 @@ import 'package:vera/features/home/presentation/estadisticas_screen.dart';
 import 'package:vera/features/home/presentation/perfil_tab.dart';
 import 'package:vera/features/home/presentation/tarjetas_tab.dart';
 
+import 'fake_nucleo_repository.dart';
+import 'fake_session_store.dart';
+
 Future<void> _pump(WidgetTester tester, Widget child) async {
   tester.view.physicalSize = const Size(800, 1600);
   tester.view.devicePixelRatio = 1;
@@ -13,21 +16,26 @@ Future<void> _pump(WidgetTester tester, Widget child) async {
 }
 
 void main() {
-  testWidgets('estadísticas muestra Próximamente y ninguna cifra inventada',
+  testWidgets('estadísticas se dibuja con datos de muestra y sin Próximamente',
       (tester) async {
-    await _pump(tester, const EstadisticasScreen());
+    await _pump(
+      tester,
+      EstadisticasScreen(repository: FakeNucleoRepository()),
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Estadísticas'), findsOneWidget);
-    expect(find.textContaining('Próximamente'), findsOneWidget);
+    expect(find.text('Datos de muestra (WIP)'), findsOneWidget);
+    expect(find.textContaining('Próximamente'), findsNothing);
     expect(find.textContaining('Nómina'), findsNothing);
-    expect(find.textContaining(r'$'), findsNothing);
   });
 
-  testWidgets('tarjetas muestra Próximamente y ninguna tarjeta inventada',
+  testWidgets('tarjetas se dibuja con datos de muestra y sin Próximamente',
       (tester) async {
-    await _pump(tester, const TarjetasTab());
+    await _pump(tester, TarjetasTab(session: FakeSessionStore()));
     expect(find.text('Mis Tarjetas'), findsOneWidget);
-    expect(find.textContaining('Próximamente'), findsOneWidget);
-    expect(find.textContaining('4417'), findsNothing);
+    expect(find.text('Datos de muestra (WIP)'), findsOneWidget);
+    expect(find.textContaining('Próximamente'), findsNothing);
+    expect(find.textContaining('4417'), findsWidgets);
     expect(find.textContaining('Rappi'), findsNothing);
   });
 

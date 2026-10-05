@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/widgets/wip_badge.dart';
 import 'package:vera/features/auth/data/auth_repository.dart';
 
 /// Nombre de la persona o, si no hay, la razón social. Un texto vacío cuenta
@@ -149,19 +150,16 @@ class _PerfilTabState extends State<PerfilTab> {
                   _MenuItem(
                     icon: Icons.security_rounded,
                     label: 'Seguridad y PIN',
-                    subtitle: 'Cambiar PIN, biométrico',
                   ),
                   Divider(color: AppColors.border, height: 1, indent: 60),
                   _MenuItem(
                     icon: Icons.badge_rounded,
                     label: 'Mis documentos',
-                    subtitle: 'CC, fotos verificadas',
                   ),
                   Divider(color: AppColors.border, height: 1, indent: 60),
                   _MenuItem(
                     icon: Icons.account_balance_rounded,
                     label: 'Cuentas bancarias',
-                    subtitle: 'Bancos vinculados',
                   ),
                 ],
               ),
@@ -262,11 +260,10 @@ class _SectionLabel extends StatelessWidget {
 }
 
 class _MenuItem extends StatelessWidget {
-  const _MenuItem({required this.icon, required this.label, this.subtitle});
+  const _MenuItem({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
-  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -289,31 +286,24 @@ class _MenuItem extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle!,
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 12,
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
+                    const WipBadge(),
+                  ],
+                ),
               ],
             ),
-          ),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: AppColors.textMuted,
-            size: 20,
           ),
         ],
       ),
