@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/api_client.dart';
+import 'package:vera/core/widgets/gradient_button.dart';
 import 'package:vera/features/auth/data/auth_repository.dart';
 import 'package:vera/features/auth/presentation/login_screen.dart';
 
@@ -72,6 +73,37 @@ void main() {
       await tester.tap(find.text('Continuar'));
       await tester.pumpAndSettle();
       expect(find.text('PANTALLA_PIN'), findsOneWidget);
+    });
+  });
+
+  group('LoginScreen, campo de celular', () {
+    String texto(WidgetTester tester) =>
+        tester.widget<EditableText>(find.byType(EditableText)).controller.text;
+
+    testWidgets('no admite más de 10 dígitos', (tester) async {
+      await _pump(tester, () => const LoginScreen());
+      await _escribir(tester, '63105550404');
+
+      expect(texto(tester), '6310555040');
+    });
+
+    testWidgets('un celular pegado con +57 queda en sus 10 dígitos', (
+      tester,
+    ) async {
+      await _pump(tester, () => const LoginScreen());
+      await _escribir(tester, '+57 310 555 0404');
+
+      expect(texto(tester), '3105550404');
+    });
+
+    testWidgets('con 9 dígitos el botón sigue deshabilitado', (tester) async {
+      await _pump(tester, () => const LoginScreen());
+      await _escribir(tester, '310555040');
+
+      expect(
+        tester.widget<GradientButton>(find.byType(GradientButton)).onPressed,
+        isNull,
+      );
     });
   });
 
