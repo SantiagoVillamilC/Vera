@@ -197,6 +197,34 @@ void main() {
       expect(find.byType(WipBadge), findsOneWidget);
       expect(find.byTooltip('(WIP)'), findsOneWidget);
     });
+
+    for (final (ancho, alto) in [(360.0, 640.0), (411.0, 914.0)]) {
+      testWidgets(
+        'a $ancho dp la insignia no se recorta ni tapa la campana ni el título',
+        (tester) async {
+          await _pump(
+            tester,
+            () => EnviarScreen(repository: FakeNucleoRepository()),
+            size: Size(ancho, alto),
+            fuenteReal: true,
+          );
+
+          final insignia = tester.getRect(find.byType(WipBadge));
+          final campana = tester.getRect(
+            find.byIcon(Icons.notifications_outlined),
+          );
+          final titulo = tester.getRect(find.text('Enviar dinero'));
+
+          expect(tester.takeException(), isNull);
+          expect(insignia.left, greaterThanOrEqualTo(0));
+          expect(insignia.top, greaterThanOrEqualTo(0));
+          expect(insignia.right, lessThanOrEqualTo(ancho));
+          expect(insignia.bottom, lessThanOrEqualTo(alto));
+          expect(insignia.overlaps(campana), isFalse);
+          expect(insignia.overlaps(titulo), isFalse);
+        },
+      );
+    }
   });
 
   group('Perfil', () {
