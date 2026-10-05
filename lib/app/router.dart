@@ -36,16 +36,6 @@ GoRouter buildRouter(SessionNotifier session) => GoRouter(
           builder: (context, state) => PinScreen(phone: state.extra as String),
         ),
         GoRoute(
-          path: 'otp',
-          builder: (context, state) {
-            final extra = state.extra as Map<String, dynamic>;
-            return OtpLoginScreen(
-              phone: extra['phone'] as String,
-              challengeId: extra['challengeId'] as String,
-            );
-          },
-        ),
-        GoRoute(
           path: 'recovery',
           builder: (context, state) => const RecoveryScreen(),
           routes: [

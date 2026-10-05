@@ -5,8 +5,8 @@ import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/auth_background.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
 
-// Displayed immediately after successful phone OTP verification during registration.
-// Shows auth.codigos_respaldo entries so the user can save them before reaching home.
+// Se muestra tras verificar el celular en el registro, con los códigos de
+// respaldo reales que devuelve el backend.
 class BackupCodesScreen extends StatefulWidget {
   const BackupCodesScreen({super.key, this.codes = const []});
   final List<String> codes;
@@ -18,23 +18,8 @@ class BackupCodesScreen extends StatefulWidget {
 class _BackupCodesScreenState extends State<BackupCodesScreen> {
   bool _confirmed = false;
 
-  // TODO: replace with real codes received from POST /auth/register/verify-phone response
-  List<String> get _codes =>
-      widget.codes.isNotEmpty ? widget.codes : _mockCodes;
-
-  static const _mockCodes = [
-    'VERA-A1B2-C3D4',
-    'VERA-E5F6-G7H8',
-    'VERA-I9J0-K1L2',
-    'VERA-M3N4-O5P6',
-    'VERA-Q7R8-S9T0',
-    'VERA-U1V2-W3X4',
-    'VERA-Y5Z6-A7B8',
-    'VERA-C9D0-E1F2',
-  ];
-
   void _copyAll() {
-    final text = _codes.join('\n');
+    final text = widget.codes.join('\n');
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Códigos copiados al portapapeles')),
@@ -43,6 +28,7 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.codes.isEmpty) return const _SinCodigos();
     return AuthBackground(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -76,7 +62,7 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> {
               style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.55),
             ),
             const SizedBox(height: 28),
-            _CodesGrid(codes: _codes),
+            _CodesGrid(codes: widget.codes),
             const SizedBox(height: 16),
             TextButton.icon(
               onPressed: _copyAll,
@@ -98,6 +84,46 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> {
               onPressed: _confirmed ? () => context.go('/home') : null,
             ),
             const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Sin códigos reales no se inventa ninguno: se explica y se lleva a /login.
+class _SinCodigos extends StatelessWidget {
+  const _SinCodigos();
+
+  @override
+  Widget build(BuildContext context) {
+    return AuthBackground(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 44),
+            const SizedBox(height: 20),
+            const Text(
+              'No pudimos mostrar tus códigos de respaldo',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Los códigos no llegaron completos. Inicia sesión para continuar y revisa tu cuenta.',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.55),
+            ),
+            const SizedBox(height: 28),
+            GradientButton(
+              label: 'Ir a iniciar sesión',
+              onPressed: () => context.go('/login'),
+            ),
           ],
         ),
       ),

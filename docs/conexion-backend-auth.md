@@ -41,7 +41,7 @@ Repositorio con todos los llamados al API de auth. Incluye modelos tipados (`Log
 | `POST /v1/auth/register` | `RegisterScreen` | `AuthRepository.registerPersona()` / `registerEmpresa()` |
 | `POST /v1/auth/register/verify-phone` | `_OtpRegisterScreen` | `AuthRepository.verifyPhone()` |
 | `POST /v1/auth/otp/resend` | `_OtpRegisterScreen` | `AuthRepository.resendOtp()` |
-| `POST /v1/auth/logout` | (futuro: HomeScreen) | `AuthRepository.logout()` |
+| `POST /v1/auth/logout` | Pendiente: el botón "Cerrar sesión" de Perfil aún no hace nada | `AuthRepository.logout()` (existe, sin conectar) |
 | `POST /v1/auth/recovery/request` | `RecoveryScreen` | `AuthRepository.recoveryRequest()` |
 | `POST /v1/auth/recovery/verify` | `RecoveryOtpScreen` | `AuthRepository.recoveryVerify()` |
 | `POST /v1/auth/recovery/reset` | `NewPinScreen` | `AuthRepository.recoveryReset()` |
@@ -51,12 +51,12 @@ Repositorio con todos los llamados al API de auth. Incluye modelos tipados (`Log
 ## Correcciones de contrato aplicadas
 
 ### 1. Login sin OTP
-**Antes:** Flujo de 3 pasos — celular → PIN → OTP WhatsApp.  
-**Ahora:** Flujo de 2 pasos — celular → contraseña → tokens directos.
+**Antes:** Flujo de 3 pasos, celular → PIN → OTP WhatsApp.  
+**Ahora:** Flujo de 2 pasos, celular → `PinScreen` → tokens directos.
 
-El endpoint `POST /v1/auth/login` devuelve `{access_token, refresh_token, usuario}` sin paso OTP intermedio. `PinScreen` ahora navega directamente a `/home` tras login exitoso.
+El endpoint `POST /v1/auth/login` devuelve `{access_token, refresh_token, usuario}` sin paso OTP intermedio. `OtpLoginScreen` y la ruta `/login/otp` se eliminaron.
 
-La pantalla `OtpLoginScreen` permanece en el router pero ya no se usa en el flujo de login (puede activarse si el back implementa 2FA en el futuro).
+**Pendiente (lote de auth):** hoy `PinScreen` pide un PIN de 6 dígitos en pantalla, pero el contrato (`openapi.yaml`, `LoginRequest.contrasena`) exige una contraseña de 8 a 64 caracteres. La pantalla debe cambiar a un campo de contraseña.
 
 ### 2. Formato E.164 en `celular`
 **Antes:** Se enviaba el número como el usuario lo ingresaba (`3001234567`).  
@@ -76,7 +76,7 @@ El campo `termsVersion` del estado del registro se usa como `version_texto`.
 
 ### 5. Códigos de respaldo reales
 **Antes:** La pantalla `BackupCodesScreen` mostraba códigos mock.  
-**Ahora:** La respuesta de `verify-phone` incluye `codigos_respaldo` (10 códigos de un solo uso). Se pasan como `extra` en la navegación a `/register/backup-codes`.
+**Ahora:** La respuesta de `verify-phone` incluye `codigos_respaldo` (10 códigos de un solo uso). Se pasan como `extra` (`List<String>`) en la navegación a `/register/backup-codes`. Si no llegan códigos reales (lista vacía o `extra` de otro tipo), la pantalla no inventa ninguno: muestra un error en español con un botón que lleva a `/login`.
 
 ### 6. Recuperación usa correo, no teléfono
 **Antes:** `RecoveryScreen` pedía el número de celular.  
@@ -101,6 +101,7 @@ LoginScreen (celular)
       POST /v1/auth/login {celular, contrasena}
       ← {access_token, refresh_token, usuario}
       → HomeScreen
+(pendiente: PinScreen aún captura un PIN de 6 dígitos, no una contraseña de 8 a 64)
 ```
 
 ### Registro
@@ -139,7 +140,7 @@ Códigos relevantes para auth:
 |---|---|
 | `InvalidCredentials` | Celular o contraseña incorrectos |
 | `OtpInvalid` | Código OTP incorrecto |
-| `OtpExpired` | OTP vencido — el usuario debe reenviar |
+| `OtpExpired` | OTP vencido: el usuario debe reenviar |
 | `OtpTooManyAttempts` | Demasiados intentos fallidos |
 | `OtpResendCooldown` | Reenvío solicitado muy pronto |
 | `AccountSuspended` | Cuenta suspendida |
@@ -149,8 +150,9 @@ Códigos relevantes para auth:
 
 ---
 
-## Pendiente de backend
+## Pendiente en el cliente (lote de auth)
 
-| Item | Endpoint | Estado |
-|---|---|---|
-| `OtpLoginScreen` como 2FA | `POST /v1/auth/login/verify-otp` | Pantalla existe, no hay endpoint en el back todavía |
+| Item | Detalle |
+|---|---|
+| Pantalla de contraseña en login | `PinScreen` usa 6 dígitos, el contrato exige de 8 a 64 caracteres |
+| Cerrar sesión | El botón de Perfil no hace nada, falta llamar a `AuthRepository.logout()` |

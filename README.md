@@ -8,7 +8,7 @@ Aplicación móvil de billetera digital para Colombia. Construida con Flutter.
 
 | Herramienta | Versión mínima | Notas |
 |---|---|---|
-| Flutter | 3.27+ | SDK incluido con Dart |
+| Flutter | 3.47.2 | SDK incluido con Dart |
 | Dart | 3.12+ | Incluido con Flutter |
 | Xcode | 16+ | Solo para iOS/macOS |
 | Android Studio / SDK | API 21+ | Solo para Android |
@@ -159,11 +159,16 @@ lib/
 └── features/
     ├── auth/
     │   └── presentation/
-    │       ├── login_screen.dart          # Celular → PIN → OTP WhatsApp
+    │       ├── login_screen.dart          # LoginScreen, PinScreen
+    │       ├── recovery_screen.dart       # Recuperación de cuenta
+    │       ├── backup_codes_screen.dart   # Códigos de respaldo del registro
     │       └── register_screen.dart       # Persona/Empresa, 4 pasos + OTP
     └── home/
         └── presentation/
-            └── home_screen.dart           # Placeholder post-login
+            ├── home_screen.dart           # Inicio con saldo y movimientos reales
+            ├── enviar_screen.dart         # Envío de dinero
+            ├── estadisticas_screen.dart   # Próximamente
+            └── tarjetas_tab.dart          # Próximamente
 ```
 
 ---
@@ -174,9 +179,16 @@ lib/
 |---|---|---|
 | `/login` | `LoginScreen` | Ingreso de número de celular |
 | `/login/pin` | `PinScreen` | PIN de 6 dígitos |
-| `/login/otp` | `OtpLoginScreen` | Código OTP vía WhatsApp |
+| `/login/recovery` | `RecoveryScreen` | Recuperación de cuenta (correo) |
+| `/login/recovery/otp` | `RecoveryOtpScreen` | Código OTP y código de respaldo |
+| `/login/recovery/new-pin` | `NewPinScreen` | Nueva contraseña con `reset_token` |
 | `/register` | `RegisterScreen` | Registro multi-paso |
+| `/register/backup-codes` | `BackupCodesScreen` | Códigos de respaldo reales (`extra`: `List<String>`) |
 | `/home` | `HomeScreen` | Inicio (post-autenticación) |
+| `/enviar` | `EnviarScreen` | Envío de dinero |
+| `/estadisticas` | `EstadisticasScreen` | Próximamente |
+
+El login no tiene OTP intermedio: celular y luego `PinScreen`. Hoy `PinScreen` pide un PIN de 6 dígitos en pantalla, pero el contrato (`openapi.yaml`, `LoginRequest.contrasena`) exige una contraseña de 8 a 64 caracteres. Ese cambio de pantalla está pendiente y es del lote de auth.
 
 ---
 
@@ -214,10 +226,10 @@ Los siguientes valores deben configurarse antes de conectar el backend:
 
 | Variable | Descripción |
 |---|---|
-| Tokens JWT | Almacenar con `flutter_secure_storage` (pendiente de implementar) |
+| Tokens JWT | Se guardan con `flutter_secure_storage` (implementado en `AuthRepository`) |
 | Biometría | Integrar `local_auth` para desbloqueo con huella |
 
-> El backend aún no está en producción. Las llamadas a la API están marcadas con comentarios `// TODO` en los archivos de presentación.
+> Cerrar sesión está pendiente: el botón de Perfil aún no hace nada (la lógica existe en `AuthRepository.logout()`, falta conectarla en el lote de auth). Estadísticas y Tarjetas muestran "Próximamente" porque no tienen contrato en el backend.
 
 ---
 
@@ -236,8 +248,8 @@ El flujo de trabajo es: `feat/*` → PR → `dev` → PR → `staging` → PR �
 
 ## Convenciones de código
 
-- Sin `setState` — usar Riverpod para todo el estado
-- Widgets sin estado → `ConsumerWidget`; con estado local → `ConsumerStatefulWidget`
+- Se usa `setState` en los widgets con estado local. Riverpod solo se usa para el tema (`theme_provider`)
+- Los repositorios se inyectan por constructor y sus constructores sin argumentos deben seguir funcionando
 - Sin comentarios salvo que el *por qué* no sea obvio
 - Archivos `.g.dart` son generados — nunca editar
 - Feature-first: cada feature vive en `lib/features/<nombre>/`

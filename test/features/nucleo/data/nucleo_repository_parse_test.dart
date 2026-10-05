@@ -116,6 +116,7 @@ void main() {
       final mov = Movimiento.fromJson({
         'entry_id': 7,
         'ocurrido_en': '2026-10-05T10:00:00Z',
+        'registrado_en': '2026-10-05T10:00:01Z',
         'moneda': 'COP',
         'lineas': [
           {'monto': '-$_grande', 'motivo': 'envio'},
@@ -129,6 +130,7 @@ void main() {
       final mov = Movimiento.fromJson({
         'entry_id': 1,
         'ocurrido_en': '2026-10-05T10:00:00Z',
+        'registrado_en': '2026-10-05T10:00:01Z',
         'moneda': 'COP',
         'lineas': [
           {'monto': _enorme, 'motivo': 'deposito'},
@@ -142,6 +144,7 @@ void main() {
       expect(
         () => Movimiento.fromJson({
           'entry_id': 1,
+          'registrado_en': '2026-10-05T10:00:01Z',
           'moneda': 'COP',
           'lineas': [
             {'monto': '1', 'motivo': 'deposito'},
@@ -156,6 +159,7 @@ void main() {
         () => Movimiento.fromJson({
           'entry_id': 1,
           'ocurrido_en': '2026-10-05T10:00:00Z',
+          'registrado_en': '2026-10-05T10:00:01Z',
           'moneda': 'COP',
           'lineas': [
             {'motivo': 'deposito'},
@@ -290,6 +294,7 @@ void main() {
               {
                 'entry_id': 3,
                 'ocurrido_en': '2026-10-05T10:00:00Z',
+                'registrado_en': '2026-10-05T10:00:01Z',
                 'moneda': 'COP',
                 'lineas': [
                   {'monto': _grande, 'motivo': 'deposito'},
