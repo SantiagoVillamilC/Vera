@@ -155,54 +155,63 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     }
 
-    return AuthBackground(
-      child: Column(
-        children: [
-          // La barra superior se desplaza con el contenido: en pantallas bajas
-          // con teclado el botón fijo se queda con el espacio mínimo. La clave
-          // por paso evita heredar el desplazamiento del paso anterior.
-          Expanded(
-            child: SingleChildScrollView(
-              key: ValueKey(_step),
-              child: Column(
-                children: [
-                  _TopBar(step: _step, totalSteps: 4, onBack: _back),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(28, 24, 28, 0),
-                    child: _step == 0
-                        ? _TypeStep(
-                            selected: _accountType,
-                            onChanged: (t) => setState(() => _accountType = t),
-                          )
-                        : Form(
-                            key: _formKey,
-                            child: _stepContent(),
-                          ),
-                  ),
-                ],
+    // El botón Atrás del sistema hace lo mismo que la flecha: retrocede un
+    // paso y solo sale (al inicio de sesión) desde el primero. Mientras se crea
+    // la cuenta se ignora para no dejar la petición a medias.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !_loading) _back();
+      },
+      child: AuthBackground(
+        child: Column(
+          children: [
+            // La barra superior se desplaza con el contenido: en pantallas bajas
+            // con teclado el botón fijo se queda con el espacio mínimo. La clave
+            // por paso evita heredar el desplazamiento del paso anterior.
+            Expanded(
+              child: SingleChildScrollView(
+                key: ValueKey(_step),
+                child: Column(
+                  children: [
+                    _TopBar(step: _step, totalSteps: 4, onBack: _back),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(28, 24, 28, 0),
+                      child: _step == 0
+                          ? _TypeStep(
+                              selected: _accountType,
+                              onChanged: (t) => setState(() => _accountType = t),
+                            )
+                          : Form(
+                              key: _formKey,
+                              child: _stepContent(),
+                            ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          if (_step == 3 && !_consentimientosCompletos)
-            const Padding(
-              padding: EdgeInsets.fromLTRB(28, 12, 28, 0),
-              child: Text(
-                'Marca las dos casillas para crear la cuenta.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            if (_step == 3 && !_consentimientosCompletos)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(28, 12, 28, 0),
+                child: Text(
+                  'Marca las dos casillas para crear la cuenta.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 16, 28, 36),
+              child: GradientButton(
+                label: _step < 3 ? 'Continuar' : 'Crear cuenta',
+                loading: _loading,
+                onPressed: _loading || (_step == 3 && !_consentimientosCompletos)
+                    ? null
+                    : _next,
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(28, 16, 28, 36),
-            child: GradientButton(
-              label: _step < 3 ? 'Continuar' : 'Crear cuenta',
-              loading: _loading,
-              onPressed: _loading || (_step == 3 && !_consentimientosCompletos)
-                  ? null
-                  : _next,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
