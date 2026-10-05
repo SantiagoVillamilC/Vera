@@ -1,32 +1,33 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/app_config.dart';
+import 'package:vera/core/network/session_store.dart';
 
 class NucleoRepository {
-  NucleoRepository()
-      : _client = ApiClient(baseUrl: AppConfig.baseUrl),
-        _storage = const FlutterSecureStorage();
+  /// [session] solo se usa para construir el ApiClient por defecto. El Bearer
+  /// y el refresh los maneja el ApiClient autenticado.
+  NucleoRepository({ApiClient? client, SessionStore? session})
+      : _client = client ??
+            ApiClient(
+              baseUrl: AppConfig.baseUrl,
+              session: session ?? defaultSessionStore,
+              onSessionExpired: expireAppSession,
+            );
 
   final ApiClient _client;
-  final FlutterSecureStorage _storage;
-
-  Future<String?> _token() => _storage.read(key: 'access_token');
 
   // ── Saldo ─────────────────────────────────────────────────────
 
   /// GET /v1/saldo
-  /// Devuelve el saldo disponible en centavos (string → int).
+  /// Devuelve el saldo disponible en centavos (string a BigInt).
   Future<MontoCalculado> getSaldo() async {
-    final token = await _token();
-    final raw = await _client.get('/v1/saldo', bearerToken: token);
+    final raw = await _client.get('/v1/saldo');
     return MontoCalculado.fromJson(raw['data'] as Map<String, dynamic>? ?? raw);
   }
 
   /// GET /v1/transferencias/maximo
   /// Monto máximo enviable sin quedar sin saldo por el GMF.
   Future<MontoCalculado> getMontoMaximo() async {
-    final token = await _token();
-    final raw = await _client.get('/v1/transferencias/maximo', bearerToken: token);
+    final raw = await _client.get('/v1/transferencias/maximo');
     return MontoCalculado.fromJson(raw['data'] as Map<String, dynamic>? ?? raw);
   }
 
@@ -36,14 +37,12 @@ class NucleoRepository {
   /// Historial paginado del más nuevo al más viejo.
   /// [cursor] = entry_id del último movimiento recibido (para la siguiente página).
   Future<MovimientosPage> getMovimientos({int limit = 50, int? cursor}) async {
-    final token = await _token();
     final raw = await _client.get(
       '/v1/movimientos',
       queryParams: {
         'limit': '$limit',
         if (cursor != null) 'cursor': '$cursor',
       },
-      bearerToken: token,
     );
     final data = (raw['data'] as List?) ?? [];
     final meta = raw['meta'] as Map<String, dynamic>? ?? {};
@@ -66,19 +65,16 @@ class NucleoRepository {
     required String monto,
     required String idempotencyKey,
   }) async {
-    final token = await _token();
     final raw = await _client.post(
       '/v1/depositos',
       {'monto': monto, 'moneda': 'COP', 'idempotency_key': idempotencyKey},
-      bearerToken: token,
     );
     return Deposito.fromJson(raw);
   }
 
   /// GET /v1/depositos/{id}
   Future<Deposito> getDeposito(String id) async {
-    final token = await _token();
-    final raw = await _client.get('/v1/depositos/$id', bearerToken: token);
+    final raw = await _client.get('/v1/depositos/$id');
     return Deposito.fromJson(raw['data'] as Map<String, dynamic>? ?? raw);
   }
 
@@ -94,7 +90,6 @@ class NucleoRepository {
     required String monto,
     required String idempotencyKey,
   }) async {
-    final token = await _token();
     final raw = await _client.post(
       '/v1/transferencias',
       {
@@ -103,7 +98,6 @@ class NucleoRepository {
         'moneda': 'COP',
         'idempotency_key': idempotencyKey,
       },
-      bearerToken: token,
     );
     return Transferencia.fromJson(raw);
   }
@@ -116,7 +110,6 @@ class NucleoRepository {
     required String monto,
     required String idempotencyKey,
   }) async {
-    final token = await _token();
     final raw = await _client.post(
       '/v1/transferencias/interbancarias',
       {
@@ -126,13 +119,31 @@ class NucleoRepository {
         'moneda': 'COP',
         'idempotency_key': idempotencyKey,
       },
-      bearerToken: token,
     );
     return EnvioPorLlave.fromJson(raw);
   }
 }
 
 // ── Modelos ───────────────────────────────────────────────────────────────────
+
+final _enteroRe = RegExp(r'^-?\d+$');
+
+/// Los montos viajan como string decimal entero. BigInt evita perder
+/// precision por encima de 2^53. Un campo ausente o no numerico lanza.
+BigInt _parseMonto(Object? raw, [String campo = 'monto']) {
+  if (raw is! String || !_enteroRe.hasMatch(raw)) {
+    throw FormatException('Campo "$campo" ausente o no numerico', raw);
+  }
+  return BigInt.parse(raw);
+}
+
+DateTime _parseFecha(Object? raw, String campo) {
+  final parsed = raw is String ? DateTime.tryParse(raw) : null;
+  if (parsed == null) {
+    throw FormatException('Campo "$campo" ausente o no es una fecha', raw);
+  }
+  return parsed;
+}
 
 /// Saldo o monto máximo calculado por el backend.
 class MontoCalculado {
@@ -142,15 +153,15 @@ class MontoCalculado {
     required this.calculadoEn,
   });
 
-  /// Centavos parseados desde el string del backend (ej. "18000000" → 18000000).
-  final int montoCentavos;
+  /// Centavos parseados desde el string del backend (ej. "18000000").
+  final BigInt montoCentavos;
   final String moneda;
   final DateTime calculadoEn;
 
   factory MontoCalculado.fromJson(Map<String, dynamic> j) => MontoCalculado(
-        montoCentavos: int.tryParse(j['monto'] as String? ?? '0') ?? 0,
+        montoCentavos: _parseMonto(j['monto']),
         moneda: j['moneda'] as String? ?? 'COP',
-        calculadoEn: DateTime.tryParse(j['calculado_en'] as String? ?? '') ?? DateTime.now(),
+        calculadoEn: _parseFecha(j['calculado_en'], 'calculado_en'),
       );
 }
 
@@ -197,11 +208,11 @@ class LineaMovimiento {
   const LineaMovimiento({required this.montoCentavos, required this.motivo});
 
   /// Positivo = a favor de la subcuenta, negativo = en contra.
-  final int montoCentavos;
+  final BigInt montoCentavos;
   final MotivoLinea motivo;
 
   factory LineaMovimiento.fromJson(Map<String, dynamic> j) => LineaMovimiento(
-        montoCentavos: int.tryParse(j['monto'] as String? ?? '0') ?? 0,
+        montoCentavos: _parseMonto(j['monto']),
         motivo: MotivoLinea.fromString(j['motivo'] as String? ?? ''),
       );
 }
@@ -227,11 +238,12 @@ class Movimiento {
       );
 
   /// Monto neto del movimiento (suma de todas las líneas).
-  int get montoNeto => lineas.fold(0, (acc, l) => acc + l.montoCentavos);
+  BigInt get montoNeto =>
+      lineas.fold(BigInt.zero, (acc, l) => acc + l.montoCentavos);
 
   factory Movimiento.fromJson(Map<String, dynamic> j) => Movimiento(
         entryId: j['entry_id'] as int? ?? 0,
-        ocurridoEn: DateTime.tryParse(j['ocurrido_en'] as String? ?? '') ?? DateTime.now(),
+        ocurridoEn: _parseFecha(j['ocurrido_en'], 'ocurrido_en'),
         moneda: j['moneda'] as String? ?? 'COP',
         lineas: (j['lineas'] as List? ?? [])
             .cast<Map<String, dynamic>>()
@@ -266,7 +278,7 @@ class Deposito {
 
   final String id;
   final String referencia;
-  final int montoCentavos;
+  final BigInt montoCentavos;
   final String moneda;
   final EstadoDeposito estado;
   final DateTime creadaEn;
@@ -274,7 +286,7 @@ class Deposito {
   factory Deposito.fromJson(Map<String, dynamic> j) => Deposito(
         id: j['id'] as String? ?? '',
         referencia: j['referencia'] as String? ?? '',
-        montoCentavos: int.tryParse(j['monto'] as String? ?? '0') ?? 0,
+        montoCentavos: _parseMonto(j['monto']),
         moneda: j['moneda'] as String? ?? 'COP',
         estado: switch (j['estado'] as String? ?? '') {
           'pendiente' => EstadoDeposito.pendiente,
@@ -283,7 +295,7 @@ class Deposito {
           'expirada' => EstadoDeposito.expirada,
           _ => EstadoDeposito.desconocido,
         },
-        creadaEn: DateTime.tryParse(j['creada_en'] as String? ?? '') ?? DateTime.now(),
+        creadaEn: _parseFecha(j['creada_en'], 'creada_en'),
       );
 }
 
@@ -316,7 +328,7 @@ class Transferencia {
 
   final String id;
   final String destino;
-  final int montoCentavos;
+  final BigInt montoCentavos;
   final String moneda;
   final EstadoTransferencia estado;
   final DateTime creadaEn;
@@ -325,11 +337,11 @@ class Transferencia {
   factory Transferencia.fromJson(Map<String, dynamic> j) => Transferencia(
         id: j['id'] as String? ?? '',
         destino: j['destino'] as String? ?? '',
-        montoCentavos: int.tryParse(j['monto'] as String? ?? '0') ?? 0,
+        montoCentavos: _parseMonto(j['monto']),
         moneda: j['moneda'] as String? ?? 'COP',
         estado: _parseEstadoTransferencia(j['estado'] as String? ?? ''),
-        creadaEn: DateTime.tryParse(j['creada_en'] as String? ?? '') ?? DateTime.now(),
-        actualizadaEn: DateTime.tryParse(j['actualizada_en'] as String? ?? '') ?? DateTime.now(),
+        creadaEn: _parseFecha(j['creada_en'], 'creada_en'),
+        actualizadaEn: _parseFecha(j['actualizada_en'], 'actualizada_en'),
       );
 }
 
@@ -348,7 +360,7 @@ class EnvioPorLlave {
   final String id;
   final String tipoLlave;
   final String llave;
-  final int montoCentavos;
+  final BigInt montoCentavos;
   final String moneda;
   final EstadoTransferencia estado;
   final DateTime creadaEn;
@@ -358,10 +370,10 @@ class EnvioPorLlave {
         id: j['id'] as String? ?? '',
         tipoLlave: j['tipo_llave'] as String? ?? '',
         llave: j['llave'] as String? ?? '',
-        montoCentavos: int.tryParse(j['monto'] as String? ?? '0') ?? 0,
+        montoCentavos: _parseMonto(j['monto']),
         moneda: j['moneda'] as String? ?? 'COP',
         estado: _parseEstadoTransferencia(j['estado'] as String? ?? ''),
-        creadaEn: DateTime.tryParse(j['creada_en'] as String? ?? '') ?? DateTime.now(),
-        actualizadaEn: DateTime.tryParse(j['actualizada_en'] as String? ?? '') ?? DateTime.now(),
+        creadaEn: _parseFecha(j['creada_en'], 'creada_en'),
+        actualizadaEn: _parseFecha(j['actualizada_en'], 'actualizada_en'),
       );
 }

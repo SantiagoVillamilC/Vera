@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/theme/app_theme.dart';
 
 // TODO: GET /v1/nucleo/estadisticas?periodo=mes
@@ -26,17 +27,6 @@ final _movsMock = [
   _MovStat('Transferencia', 'Lun 29', 17180000, true, Icons.swap_horiz_rounded),
   _MovStat('Gasolina BP', 'Lun 29', 8500000, false, Icons.local_gas_station_rounded),
 ];
-
-String _pesos(int centavos) {
-  final s = (centavos ~/ 100).toString();
-  final b = StringBuffer();
-  for (int i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) b.write('.');
-    b.write(s[i]);
-  }
-  final cents = (centavos % 100).toString().padLeft(2, '0');
-  return '\$ ${b.toString()},$cents';
-}
 
 class _MovStat {
   const _MovStat(this.name, this.fecha, this.centavos, this.esIngreso, this.icon);
@@ -169,7 +159,7 @@ class _EstadisticasScreenState extends State<EstadisticasScreen>
                           )),
                       const SizedBox(height: 4),
                       Text(
-                        _pesos(_saldoActualCentavos),
+                        formatPesosInt(_saldoActualCentavos),
                         style: const TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 32,
@@ -386,7 +376,7 @@ class _StatChip extends StatelessWidget {
                       fontWeight: FontWeight.w500)),
               const SizedBox(height: 2),
               Text(
-                _pesos(centavos),
+                formatPesosInt(centavos),
                 style: TextStyle(
                   color: color,
                   fontSize: 13,
@@ -717,7 +707,7 @@ class _MovRow extends StatelessWidget {
             ),
           ),
           Text(
-            '${data.esIngreso ? '+' : '-'}${_pesos(data.centavos)}',
+            '${data.esIngreso ? '+' : '-'}${formatPesosInt(data.centavos)}',
             style: TextStyle(
               color: data.esIngreso
                   ? AppColors.accentGreen

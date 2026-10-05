@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/features/home/presentation/movimientos_tab.dart';
 import 'package:vera/features/home/presentation/tarjetas_tab.dart';
@@ -8,17 +9,6 @@ import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
 // TODO: leer desde AuthRepository.getNombreCompleto() (flutter_secure_storage)
 const _mockNombre = 'Elisa';
-
-String _pesos(int centavos) {
-  final s = (centavos ~/ 100).toString();
-  final b = StringBuffer();
-  for (int i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) b.write('.');
-    b.write(s[i]);
-  }
-  final cents = (centavos % 100).toString().padLeft(2, '0');
-  return '\$ ${b.toString()},$cents';
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -34,7 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _saldoVisible = true;
 
   final _nucleo = NucleoRepository();
-  int? _saldoCentavos;
+  BigInt? _saldoCentavos;
   bool _errorSaldo = false;
 
   @override
@@ -210,7 +200,7 @@ class _InicioTab extends StatelessWidget {
 
   final bool saldoVisible;
   final VoidCallback onToggleSaldo;
-  final int? saldoCentavos;
+  final BigInt? saldoCentavos;
   final bool errorSaldo;
 
   @override
@@ -256,7 +246,7 @@ class _Header extends StatelessWidget {
 
   final bool saldoVisible;
   final VoidCallback onToggleSaldo;
-  final int? saldoCentavos;
+  final BigInt? saldoCentavos;
   final bool errorSaldo;
 
   Widget _buildSaldoWidget() {
@@ -277,7 +267,7 @@ class _Header extends StatelessWidget {
       );
     }
     return Text(
-      saldoVisible ? _pesos(saldoCentavos!) : '\$ ••••••',
+      saldoVisible ? formatPesos(saldoCentavos!) : '\$ ••••••',
       style: const TextStyle(
         color: Colors.white,
         fontSize: 42,
@@ -690,7 +680,7 @@ class _MovItem extends StatelessWidget {
 
   final String label;
   final String fecha;
-  final int centavos;
+  final BigInt centavos;
   final bool esIngreso;
   final IconData icon;
 
@@ -739,7 +729,7 @@ class _MovItem extends StatelessWidget {
             ),
           ),
           Text(
-            '${esIngreso ? '+' : '-'}${_pesos(centavos)}',
+            '${esIngreso ? '+' : '-'}${formatPesos(centavos)}',
             style: TextStyle(
               color: esIngreso ? AppColors.accentGreen : AppColors.textPrimary,
               fontSize: 15,

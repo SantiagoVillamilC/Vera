@@ -1,15 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/theme/app_theme.dart';
-
-String _pesos(int centavos) {
-  final s = (centavos ~/ 100).toString();
-  final b = StringBuffer();
-  for (int i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) b.write('.');
-    b.write(s[i]);
-  }
-  return '\$${b.toString()}';
-}
 
 class TarjetasTab extends StatelessWidget {
   const TarjetasTab({super.key});
@@ -365,7 +356,7 @@ class _TxItem extends StatelessWidget {
             ),
           ),
           Text(
-            '-${_pesos(centavos)}',
+            '-${formatPesosInt(centavos)}',
             style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 15,

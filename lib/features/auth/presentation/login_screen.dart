@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/api_client.dart';
+import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/auth_background.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
@@ -225,7 +226,7 @@ class _PinScreenState extends State<PinScreen>
       });
       _shakeController.forward(from: 0);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
+        SnackBar(content: Text(mensajeDeError(e))),
       );
     } catch (_) {
       if (!mounted) return;

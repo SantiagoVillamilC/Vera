@@ -1,18 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/network/api_client.dart';
+import 'package:vera/core/network/error_messages.dart';
+import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
-
-String _pesos(int centavos) {
-  final s = (centavos ~/ 100).toString();
-  final b = StringBuffer();
-  for (int i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) b.write('.');
-    b.write(s[i]);
-  }
-  return '\$${b.toString()}';
-}
 
 IconData _iconForMotivo(MotivoLinea motivo) => switch (motivo) {
       MotivoLinea.deposito => Icons.arrow_downward_rounded,
@@ -99,7 +91,7 @@ class _MovimientosTabState extends State<MovimientosTab> {
       });
     } catch (e) {
       setState(() {
-        _error = e is ApiException ? e.message : 'Error al cargar movimientos';
+        _error = e is ApiException ? mensajeDeError(e) : 'Error al cargar movimientos';
         _loading = false;
       });
     }
@@ -111,13 +103,13 @@ class _MovimientosTabState extends State<MovimientosTab> {
     return _todos.where((m) => m.lineaPrincipal.motivo.esIngreso == wantIngreso).toList();
   }
 
-  int get _ingresosCentavos => _todos
+  BigInt get _ingresosCentavos => _todos
       .where((m) => m.lineaPrincipal.motivo.esIngreso)
-      .fold(0, (acc, m) => acc + m.montoNeto.abs());
+      .fold(BigInt.zero, (acc, m) => acc + m.montoNeto.abs());
 
-  int get _gastosCentavos => _todos
+  BigInt get _gastosCentavos => _todos
       .where((m) => !m.lineaPrincipal.motivo.esIngreso)
-      .fold(0, (acc, m) => acc + m.montoNeto.abs());
+      .fold(BigInt.zero, (acc, m) => acc + m.montoNeto.abs());
 
   @override
   Widget build(BuildContext context) {
@@ -232,7 +224,7 @@ class _MovimientosTabState extends State<MovimientosTab> {
                                   color: AppColors.accentGreen),
                             )
                           : Text(
-                              _pesos(_ingresosCentavos),
+                              formatPesos(_ingresosCentavos),
                               style: const TextStyle(
                                 color: AppColors.accentGreen,
                                 fontSize: 14,
@@ -276,7 +268,7 @@ class _MovimientosTabState extends State<MovimientosTab> {
                                     color: AppColors.gradientMid),
                               )
                             : Text(
-                                _pesos(_gastosCentavos),
+                                formatPesos(_gastosCentavos),
                                 style: const TextStyle(
                                   color: AppColors.textPrimary,
                                   fontSize: 14,
@@ -461,7 +453,7 @@ class _MovRow extends StatelessWidget {
 
   final String label;
   final String hora;
-  final int centavos;
+  final BigInt centavos;
   final bool esIngreso;
   final IconData icon;
 
@@ -517,7 +509,7 @@ class _MovRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${esIngreso ? '+' : '-'}${_pesos(centavos)}',
+                '${esIngreso ? '+' : '-'}${formatPesos(centavos)}',
                 style: TextStyle(
                   color: esIngreso
                       ? AppColors.accentGreen

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/api_client.dart';
+import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
@@ -65,7 +66,7 @@ class _EnviarScreenState extends State<EnviarScreen> {
       if (!mounted) return;
       setState(() => _enviando = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
+        SnackBar(content: Text(mensajeDeError(e))),
       );
     } catch (_) {
       if (!mounted) return;

@@ -159,11 +159,7 @@ go run ./cmd/api
 ```
 
 Desde Flutter:
-```bash
-flutter run --dart-define=API_BASE_URL=http://localhost:8080
-# En dispositivo físico (reemplazar con IP de tu máquina):
-flutter run --dart-define=API_BASE_URL=http://192.168.x.x:8080
-```
+Para configurar la URL según el entorno (emulador, dispositivo físico, etc.), ver la sección "Configurar la URL del backend" en [README.md](../README.md#configurar-la-url-del-backend).
 
 ---
 
@@ -176,8 +172,6 @@ flutter run --dart-define=API_BASE_URL=http://192.168.x.x:8080
 | Monto máximo en enviar | `GET /v1/transferencias/maximo` | Media — validación pre-envío |
 | Envíos interbancarios | `POST /v1/transferencias/interbancarias` | Media — tab de tarjetas/CVU |
 | Estadísticas reales | `GET /v1/movimientos` agrupado | Media — `EstadisticasScreen` |
-| Refresh de token | `POST /v1/auth/refresh` | Alta — sesiones largas |
-| Logout desde perfil | `POST /v1/auth/logout` | Alta — botón en `PerfilTab` |
 
 ---
 

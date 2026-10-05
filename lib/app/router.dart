@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:vera/core/network/session_store.dart';
 import 'package:vera/features/auth/presentation/backup_codes_screen.dart';
 import 'package:vera/features/auth/presentation/login_screen.dart';
 import 'package:vera/features/auth/presentation/recovery_screen.dart';
@@ -7,8 +8,24 @@ import 'package:vera/features/home/presentation/enviar_screen.dart';
 import 'package:vera/features/home/presentation/estadisticas_screen.dart';
 import 'package:vera/features/home/presentation/home_screen.dart';
 
-final appRouter = GoRouter(
-  initialLocation: '/home', // TODO: revertir a '/login' antes de producción
+bool _isPublicLocation(String path) =>
+    path == '/login' ||
+    path.startsWith('/login/') ||
+    path == '/register' ||
+    path.startsWith('/register/');
+
+/// Router de la app. La sesión se lee del [SessionNotifier] (cargado una sola
+/// vez al arrancar), nunca del almacenamiento seguro en cada redirect.
+GoRouter buildRouter(SessionNotifier session) => GoRouter(
+  initialLocation: '/login',
+  refreshListenable: session,
+  redirect: (context, state) {
+    final path = state.uri.path;
+    if (!session.authenticated) {
+      return _isPublicLocation(path) ? null : '/login';
+    }
+    return path == '/login' ? '/home' : null;
+  },
   routes: [
     GoRoute(
       path: '/login',
@@ -75,3 +92,5 @@ final appRouter = GoRouter(
     ),
   ],
 );
+
+final appRouter = buildRouter(appSession);
