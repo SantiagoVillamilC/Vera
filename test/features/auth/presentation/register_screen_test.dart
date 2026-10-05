@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -94,6 +95,30 @@ class _FakeOtpRepository implements AuthRepository {
       estado: 'activa',
       codigosRespaldo: ['AAAA-1111'],
     );
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Registro que no responde hasta que la prueba lo decida.
+class _RegistroPendiente implements AuthRepository {
+  final respuesta = Completer<RegisterResult>();
+  var llamadas = 0;
+
+  @override
+  Future<RegisterResult> registerPersona({
+    required String correo,
+    required String contrasena,
+    required String celular,
+    required String nombreCompleto,
+    required String tipoDocumento,
+    required String numeroDocumento,
+    required bool aceptaTratamientoDatos,
+    required bool aceptaWhatsappOptin,
+  }) {
+    llamadas++;
+    return respuesta.future;
   }
 
   @override
@@ -292,6 +317,71 @@ void main() {
         await _cerrar(tester);
       },
     );
+  });
+
+  group('botón Atrás del sistema', () {
+    Future<bool> atras(WidgetTester tester, {bool animando = false}) async {
+      final manejado = await tester.binding.handlePopRoute();
+      // El indicador de carga nunca se asienta, por eso un solo cuadro.
+      animando ? await tester.pump() : await tester.pumpAndSettle();
+      return manejado;
+    }
+
+    testWidgets('retrocede un paso y no sale del registro', (tester) async {
+      await _pump(tester, RegisterScreen(repository: _Servidor().repo));
+      await _continuar(tester);
+      expect(find.text('Tus datos'), findsOneWidget);
+
+      expect(await atras(tester), isTrue);
+
+      expect(find.text('Tus datos'), findsNothing);
+      expect(find.text('Persona natural'), findsOneWidget);
+      expect(find.text('PANTALLA_LOGIN'), findsNothing);
+    });
+
+    testWidgets('desde la contraseña vuelve a la identidad', (tester) async {
+      await _pump(tester, RegisterScreen(repository: _Servidor().repo));
+      await _personaHastaContrasena(tester);
+      expect(find.text('Crea tu contraseña'), findsOneWidget);
+
+      expect(await atras(tester), isTrue);
+
+      expect(find.text('Tu identidad'), findsOneWidget);
+      expect(find.text('Crea tu contraseña'), findsNothing);
+    });
+
+    testWidgets('solo desde el primer paso sale, hacia el inicio de sesión', (
+      tester,
+    ) async {
+      await _pump(tester, RegisterScreen(repository: _Servidor().repo));
+
+      expect(await atras(tester), isTrue);
+
+      expect(find.text('PANTALLA_LOGIN'), findsOneWidget);
+    });
+
+    testWidgets('mientras se crea la cuenta no retrocede ni sale', (
+      tester,
+    ) async {
+      final repo = _RegistroPendiente();
+      await _pump(tester, RegisterScreen(repository: repo));
+      await _personaHastaContrasena(tester);
+      await _marcarAmbas(tester);
+      await tester.ensureVisible(find.text('Crear cuenta'));
+      await tester.tap(find.text('Crear cuenta'));
+      await tester.pump();
+      expect(repo.llamadas, 1);
+
+      expect(await atras(tester, animando: true), isTrue);
+
+      expect(find.text('Crea tu contraseña'), findsOneWidget);
+      expect(find.text('PANTALLA_LOGIN'), findsNothing);
+      repo.respuesta.complete(
+        const RegisterResult(id: 'u1', challengeId: 'c1', celular: '+57300'),
+      );
+      await tester.pump();
+      await _cerrar(tester);
+    });
   });
 
   group('límites de longitud', () {
