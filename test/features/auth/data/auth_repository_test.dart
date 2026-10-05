@@ -43,6 +43,15 @@ class _FakeSession implements SessionStore {
   }
 
   @override
+  Future<String?> readDepositoPendiente() async => null;
+
+  @override
+  Future<void> saveDepositoPendiente(String id) async {}
+
+  @override
+  Future<void> clearDepositoPendiente() async {}
+
+  @override
   Future<void> clear() async {
     eventos.add('clear');
     access = null;

@@ -68,6 +68,8 @@ lib/
         └── presentation/
             ├── home_screen.dart           # saldo y movimientos reales
             ├── enviar_screen.dart         # envío de dinero
+            ├── enviar_llave_screen.dart   # envío por llave Bre-B
+            ├── recargar_screen.dart       # recarga con url_pago y sondeo
             ├── estadisticas_screen.dart   # Próximamente
             └── tarjetas_tab.dart          # Próximamente
 ```
@@ -156,7 +158,11 @@ Entry point: `/login` (sin landing page). Rutas actuales:
 | `/register/backup-codes` | `BackupCodesScreen` | `List<String>` (códigos reales) |
 | `/home` | `HomeScreen` | - |
 | `/enviar` | `EnviarScreen` | - |
+| `/enviar-llave` | `EnviarLlaveScreen` | - |
+| `/recargar` | `RecargarScreen` | - |
 | `/estadisticas` | `EstadisticasScreen` | - |
+
+Todas las rutas fuera de `/login*` y `/register*` son privadas: sin sesión redirigen a `/login`.
 
 Navegar con `context.go('/ruta')` (reemplaza) o `context.push('/ruta')` (apila).
 

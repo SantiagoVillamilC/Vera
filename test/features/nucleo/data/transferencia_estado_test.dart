@@ -52,8 +52,8 @@ void main() {
     test('ningún mensaje usa raya larga, corta ni punto y coma', () {
       for (final e in EstadoTransferencia.values) {
         final m = resultadoDeEstado(e).mensaje;
-        expect(m, isNot(contains('\u2014')));
-        expect(m, isNot(contains('\u2013')));
+        expect(m, isNot(contains(String.fromCharCode(0x2014))));
+        expect(m, isNot(contains(String.fromCharCode(0x2013))));
         expect(m, isNot(contains(';')));
       }
     });

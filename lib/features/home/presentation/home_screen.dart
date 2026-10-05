@@ -51,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
   BigInt? _saldoCentavos;
   bool _errorSaldo = false;
   String? _nombre;
+  bool _hayRecargaPendiente = false;
   late Future<MovimientosPage> _movimientos;
 
   @override
@@ -59,6 +60,26 @@ class _HomeScreenState extends State<HomeScreen> {
     _movimientos = _nucleo.getMovimientos(limit: 3);
     _cargarSaldo();
     _cargarNombre();
+    _cargarPendiente();
+  }
+
+  Future<void> _cargarPendiente() async {
+    try {
+      final id = await (widget.session ?? defaultSessionStore)
+          .readDepositoPendiente();
+      if (mounted) {
+        setState(() => _hayRecargaPendiente = id != null && id.isNotEmpty);
+      }
+    } catch (_) {
+      // Sin lectura posible no se ofrece el aviso.
+    }
+  }
+
+  /// Al volver de una pantalla que pudo guardar o limpiar el depósito
+  /// pendiente se relee, para que el aviso no quede desactualizado.
+  Future<void> _abrir(String ruta) async {
+    await context.push(ruta);
+    if (mounted) await _cargarPendiente();
   }
 
   Future<void> _cargarNombre() async {
@@ -126,6 +147,8 @@ class _HomeScreenState extends State<HomeScreen> {
             saldoVisible: _saldoVisible,
             saldoCentavos: _saldoCentavos,
             errorSaldo: _errorSaldo,
+            recargaPendiente: _hayRecargaPendiente,
+            onAbrir: _abrir,
             onToggleSaldo: () => setState(() => _saldoVisible = !_saldoVisible),
             movimientos: _movimientos,
             offsetLocal: widget.offsetLocal,
@@ -268,6 +291,8 @@ class _InicioTab extends StatelessWidget {
     required this.onToggleSaldo,
     required this.saldoCentavos,
     required this.errorSaldo,
+    required this.recargaPendiente,
+    required this.onAbrir,
     required this.movimientos,
     required this.offsetLocal,
     required this.onRefrescar,
@@ -280,6 +305,8 @@ class _InicioTab extends StatelessWidget {
   final VoidCallback onToggleSaldo;
   final BigInt? saldoCentavos;
   final bool errorSaldo;
+  final bool recargaPendiente;
+  final void Function(String ruta) onAbrir;
   final Future<MovimientosPage> movimientos;
   final Duration? offsetLocal;
   final Future<void> Function() onRefrescar;
@@ -306,7 +333,11 @@ class _InicioTab extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const _ActionsCard(),
+                  if (recargaPendiente)
+                    _AvisoRecargaPendiente(
+                      onTap: () => onAbrir('/recargar'),
+                    ),
+                  _ActionsCard(onAbrir: onAbrir),
                   const SizedBox(height: 28),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -455,15 +486,62 @@ class _Header extends StatelessWidget {
 
 // ── Actions card ───────────────────────────────────────────────
 
+class _AvisoRecargaPendiente extends StatelessWidget {
+  const _AvisoRecargaPendiente({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceVariant,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.gradientStart),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.hourglass_top_rounded,
+                  color: AppColors.gradientStart, size: 18),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Tienes una recarga pendiente',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded,
+                  color: AppColors.textSecondary, size: 18),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ActionsCard extends StatelessWidget {
-  const _ActionsCard();
+  const _ActionsCard({required this.onAbrir});
+
+  final void Function(String ruta) onAbrir;
 
   static const _actions = [
     (Icons.send_rounded, 'Enviar\ndinero', '/enviar'),
+    (Icons.key_rounded, 'Enviar por llave', '/enviar-llave'),
+    (Icons.add_circle_outline_rounded, 'Recargar', '/recargar'),
     (Icons.receipt_long_rounded, 'Pagar\nservicios', ''),
     (Icons.credit_card_rounded, 'Pedir\ntarjeta', ''),
-    (Icons.add_circle_outline_rounded, 'Recargar', ''),
-    (Icons.key_rounded, 'Mis\nclaves', ''),
+    (Icons.lock_outline_rounded, 'Mis\nclaves', ''),
     (Icons.account_balance_wallet_rounded, 'Remune-\nración', ''),
   ];
 
@@ -491,7 +569,7 @@ class _ActionsCard extends StatelessWidget {
             // angostas y la etiqueta de dos líneas desborda.
             child: GridView(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
+                crossAxisCount: 4,
                 mainAxisSpacing: 4,
                 crossAxisSpacing: 4,
                 mainAxisExtent: 96,
@@ -504,7 +582,7 @@ class _ActionsCard extends StatelessWidget {
                   icon: icon,
                   label: label,
                   onTap: route.isNotEmpty
-                      ? () => context.push(route)
+                      ? () => onAbrir(route)
                       : () => ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Próximamente')),
                           ),

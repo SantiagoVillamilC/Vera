@@ -82,8 +82,8 @@ void main() {
     test('nunca contiene rayas largas, cortas ni punto y coma', () {
       for (final code in catalogo) {
         final msg = mensajeDeError(_api(code));
-        expect(msg, isNot(contains('\u2014')));
-        expect(msg, isNot(contains('\u2013')));
+        expect(msg, isNot(contains(String.fromCharCode(0x2014))));
+        expect(msg, isNot(contains(String.fromCharCode(0x2013))));
         expect(msg, isNot(contains(';')));
       }
     });

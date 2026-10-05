@@ -64,6 +64,8 @@ lib/
         └── presentation/
             ├── home_screen.dart           # real balance and movements
             ├── enviar_screen.dart         # send money
+            ├── enviar_llave_screen.dart   # send by Bre-B key
+            ├── recargar_screen.dart       # top-up with url_pago and polling
             ├── estadisticas_screen.dart   # Próximamente
             └── tarjetas_tab.dart          # Próximamente
 ```
@@ -128,7 +130,11 @@ Entry point is `/login` — no landing page.
 | `/register/backup-codes` | `BackupCodesScreen` | `List<String>` (real codes) |
 | `/home` | `HomeScreen` | - |
 | `/enviar` | `EnviarScreen` | - |
+| `/enviar-llave` | `EnviarLlaveScreen` | - |
+| `/recargar` | `RecargarScreen` | - |
 | `/estadisticas` | `EstadisticasScreen` | - |
+
+Every route outside `/login*` and `/register*` is private: without a session it redirects to `/login`.
 
 ```dart
 context.go('/path');              // replace current route

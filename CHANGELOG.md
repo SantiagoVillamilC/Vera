@@ -5,6 +5,25 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Unreleased] home conectado: recarga y envío por llave
+
+### Added
+- Rutas privadas `/recargar` (`RecargarScreen`) y `/enviar-llave` (`EnviarLlaveScreen`). Sin sesión redirigen a `/login`.
+- Acceso "Enviar por llave" en el home.
+- Aviso "Tienes una recarga pendiente" en el home cuando `SessionStore` guarda un depósito pendiente. Lleva a `/recargar` y se relee al volver de una pantalla.
+- Pruebas de router (rutas privadas) y del home (navegación, aviso y 320x640 sin desborde).
+
+### Changed
+- "Recargar" del home navega a `/recargar` y ya no muestra el SnackBar "Próximamente".
+- La grilla de accesos rápidos pasa de 3 a 4 columnas. "Mis claves" usa un ícono de candado para no repetir la llave.
+- `docs/conexion-backend-nucleo.md`: depósitos e interbancaria pasan de "Repo listo, UI pendiente" a conectados.
+
+### No verificado
+- Los builds de APK e iOS del CI con el plugin nativo `url_launcher` no se ejecutaron en el entorno de desarrollo.
+- `ios/Podfile.lock` se actualiza con `pod install` en macOS.
+
+---
+
 ## [Unreleased] auth conectado: contraseña, consentimientos, reenvío y cerrar sesión
 
 ### Added

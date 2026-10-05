@@ -5,9 +5,11 @@ import 'package:vera/features/auth/presentation/backup_codes_screen.dart';
 import 'package:vera/features/auth/presentation/login_screen.dart';
 import 'package:vera/features/auth/presentation/recovery_screen.dart';
 import 'package:vera/features/auth/presentation/register_screen.dart';
+import 'package:vera/features/home/presentation/enviar_llave_screen.dart';
 import 'package:vera/features/home/presentation/enviar_screen.dart';
 import 'package:vera/features/home/presentation/estadisticas_screen.dart';
 import 'package:vera/features/home/presentation/home_screen.dart';
+import 'package:vera/features/home/presentation/recargar_screen.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
 bool _isPublicLocation(String path) =>
@@ -88,6 +90,18 @@ GoRouter buildRouter(
     GoRoute(
       path: '/enviar',
       builder: (context, state) => const EnviarScreen(),
+    ),
+    GoRoute(
+      path: '/enviar-llave',
+      builder: (context, state) =>
+          EnviarLlaveScreen(repository: nucleoRepository),
+    ),
+    GoRoute(
+      path: '/recargar',
+      builder: (context, state) => RecargarScreen(
+        repository: nucleoRepository,
+        session: sessionStore,
+      ),
     ),
     GoRoute(
       path: '/estadisticas',

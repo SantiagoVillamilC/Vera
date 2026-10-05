@@ -2,19 +2,40 @@ import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/app_config.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/features/auth/data/auth_repository.dart';
+import 'package:vera/features/nucleo/data/idempotency_intent.dart';
+import 'package:vera/features/nucleo/data/llave_bre_b.dart';
+
+/// Marcador fijo de destino: la clave de una recarga se amarra solo al monto.
+const depositoDestinoMarcador = 'deposito';
 
 class NucleoRepository {
-  /// [session] solo se usa para construir el ApiClient por defecto. El Bearer
-  /// y el refresh los maneja el ApiClient autenticado.
-  NucleoRepository({ApiClient? client, SessionStore? session})
-      : _client = client ??
+  /// [session] construye el ApiClient por defecto y guarda el depósito
+  /// pendiente. El Bearer y el refresh los maneja el ApiClient autenticado.
+  /// [recargaIntent] y [envioLlaveIntent] son instancias separadas de
+  /// IdempotencyIntent, una por flujo.
+  NucleoRepository({
+    ApiClient? client,
+    SessionStore? session,
+    IdempotencyIntent? recargaIntent,
+    IdempotencyIntent? envioLlaveIntent,
+  })  : _client = client ??
             ApiClient(
               baseUrl: AppConfig.baseUrl,
               session: session ?? defaultSessionStore,
               onSessionExpired: expireAppSession,
-            );
+            ),
+        _session = session ??
+            (client == null ? defaultSessionStore : client.session),
+        _recargaIntent = recargaIntent ?? IdempotencyIntent(),
+        _envioLlaveIntent = envioLlaveIntent ?? IdempotencyIntent();
 
   final ApiClient _client;
+  final SessionStore? _session;
+  final IdempotencyIntent _recargaIntent;
+  final IdempotencyIntent _envioLlaveIntent;
+
+  Future<DepositoConPago>? _recargando;
+  Future<EnvioPorLlave>? _enviandoPorLlave;
 
   // ── Saldo ─────────────────────────────────────────────────────
 
@@ -62,7 +83,7 @@ class NucleoRepository {
   /// POST /v1/depositos
   /// Crea una intención de depósito. [monto] en centavos como string.
   /// [idempotencyKey] debe ser único por intento (usar UUID v4).
-  Future<Deposito> crearDeposito({
+  Future<DepositoConPago> crearDeposito({
     required String monto,
     required String idempotencyKey,
   }) async {
@@ -70,13 +91,55 @@ class NucleoRepository {
       '/v1/depositos',
       {'monto': monto, 'moneda': 'COP', 'idempotency_key': idempotencyKey},
     );
-    return Deposito.fromJson(raw);
+    return DepositoConPago.fromJson(raw);
   }
 
+  /// Recarga con la clave de idempotencia de la intención vigente. Un segundo
+  /// toque mientras hay uno en vuelo recibe el mismo resultado, sin otro POST.
+  /// Si el depósito queda pendiente, guarda su id en la sesión.
+  Future<DepositoConPago> recargar(BigInt monto) {
+    final enVuelo = _recargando;
+    if (enVuelo != null) return enVuelo;
+    final futuro = _recargar(monto).whenComplete(() => _recargando = null);
+    return _recargando = futuro;
+  }
+
+  Future<DepositoConPago> _recargar(BigInt monto) async {
+    final key = _recargaIntent.keyFor(
+      destino: depositoDestinoMarcador,
+      monto: monto,
+    );
+    final DepositoConPago deposito;
+    try {
+      deposito = await crearDeposito(
+        monto: monto.toString(),
+        idempotencyKey: key,
+      );
+    } on Object catch (e) {
+      _recargaIntent.registrarError(e);
+      rethrow;
+    }
+    _recargaIntent.registrarExito();
+    if (!deposito.estado.esTerminal) {
+      await _session?.saveDepositoPendiente(deposito.id);
+    }
+    return deposito;
+  }
+
+  /// Id del depósito pendiente de la sesión actual, si lo hay.
+  Future<String?> depositoPendienteId() async =>
+      _session?.readDepositoPendiente();
+
   /// GET /v1/depositos/{id}
+  /// En un estado terminal borra el depósito pendiente de la sesión.
   Future<Deposito> getDeposito(String id) async {
     final raw = await _client.get('/v1/depositos/$id');
-    return Deposito.fromJson(raw['data'] as Map<String, dynamic>? ?? raw);
+    final deposito =
+        Deposito.fromJson(raw['data'] as Map<String, dynamic>? ?? raw);
+    if (deposito.estado.esTerminal) {
+      await _session?.clearDepositoPendiente();
+    }
+    return deposito;
   }
 
   // ── Transferencias ────────────────────────────────────────────
@@ -115,7 +178,9 @@ class NucleoRepository {
   }
 
   /// POST /v1/transferencias/interbancarias
-  /// Envía por llave (CVU, celular de otra entidad, etc.).
+  /// Envía por llave de Bre-B. [tipoLlave] es uno de los cinco códigos de
+  /// TipoLlaveBreB (documento, celular, correo, alfanumerico, comercio), un
+  /// tipo distinto responde 422.
   Future<EnvioPorLlave> transferirInterbancaria({
     required String tipoLlave,
     required String llave,
@@ -133,6 +198,50 @@ class NucleoRepository {
       },
     );
     return EnvioPorLlave.fromJson(raw);
+  }
+
+  /// Envío por llave con la clave de idempotencia de la intención vigente,
+  /// amarrada al tipo, la llave recortada y el monto. Lanza FormatException si
+  /// la llave no tiene la forma del tipo. Un segundo toque en vuelo recibe el
+  /// mismo resultado.
+  Future<EnvioPorLlave> enviarPorLlave({
+    required TipoLlaveBreB tipo,
+    required String llave,
+    required BigInt monto,
+  }) async {
+    final valor = normalizarLlave(tipo, llave);
+    if (valor == null) {
+      throw FormatException('La llave no tiene la forma del tipo', llave);
+    }
+    final enVuelo = _enviandoPorLlave;
+    if (enVuelo != null) return enVuelo;
+    final futuro = _enviarPorLlave(tipo, valor, monto)
+        .whenComplete(() => _enviandoPorLlave = null);
+    return await (_enviandoPorLlave = futuro);
+  }
+
+  Future<EnvioPorLlave> _enviarPorLlave(
+    TipoLlaveBreB tipo,
+    String valor,
+    BigInt monto,
+  ) async {
+    final key = _envioLlaveIntent.keyFor(
+      destino: '${tipo.codigo}:$valor',
+      monto: monto,
+    );
+    try {
+      final envio = await transferirInterbancaria(
+        tipoLlave: tipo.codigo,
+        llave: valor,
+        monto: monto.toString(),
+        idempotencyKey: key,
+      );
+      _envioLlaveIntent.registrarExito();
+      return envio;
+    } on Object catch (e) {
+      _envioLlaveIntent.registrarError(e);
+      rethrow;
+    }
   }
 }
 
@@ -340,8 +449,34 @@ class MovimientosPage {
 }
 
 /// Estados posibles de un depósito.
-enum EstadoDeposito { pendiente, confirmada, rechazada, expirada, desconocido }
+/// Los cuatro primeros son el enum del contrato, un valor nuevo del backend
+/// cae en [desconocido] sin lanzar.
+enum EstadoDeposito {
+  pendiente,
+  confirmada,
+  rechazada,
+  expirada,
+  desconocido;
 
+  static EstadoDeposito fromJson(Object? raw) => switch (raw) {
+        'pendiente' => EstadoDeposito.pendiente,
+        'confirmada' => EstadoDeposito.confirmada,
+        'rechazada' => EstadoDeposito.rechazada,
+        'expirada' => EstadoDeposito.expirada,
+        _ => EstadoDeposito.desconocido,
+      };
+
+  /// Ya no cambiará: confirmada, rechazada o expirada.
+  bool get esTerminal => switch (this) {
+        EstadoDeposito.confirmada ||
+        EstadoDeposito.rechazada ||
+        EstadoDeposito.expirada =>
+          true,
+        _ => false,
+      };
+}
+
+/// Esquema Deposito, la respuesta del GET /v1/depositos/{id} (sin url_pago).
 class Deposito {
   const Deposito({
     required this.id,
@@ -364,15 +499,41 @@ class Deposito {
         referencia: j['referencia'] as String? ?? '',
         montoCentavos: _parseMonto(j['monto']),
         moneda: j['moneda'] as String? ?? 'COP',
-        estado: switch (j['estado'] as String? ?? '') {
-          'pendiente' => EstadoDeposito.pendiente,
-          'confirmada' => EstadoDeposito.confirmada,
-          'rechazada' => EstadoDeposito.rechazada,
-          'expirada' => EstadoDeposito.expirada,
-          _ => EstadoDeposito.desconocido,
-        },
+        estado: EstadoDeposito.fromJson(j['estado']),
         creadaEn: _parseFecha(j['creada_en'], 'creada_en'),
       );
+}
+
+/// Esquema DepositoConPago, la respuesta del POST /v1/depositos: trae url_pago.
+class DepositoConPago extends Deposito {
+  const DepositoConPago({
+    required super.id,
+    required super.referencia,
+    required super.montoCentavos,
+    required super.moneda,
+    required super.estado,
+    required super.creadaEn,
+    required this.urlPago,
+  });
+
+  final String urlPago;
+
+  factory DepositoConPago.fromJson(Map<String, dynamic> j) {
+    final base = Deposito.fromJson(j);
+    final urlPago = j['url_pago'];
+    if (urlPago is! String || urlPago.isEmpty) {
+      throw FormatException('Campo "url_pago" ausente', urlPago);
+    }
+    return DepositoConPago(
+      id: base.id,
+      referencia: base.referencia,
+      montoCentavos: base.montoCentavos,
+      moneda: base.moneda,
+      estado: base.estado,
+      creadaEn: base.creadaEn,
+      urlPago: urlPago,
+    );
+  }
 }
 
 /// Estados posibles de una transferencia o envío por llave.

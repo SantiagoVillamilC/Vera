@@ -58,10 +58,10 @@ y `_parseMap()` extrae solo el objeto `data`.
 | `GET /v1/saldo` | `getSaldo()` | `HomeScreen` header | ✅ Conectado |
 | `GET /v1/transferencias/maximo` | `getMontoMaximo()` | `EnviarScreen` (validación) | ✅ Conectado |
 | `GET /v1/movimientos` | `getMovimientos()` | `MovimientosTab` (paginado) + preview en `HomeScreen` | ✅ Conectado |
-| `POST /v1/depositos` | `crearDeposito()` | Acción "Recargar" (home) | ⏳ Repo listo, pantalla pendiente |
-| `GET /v1/depositos/{id}` | `getDeposito()` | - | ⏳ Repo listo, sin pantalla |
+| `POST /v1/depositos` | `recargar()` (sobre `crearDeposito()`) | `RecargarScreen` (`/recargar`), acción "Recargar" del home | ✅ Conectado: abre `url_pago` con `UrlOpener` solo si es segura y conserva el depósito pendiente en `SessionStore` |
+| `GET /v1/depositos/{id}` | `getDeposito()` | `RecargarScreen` | ✅ Conectado: sondeo cada 5 s hasta 5 min y al volver a la app, con retoma del depósito pendiente |
 | `POST /v1/transferencias` | `transferir()` | `EnviarScreen` | ✅ Conectado, con `idempotency_key` |
-| `POST /v1/transferencias/interbancarias` | `transferirInterbancaria()` | - | ⏳ Repo listo, sin pantalla |
+| `POST /v1/transferencias/interbancarias` | `enviarPorLlave()` (sobre `transferirInterbancaria()`) | `EnviarLlaveScreen` (`/enviar-llave`), acceso "Enviar por llave" del home | ✅ Conectado, con `idempotency_key`. Al aceptarse muestra "Enviado. Verás el resultado en tu historial." |
 
 ---
 
@@ -104,6 +104,8 @@ El token se lee de `flutter_secure_storage` con la llave `'access_token'`
 - Preview de últimos 3 movimientos vía `FutureBuilder<MovimientosPage>` (limit: 3)
 - Saldo mock eliminado
 - El saludo usa el nombre guardado con la sesión (nombre completo o razón social). Sin nombre guardado muestra "Hola"
+- "Recargar" navega a `/recargar` y "Enviar por llave" a `/enviar-llave`. Los accesos viven en una grilla de 4 columnas
+- Si `SessionStore` guarda un depósito pendiente, muestra el aviso "Tienes una recarga pendiente" que lleva a `/recargar`. Se relee al abrir el home y al volver de una pantalla
 
 ### `MovimientosTab` ✅ Real
 - StatefulWidget; carga `getMovimientos(limit: 50)` en `initState`
@@ -151,11 +153,13 @@ Para configurar la URL según el entorno (emulador, dispositivo físico, etc.), 
 
 | Funcionalidad | Endpoint | Prioridad |
 |---|---|---|
-| Recargar saldo | `POST /v1/depositos` | Alta: acción "Recargar" en home |
-| Consultar estado recarga | `GET /v1/depositos/{id}` | Media: flujo post-depósito |
-| Monto máximo en enviar | `GET /v1/transferencias/maximo` | Media: validación pre-envío |
-| Envíos interbancarios | `POST /v1/transferencias/interbancarias` | Media: tab de tarjetas/CVU |
 | Estadísticas reales | Sin endpoint en el contrato | Media: `EstadisticasScreen` y `TarjetasTab` muestran "Próximamente" |
+
+### No verificado todavía
+
+- Los builds de APK e iOS del CI con el plugin nativo `url_launcher` no se ejecutaron en el entorno de desarrollo de este lote. Solo se verificaron `flutter analyze`, las pruebas y `flutter build web`.
+- `ios/Podfile.lock` se actualiza con `pod install` en macOS, que no estaba disponible aquí.
+- La apertura real de `url_pago` en un navegador del dispositivo no se probó en equipo físico.
 
 ---
 

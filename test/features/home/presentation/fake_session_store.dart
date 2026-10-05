@@ -12,6 +12,16 @@ class FakeSessionStore implements SessionStore {
   String? refresh;
   SessionProfile profile;
   int clearCalls = 0;
+  String? pendingDeposit;
+
+  @override
+  Future<String?> readDepositoPendiente() async => pendingDeposit;
+
+  @override
+  Future<void> saveDepositoPendiente(String id) async => pendingDeposit = id;
+
+  @override
+  Future<void> clearDepositoPendiente() async => pendingDeposit = null;
 
   @override
   Future<String?> readAccess() async => access;
@@ -39,6 +49,7 @@ class FakeSessionStore implements SessionStore {
   @override
   Future<void> clear() async {
     clearCalls++;
+    pendingDeposit = null;
     access = null;
     refresh = null;
     profile = const SessionProfile();
