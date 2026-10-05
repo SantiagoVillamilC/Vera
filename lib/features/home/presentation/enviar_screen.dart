@@ -159,13 +159,15 @@ class _EnviarScreenState extends State<EnviarScreen> {
             message: '(WIP)',
             child: Padding(
               padding: const EdgeInsets.only(right: 12),
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
+              // En línea y no superpuesta: sobre el borde derecho la insignia
+              // se recortaba y tapaba la campana.
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.notifications_outlined,
+                  Icon(Icons.notifications_outlined,
                       color: AppColors.textSecondary, size: 22),
-                  const Positioned(top: -10, right: -14, child: WipBadge()),
+                  SizedBox(width: 6),
+                  WipBadge(),
                 ],
               ),
             ),
