@@ -199,10 +199,11 @@ Los siguientes valores deben configurarse antes de conectar el backend:
 | Rama | Propósito |
 |---|---|
 | `main` | Código estable / producción |
-| `develop` | Integración de features |
+| `staging` | Validación previa a producción |
+| `dev` | Integración de features |
 | `feat/auth-ui` | UI de autenticación (activa) |
 
-El flujo de trabajo es: `feat/*` → PR → `develop` → PR → `main`.
+El flujo de trabajo es: `feat/*` → PR → `dev` → PR → `staging` → PR → `main`.
 
 ---
 

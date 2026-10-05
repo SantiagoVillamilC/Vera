@@ -221,7 +221,8 @@ await tester.pumpWidget(
 | Branch | Purpose |
 |---|---|
 | `main` | Stable / production |
-| `develop` | Feature integration base |
+| `staging` | Pre-production validation |
+| `dev` | Feature integration base |
 | `feat/*` | Active feature branches |
 
-Flow: `feat/*` → PR → `develop` → PR → `main`.
+Flow: `feat/*` → PR → `dev` → PR → `staging` → PR → `main`.

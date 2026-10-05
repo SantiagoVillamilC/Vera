@@ -201,10 +201,11 @@ El `theme_provider.dart` existe para futura funcionalidad pero actualmente no se
 | Rama | Propósito |
 |---|---|
 | `main` | Código estable / producción |
-| `develop` | Integración de features (base de PRs) |
+| `staging` | Validación previa a producción |
+| `dev` | Integración de features (base de PRs) |
 | `feat/*` | Features en desarrollo |
 
-Flujo: `feat/*` → PR → `develop` → PR → `main`.
+Flujo: `feat/*` → PR → `dev` → PR → `staging` → PR → `main`.
 
 ## Skills disponibles
 
