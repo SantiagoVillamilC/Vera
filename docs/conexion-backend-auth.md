@@ -37,11 +37,11 @@ Repositorio con todos los llamados al API de auth. Incluye modelos tipados (`Log
 
 | Endpoint | Pantalla | Método en repositorio |
 |---|---|---|
-| `POST /v1/auth/login` | `PinScreen` | `AuthRepository.login()` |
+| `POST /v1/auth/login` | `PinScreen` (campo de contraseña oculto) | `AuthRepository.login()` |
 | `POST /v1/auth/register` | `RegisterScreen` | `AuthRepository.registerPersona()` / `registerEmpresa()` |
 | `POST /v1/auth/register/verify-phone` | `_OtpRegisterScreen` | `AuthRepository.verifyPhone()` |
-| `POST /v1/auth/otp/resend` | `_OtpRegisterScreen` | `AuthRepository.resendOtp()` |
-| `POST /v1/auth/logout` | Pendiente: el botón "Cerrar sesión" de Perfil aún no hace nada | `AuthRepository.logout()` (existe, sin conectar) |
+| `POST /v1/auth/otp/resend` | `_OtpRegisterScreen` | `AuthRepository.resendOtp()` (con el `challenge_id` vigente) |
+| `POST /v1/auth/logout` | Botón "Cerrar sesión" de Perfil | `AuthRepository.logout()` (Bearer y refresh token) |
 | `POST /v1/auth/recovery/request` | `RecoveryScreen` | `AuthRepository.recoveryRequest()` |
 | `POST /v1/auth/recovery/verify` | `RecoveryOtpScreen` | `AuthRepository.recoveryVerify()` |
 | `POST /v1/auth/recovery/reset` | `NewPinScreen` | `AuthRepository.recoveryReset()` |
@@ -56,7 +56,9 @@ Repositorio con todos los llamados al API de auth. Incluye modelos tipados (`Log
 
 El endpoint `POST /v1/auth/login` devuelve `{access_token, refresh_token, usuario}` sin paso OTP intermedio. `OtpLoginScreen` y la ruta `/login/otp` se eliminaron.
 
-**Pendiente (lote de auth):** hoy `PinScreen` pide un PIN de 6 dígitos en pantalla, pero el contrato (`openapi.yaml`, `LoginRequest.contrasena`) exige una contraseña de 8 a 64 caracteres. La pantalla debe cambiar a un campo de contraseña.
+`PinScreen` pide una contraseña de 8 a 64 caracteres en un campo oculto (`LoginRequest.contrasena`). La ruta `/login/pin` conserva su nombre. Al autenticar se guardan tokens y perfil (nombre o razón social y tipo de cuenta), y el saludo del Home usa el nombre guardado.
+
+El rango de 8 a 64 caracteres es un supuesto del lote 0 tomado de `openapi.yaml:1091-1097`, pendiente de confirmar por Santiago y Valeria.
 
 ### 2. Formato E.164 en `celular`
 **Antes:** Se enviaba el número como el usuario lo ingresaba (`3001234567`).  
@@ -64,19 +66,24 @@ El endpoint `POST /v1/auth/login` devuelve `{access_token, refresh_token, usuari
 
 ### 3. `consentimientos` obligatorio en registro
 **Antes:** El registro no enviaba consentimientos.  
-**Ahora:** El body de `POST /v1/auth/register` incluye siempre:
+**Ahora:** El paso final del registro muestra dos casillas, `tratamiento_datos` y `whatsapp_optin`, y el botón queda deshabilitado hasta marcar ambas. El body de `POST /v1/auth/register` incluye siempre:
 ```json
-[{"tipo": "tratamiento_datos", "version_texto": "v1.0", "aceptado": true}]
+[
+  {"tipo": "tratamiento_datos", "version_texto": "v1", "aceptado": true},
+  {"tipo": "whatsapp_optin", "version_texto": "v1", "aceptado": true}
+]
 ```
-El campo `termsVersion` del estado del registro se usa como `version_texto`.
+La versión es la constante `AuthRepository.versionConsentimientos` (`v1`). Sin ambos consentimientos aceptados el repositorio no envía la petición, y el back responde `ConsentRequired`.
+
+Los textos legales de los consentimientos son marcadores pendientes en la migración (decisión 2). Las etiquetas de las casillas son cortas y neutras, sin redacción legal.
 
 ### 4. `verify-phone` usa `{celular, codigo}`
 **Antes:** Se enviaba `{challenge_id, codigo}`.  
-**Ahora:** El endpoint `POST /v1/auth/register/verify-phone` recibe `{celular, codigo}` según el contrato (`VerifyPhoneRequest`). El `challenge_id` venía de la respuesta de registro y se usaba solo para reenvío OTP.
+**Ahora:** El endpoint `POST /v1/auth/register/verify-phone` recibe `{celular, codigo}` según el contrato (`VerifyPhoneRequest`). El `challenge_id` venía de la respuesta de registro y se usa solo para el reenvío: `POST /v1/auth/otp/resend` lleva el `challenge_id` vigente, y el contador de 60 s solo reinicia cuando el reenvío responde 200.
 
 ### 5. Códigos de respaldo reales
 **Antes:** La pantalla `BackupCodesScreen` mostraba códigos mock.  
-**Ahora:** La respuesta de `verify-phone` incluye `codigos_respaldo` (10 códigos de un solo uso). Se pasan como `extra` (`List<String>`) en la navegación a `/register/backup-codes`. Si no llegan códigos reales (lista vacía o `extra` de otro tipo), la pantalla no inventa ninguno: muestra un error en español con un botón que lleva a `/login`.
+**Ahora:** La respuesta de `verify-phone` incluye `codigos_respaldo` (10 códigos de un solo uso). Se pasan como `extra` (`List<String>`) en la navegación a `/register/backup-codes`. Si no llegan códigos reales (lista vacía o `extra` de otro tipo), la pantalla no inventa ninguno: muestra un error en español con un botón que lleva a `/login`. Tras confirmar los códigos de respaldo, la app va a `/login` (la cuenta recién creada inicia sesión con su contraseña).
 
 ### 6. Recuperación usa correo, no teléfono
 **Antes:** `RecoveryScreen` pedía el número de celular.  
@@ -100,8 +107,15 @@ LoginScreen (celular)
   → PinScreen (contraseña)
       POST /v1/auth/login {celular, contrasena}
       ← {access_token, refresh_token, usuario}
-      → HomeScreen
-(pendiente: PinScreen aún captura un PIN de 6 dígitos, no una contraseña de 8 a 64)
+      → HomeScreen (saludo con el nombre guardado)
+```
+
+### Cerrar sesión
+```
+PerfilTab (botón "Cerrar sesión")
+  POST /v1/auth/logout (Authorization: Bearer <access>, body con el refresh token)
+  → borra tokens y perfil del almacenamiento seguro
+  → LoginScreen
 ```
 
 ### Registro
@@ -113,7 +127,7 @@ RegisterScreen paso 1–4
       POST /v1/auth/register/verify-phone {celular, codigo}
       ← {id, celular, estado, codigos_respaldo[]}
       → BackupCodesScreen (codigos_respaldo)
-          → HomeScreen (tras confirmar)
+          → LoginScreen (tras confirmar)
 ```
 
 ### Recuperación de contraseña
@@ -142,7 +156,12 @@ Códigos relevantes para auth:
 | `OtpInvalid` | Código OTP incorrecto |
 | `OtpExpired` | OTP vencido: el usuario debe reenviar |
 | `OtpTooManyAttempts` | Demasiados intentos fallidos |
-| `OtpResendCooldown` | Reenvío solicitado muy pronto |
+| `OtpResendCooldown` | Reenvío solicitado muy pronto (enfriamiento de 60 s) |
+| `OtpTooManyResends` | Demasiados reenvíos del código |
+| `TooManyRequests` | Demasiadas peticiones: se pide intentar más tarde (la espera crece de 1 a 15 minutos) |
+| `ChallengeInvalid` | El desafío ya no es válido |
+| `DuplicateIdentifier` | Ya existe una cuenta con ese dato |
+| `ConsentRequired` | Falta aceptar algún consentimiento obligatorio |
 | `AccountSuspended` | Cuenta suspendida |
 | `PhoneUnverified` | Celular no verificado |
 | `ResetInvalid` | Token de restablecimiento inválido o vencido |
@@ -154,5 +173,8 @@ Códigos relevantes para auth:
 
 | Item | Detalle |
 |---|---|
-| Pantalla de contraseña en login | `PinScreen` usa 6 dígitos, el contrato exige de 8 a 64 caracteres |
-| Cerrar sesión | El botón de Perfil no hace nada, falta llamar a `AuthRepository.logout()` |
+| N-17 | Contexto de empresa en login |
+| Textos legales de consentimiento (decisión 2) | Marcadores pendientes en la migración, sin redacción legal en la app |
+| Salida del lado del servidor (N-6, S8) | `logout` borra la sesión local, la invalidación en el servidor depende de S8 |
+| Biometría (SCRUM-81) | Sin implementar |
+| Contraseña de 8 a 64 caracteres | Supuesto del lote 0 (`openapi.yaml:1091-1097`), por confirmar con Santiago y Valeria |

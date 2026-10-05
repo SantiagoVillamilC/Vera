@@ -13,6 +13,7 @@ class _FakeSession implements SessionStore {
 
   String? access;
   String? refresh;
+  SessionProfile? perfil;
   int clearCalls = 0;
 
   @override
@@ -31,8 +32,16 @@ class _FakeSession implements SessionStore {
   }
 
   @override
+  Future<SessionProfile> readProfile() async =>
+      perfil ?? const SessionProfile();
+
+  @override
+  Future<void> saveProfile(SessionProfile profile) async => perfil = profile;
+
+  @override
   Future<void> clear() async {
     clearCalls++;
+    perfil = null;
     access = null;
     refresh = null;
   }
@@ -65,32 +74,36 @@ void main() {
     requests = [];
   });
 
-  test('logout envia Bearer y refresh_token, acepta 204 y borra la sesion',
-      () async {
-    final repo = build((req) async => http.Response('', 204));
+  test(
+    'logout envia Bearer y refresh_token, acepta 204 y borra la sesion',
+    () async {
+      final repo = build((req) async => http.Response('', 204));
 
-    await repo.logout();
+      await repo.logout();
 
-    expect(requests, hasLength(1));
-    final req = requests.single;
-    expect(req.method, 'POST');
-    expect(req.url.toString(), 'https://api.test/v1/auth/logout');
-    expect(req.headers['Authorization'], 'Bearer acc-1');
-    expect(jsonDecode(req.body), {'refresh_token': 'ref-1'});
-    expect(session.access, isNull);
-    expect(session.refresh, isNull);
-    expect(session.clearCalls, 1);
-    expect(notifier.authenticated, isFalse);
-  });
+      expect(requests, hasLength(1));
+      final req = requests.single;
+      expect(req.method, 'POST');
+      expect(req.url.toString(), 'https://api.test/v1/auth/logout');
+      expect(req.headers['Authorization'], 'Bearer acc-1');
+      expect(jsonDecode(req.body), {'refresh_token': 'ref-1'});
+      expect(session.access, isNull);
+      expect(session.refresh, isNull);
+      expect(session.clearCalls, 1);
+      expect(notifier.authenticated, isFalse);
+    },
+  );
 
   test('con error 500 borra la sesion local y propaga el error', () async {
-    final repo = build((req) async => http.Response(
-          jsonEncode({
-            'success': false,
-            'error': {'code': 'InternalError', 'message': 'boom'},
-          }),
-          500,
-        ));
+    final repo = build(
+      (req) async => http.Response(
+        jsonEncode({
+          'success': false,
+          'error': {'code': 'InternalError', 'message': 'boom'},
+        }),
+        500,
+      ),
+    );
 
     await expectLater(
       repo.logout(),
@@ -117,9 +130,8 @@ void main() {
       baseUrl: 'https://api.test',
       session: session,
       shortTimeout: const Duration(milliseconds: 10),
-      clientFactory: () => MockClient(
-        (req) => Completer<http.Response>().future,
-      ),
+      clientFactory: () =>
+          MockClient((req) => Completer<http.Response>().future),
     );
     final repo = AuthRepository(
       client: client,
@@ -133,17 +145,19 @@ void main() {
     expect(notifier.authenticated, isFalse);
   });
 
-  test('sin refresh_token no llama al servidor pero limpia la sesion',
-      () async {
-    session.refresh = null;
-    final repo = build((req) async => http.Response('', 204));
+  test(
+    'sin refresh_token no llama al servidor pero limpia la sesion',
+    () async {
+      session.refresh = null;
+      final repo = build((req) async => http.Response('', 204));
 
-    await repo.logout();
+      await repo.logout();
 
-    expect(requests, isEmpty);
-    expect(session.access, isNull);
-    expect(notifier.authenticated, isFalse);
-  });
+      expect(requests, isEmpty);
+      expect(session.access, isNull);
+      expect(notifier.authenticated, isFalse);
+    },
+  );
 
   test('los getters delegan en el SessionStore', () async {
     final repo = build((req) async => http.Response('', 204));

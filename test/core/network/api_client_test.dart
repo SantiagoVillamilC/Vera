@@ -30,7 +30,15 @@ class FakeSessionStore implements SessionStore {
     this.refresh = refresh;
   }
 
+  
+
   @override
+  Future<SessionProfile> readProfile() async => const SessionProfile();
+
+  @override
+  Future<void> saveProfile(SessionProfile profile) async {}
+
+@override
   Future<void> clear() async {
     clearCalls++;
     access = null;

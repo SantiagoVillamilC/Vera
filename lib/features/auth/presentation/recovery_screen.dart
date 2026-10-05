@@ -5,13 +5,16 @@ import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/auth_background.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
+import 'package:vera/core/widgets/password_field.dart';
 import 'package:vera/core/widgets/pin_pad.dart';
 import 'package:vera/core/widgets/vera_logo.dart';
 import 'package:vera/features/auth/data/auth_repository.dart';
 
 // Step 1: email input → POST /v1/auth/recovery/request
 class RecoveryScreen extends StatefulWidget {
-  const RecoveryScreen({super.key});
+  const RecoveryScreen({super.key, this.repository});
+
+  final AuthRepository? repository;
 
   @override
   State<RecoveryScreen> createState() => _RecoveryScreenState();
@@ -21,7 +24,7 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
   final _correoCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _loading = false;
-  final _repo = AuthRepository();
+  late final AuthRepository _repo = widget.repository ?? AuthRepository();
 
   @override
   void dispose() {
@@ -139,9 +142,15 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
 
 // Step 2: OTP + backup code → POST /v1/auth/recovery/verify
 class RecoveryOtpScreen extends StatefulWidget {
-  const RecoveryOtpScreen({super.key, required this.correo, required this.challengeId});
+  const RecoveryOtpScreen({
+    super.key,
+    required this.correo,
+    required this.challengeId,
+    this.repository,
+  });
   final String correo;
   final String challengeId;
+  final AuthRepository? repository;
 
   @override
   State<RecoveryOtpScreen> createState() => _RecoveryOtpScreenState();
@@ -152,8 +161,10 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
   String _otp = '';
   bool _loading = false;
   int _resendSeconds = 60;
+  bool _resending = false;
+  bool _resendClosed = false;
   final _codigoRespaldoCtrl = TextEditingController();
-  final _repo = AuthRepository();
+  late final AuthRepository _repo = widget.repository ?? AuthRepository();
 
   @override
   void initState() {
@@ -216,12 +227,66 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
     }
   }
 
+  /// Reenvía sobre el challenge_id vigente. El contador de 60 s solo reinicia
+  /// tras un 200. Con OtpTooManyResends o ChallengeInvalid ya no hay reenvío
+  /// posible y se ofrecen las salidas.
   Future<void> _resend() async {
-    setState(() { _otp = ''; _resendSeconds = 60; });
-    _startTimer();
+    if (_resending) return;
+    setState(() => _resending = true);
     try {
-      await _repo.recoveryRequest(correo: widget.correo);
-    } catch (_) {}
+      await _repo.resendOtp(
+        challengeId: widget.challengeId,
+        proposito: 'recuperacion',
+      );
+      if (!mounted) return;
+      setState(() {
+        _otp = '';
+        _resending = false;
+        _resendSeconds = 60;
+      });
+      _startTimer();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _resending = false;
+        if (e is ApiException &&
+            (e.code == 'OtpTooManyResends' || e.code == 'ChallengeInvalid')) {
+          _resendClosed = true;
+        }
+      });
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
+    }
+  }
+
+  Widget _resendArea() {
+    if (_resendClosed) {
+      return Column(
+        children: [
+          TextButton(
+            onPressed: () => context.go('/login/recovery'),
+            style: TextButton.styleFrom(foregroundColor: AppColors.gradientStart),
+            child: const Text('Volver a empezar', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          TextButton(
+            onPressed: () => context.go('/login'),
+            style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
+            child: const Text('Iniciar sesión'),
+          ),
+        ],
+      );
+    }
+    if (_resendSeconds > 0) {
+      return Text(
+        'Reenviar código en ${_resendSeconds}s',
+        style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+      );
+    }
+    return TextButton(
+      onPressed: _resending ? null : _resend,
+      style: TextButton.styleFrom(foregroundColor: AppColors.gradientStart),
+      child: const Text('Reenviar código', style: TextStyle(fontWeight: FontWeight.w600)),
+    );
   }
 
   @override
@@ -332,16 +397,7 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
                   child: NumPad(onDigit: _onDigit, onDelete: _onDelete),
                 ),
                 const SizedBox(height: 20),
-                _resendSeconds > 0
-                    ? Text(
-                        'Reenviar código en ${_resendSeconds}s',
-                        style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
-                      )
-                    : TextButton(
-                        onPressed: _resend,
-                        style: TextButton.styleFrom(foregroundColor: AppColors.gradientStart),
-                        child: const Text('Reenviar código', style: TextStyle(fontWeight: FontWeight.w600)),
-                      ),
+                _resendArea(),
                 const Spacer(flex: 1),
               ],
             ),
@@ -354,162 +410,132 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
 
 // Step 3: new password → POST /v1/auth/recovery/reset
 class NewPinScreen extends StatefulWidget {
-  const NewPinScreen({super.key, required this.resetToken});
+  const NewPinScreen({super.key, required this.resetToken, this.repository});
   final String resetToken;
+  final AuthRepository? repository;
 
   @override
   State<NewPinScreen> createState() => _NewPinScreenState();
 }
 
-class _NewPinScreenState extends State<NewPinScreen> with SingleTickerProviderStateMixin {
-  static const _pinLength = 6;
-  bool _confirming = false;
-  String _pin = '';
-  String _firstPin = '';
+class _NewPinScreenState extends State<NewPinScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _passwordCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
   bool _loading = false;
-  final _repo = AuthRepository();
-  late AnimationController _shakeController;
-  late Animation<double> _shakeAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _shakeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-    _shakeAnimation = Tween<double>(begin: 0, end: 12).animate(
-      CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
-    );
-  }
+  String? _error;
+  late final AuthRepository _repo = widget.repository ?? AuthRepository();
 
   @override
   void dispose() {
-    _shakeController.dispose();
+    _passwordCtrl.dispose();
+    _confirmCtrl.dispose();
     super.dispose();
   }
 
-  void _onDigit(String d) {
-    if (_loading || _pin.length >= _pinLength) return;
-    setState(() => _pin += d);
-    if (_pin.length == _pinLength) {
-      if (!_confirming) {
-        setState(() {
-          _firstPin = _pin;
-          _pin = '';
-          _confirming = true;
-        });
-      } else {
-        _submit();
-      }
-    }
-  }
-
-  void _onDelete() {
-    if (_loading || _pin.isEmpty) return;
-    setState(() => _pin = _pin.substring(0, _pin.length - 1));
+  String? _validateConfirm(String? v) {
+    final base = validarContrasena(v);
+    if (base != null) return base;
+    if (v != _passwordCtrl.text) return 'Las contraseñas no coinciden';
+    return null;
   }
 
   Future<void> _submit() async {
-    if (_pin != _firstPin) {
-      _shakeController.forward(from: 0);
-      setState(() { _pin = ''; _confirming = false; _firstPin = ''; });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Los PINs no coinciden, inténtalo de nuevo')),
-      );
-      return;
-    }
-    setState(() => _loading = true);
+    if (_loading || !_formKey.currentState!.validate()) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
-      await _repo.recoveryReset(resetToken: widget.resetToken, nuevaContrasena: _pin);
+      await _repo.recoveryReset(
+        resetToken: widget.resetToken,
+        nuevaContrasena: _passwordCtrl.text,
+      );
       if (!mounted) return;
       context.go('/login');
-    } on ApiException catch (e) {
+    } on Exception catch (e) {
       if (!mounted) return;
-      setState(() { _loading = false; _pin = ''; _confirming = false; _firstPin = ''; });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
-    } catch (_) {
-      if (!mounted) return;
-      setState(() { _loading = false; _pin = ''; _confirming = false; _firstPin = ''; });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error de conexión. Intenta de nuevo.')),
-      );
+      setState(() {
+        _loading = false;
+        _error = mensajeDeError(e);
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return AuthBackground(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Row(
-              children: [
-                const SizedBox(height: 24),
-                IconButton(
-                  onPressed: _loading
-                      ? null
-                      : _confirming
-                          ? () => setState(() { _pin = ''; _confirming = false; _firstPin = ''; })
-                          : () => context.pop(),
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: AppColors.textSecondary,
-                    size: 20,
-                  ),
-                  padding: EdgeInsets.zero,
-                ),
-                const Spacer(),
-                const VeraLogo(size: 22),
-              ],
-            ),
-          ),
-          const Spacer(flex: 2),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            child: Text(
-              _confirming ? 'Confirma tu nuevo PIN' : 'Crea tu nuevo PIN',
-              key: ValueKey(_confirming),
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.5,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _confirming
-                ? 'Ingresa el PIN nuevamente para confirmarlo'
-                : 'Elige 6 dígitos que recuerdes fácilmente',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
-          ),
-          const SizedBox(height: 48),
-          _loading
-              ? const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation(AppColors.gradientStart),
-                )
-              : AnimatedBuilder(
-                  animation: _shakeAnimation,
-                  builder: (context, child) => Transform.translate(
-                    offset: Offset(
-                      _shakeAnimation.value * (_shakeController.value < 0.5 ? 1 : -1),
-                      0,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: _loading ? null : () => context.pop(),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: AppColors.textSecondary,
+                      size: 20,
                     ),
-                    child: child,
+                    padding: EdgeInsets.zero,
                   ),
-                  child: PinDots(length: _pinLength, filled: _pin.length),
+                  const Spacer(),
+                  const VeraLogo(size: 22),
+                ],
+              ),
+              const SizedBox(height: 48),
+              const Text(
+                'Crea tu nueva contraseña',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
                 ),
-          const Spacer(flex: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: NumPad(onDigit: _onDigit, onDelete: _onDelete),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Usa entre 8 y 64 caracteres. Puedes incluir letras, números y símbolos.',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.5),
+              ),
+              const SizedBox(height: 32),
+              PasswordField(
+                controller: _passwordCtrl,
+                hintText: 'Nueva contraseña',
+                autofocus: true,
+                enabled: !_loading,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 16),
+              PasswordField(
+                controller: _confirmCtrl,
+                hintText: 'Confirma tu nueva contraseña',
+                enabled: !_loading,
+                validator: _validateConfirm,
+                onSubmitted: (_) => _submit(),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _error!,
+                  style: const TextStyle(color: AppColors.error, fontSize: 14),
+                ),
+              ],
+              const SizedBox(height: 32),
+              GradientButton(
+                label: 'Guardar contraseña',
+                loading: _loading,
+                onPressed: _loading ? null : _submit,
+              ),
+              const SizedBox(height: 32),
+            ],
           ),
-          const Spacer(flex: 1),
-        ],
+        ),
       ),
     );
   }

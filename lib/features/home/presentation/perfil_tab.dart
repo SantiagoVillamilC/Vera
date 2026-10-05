@@ -1,8 +1,64 @@
 import 'package:flutter/material.dart';
+import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/features/auth/data/auth_repository.dart';
 
-class PerfilTab extends StatelessWidget {
-  const PerfilTab({super.key});
+/// Nombre de la persona o, si no hay, la razón social. Un texto vacío cuenta
+/// como no guardado.
+String? nombreDePerfil(SessionProfile perfil) {
+  for (final v in [perfil.nombreCompleto, perfil.razonSocial]) {
+    final limpio = v?.trim();
+    if (limpio != null && limpio.isNotEmpty) return limpio;
+  }
+  return null;
+}
+
+class PerfilTab extends StatefulWidget {
+  const PerfilTab({
+    super.key,
+    this.session = defaultSessionStore,
+    this.authRepository,
+  });
+
+  final SessionStore session;
+
+  /// Por defecto el repositorio de autenticación real.
+  final AuthRepository? authRepository;
+
+  @override
+  State<PerfilTab> createState() => _PerfilTabState();
+}
+
+class _PerfilTabState extends State<PerfilTab> {
+  String? _nombre;
+  bool _cerrando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarNombre();
+  }
+
+  Future<void> _cargarNombre() async {
+    try {
+      final perfil = await widget.session.readProfile();
+      if (mounted) setState(() => _nombre = nombreDePerfil(perfil));
+    } catch (_) {
+      // Sin perfil legible se queda "Mi cuenta".
+    }
+  }
+
+  Future<void> _cerrarSesion() async {
+    if (_cerrando) return;
+    setState(() => _cerrando = true);
+    try {
+      await (widget.authRepository ?? AuthRepository()).logout();
+    } catch (_) {
+      // logout() borra la sesión local antes de propagar cualquier error,
+      // así que el router ya llevó a /login.
+    }
+    if (mounted) setState(() => _cerrando = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,9 +119,9 @@ class PerfilTab extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Mi cuenta',
-                              style: TextStyle(
+                            Text(
+                              _nombre ?? 'Mi cuenta',
+                              style: const TextStyle(
                                 color: AppColors.textPrimary,
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
@@ -162,7 +218,7 @@ class PerfilTab extends StatelessWidget {
               width: double.infinity,
               height: 52,
               child: OutlinedButton.icon(
-                onPressed: () {},
+                onPressed: _cerrando ? null : _cerrarSesion,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.error,
                   side: const BorderSide(color: AppColors.error),

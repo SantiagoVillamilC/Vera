@@ -5,6 +5,31 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Unreleased] auth conectado: contraseña, consentimientos, reenvío y cerrar sesión
+
+### Added
+- Registro con casillas de consentimiento `tratamiento_datos` y `whatsapp_optin`, ambos `v1`, y botón deshabilitado hasta marcar ambas.
+- Reenvío de OTP por `POST /v1/auth/otp/resend` con el `challenge_id` vigente. El contador de 60 s reinicia solo con 200.
+- Cerrar sesión conectado: `logout` con Bearer y refresh token, borra tokens y perfil, y vuelve a `/login`.
+- Perfil de sesión (nombre o razón social y tipo de cuenta) guardado al iniciar sesión.
+- Parámetro opcional de repositorio en las pantallas de auth, `HomeScreen` y `PerfilTab` para pruebas con fakes.
+
+### Changed
+- Login y reset piden una contraseña de 8 a 64 caracteres en un campo oculto. Las rutas `/login/pin` y `/login/recovery/new-pin` se conservan.
+- Tras los códigos de respaldo se va a `/login`.
+- El saludo del Home usa el nombre guardado.
+- Mensajes de error de reenvío y límites de peticiones revisados en `mensajeDeError`.
+- `docs/conexion-backend-auth.md` documenta ambos consentimientos con `v1` (antes solo `tratamiento_datos` con `v1.0`).
+
+### Pendiente
+- N-17: contexto de empresa en login.
+- Textos legales de consentimiento (decisión 2): las etiquetas son cortas y neutras.
+- Salida del lado del servidor para N-6 (S8).
+- Biometría (SCRUM-81).
+- Supuesto del lote 0 de la contraseña de 8 a 64 (`openapi.yaml:1091-1097`), por confirmar con Santiago y Valeria.
+
+---
+
 ## [Unreleased] limpieza de código muerto, mocks y documentación
 
 ### Removed

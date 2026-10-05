@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/session_store.dart';
+import 'package:vera/features/auth/data/auth_repository.dart';
 import 'package:vera/features/auth/presentation/backup_codes_screen.dart';
 import 'package:vera/features/auth/presentation/login_screen.dart';
 import 'package:vera/features/auth/presentation/recovery_screen.dart';
@@ -7,6 +8,7 @@ import 'package:vera/features/auth/presentation/register_screen.dart';
 import 'package:vera/features/home/presentation/enviar_screen.dart';
 import 'package:vera/features/home/presentation/estadisticas_screen.dart';
 import 'package:vera/features/home/presentation/home_screen.dart';
+import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
 bool _isPublicLocation(String path) =>
     path == '/login' ||
@@ -16,7 +18,14 @@ bool _isPublicLocation(String path) =>
 
 /// Router de la app. La sesión se lee del [SessionNotifier] (cargado una sola
 /// vez al arrancar), nunca del almacenamiento seguro en cada redirect.
-GoRouter buildRouter(SessionNotifier session) => GoRouter(
+/// Los parámetros opcionales inyectan dependencias al Home (pruebas de widget),
+/// por defecto las reales.
+GoRouter buildRouter(
+  SessionNotifier session, {
+  AuthRepository? authRepository,
+  SessionStore? sessionStore,
+  NucleoRepository? nucleoRepository,
+}) => GoRouter(
   initialLocation: '/login',
   refreshListenable: session,
   redirect: (context, state) {
@@ -70,7 +79,11 @@ GoRouter buildRouter(SessionNotifier session) => GoRouter(
     ),
     GoRoute(
       path: '/home',
-      builder: (context, state) => const HomeScreen(),
+      builder: (context, state) => HomeScreen(
+        authRepository: authRepository,
+        session: sessionStore,
+        repository: nucleoRepository,
+      ),
     ),
     GoRoute(
       path: '/enviar',

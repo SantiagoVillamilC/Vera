@@ -164,16 +164,21 @@ Navegar con `context.go('/ruta')` (reemplaza) o `context.push('/ruta')` (apila).
 
 ### Login (sin OTP intermedio)
 1. `LoginScreen`: celular (+57, 10 dígitos)
-2. `PinScreen`: hoy un PIN de 6 dígitos con `NumPad`. El contrato (`openapi.yaml`, `LoginRequest.contrasena`) exige una contraseña de 8 a 64 caracteres, así que el cambio de pantalla está pendiente (lote de auth).
+2. `PinScreen`: contraseña de 8 a 64 caracteres en un campo oculto (`LoginRequest.contrasena`). El nombre y la ruta `/login/pin` se conservan. `NewPinScreen` (`/login/recovery/new-pin`) usa la misma regla. `NumPad` y `PinDots` siguen existiendo por las pantallas de OTP.
 
-Cerrar sesión está pendiente: el botón de Perfil aún no hace nada (`AuthRepository.logout()` existe pero no está conectado).
+Cerrar sesión: el botón de Perfil llama a `AuthRepository.logout()` (Bearer y refresh token), borra tokens y perfil, y va a `/login`. El saludo del Home usa el nombre guardado.
+
+Las pantallas reciben el repositorio por un parámetro opcional de constructor (por defecto el real) para pruebas con fakes.
+
+Pendientes: N-17 (contexto de empresa en login), textos legales de consentimiento (decisión 2), salida del lado del servidor para N-6 (S8), biometría (SCRUM-81) y el supuesto del lote 0 de la contraseña de 8 a 64 (`openapi.yaml:1091-1097`), por confirmar con Santiago y Valeria.
 
 ### Registro
 1. Selector de tipo: `_AccountType.persona` | `_AccountType.empresa`
 2. Datos de contacto (campos distintos por tipo)
 3. Identidad (documento personal o representante legal)
-4. Contraseña (8–64 caracteres, barra de fortaleza)
-5. `_OtpRegisterScreen` — verificación de celular
+4. Contraseña (de 8 a 64 caracteres, barra de fortaleza) y casillas de consentimiento `tratamiento_datos` y `whatsapp_optin` (ambos `v1`), botón deshabilitado hasta marcar ambas
+5. `_OtpRegisterScreen`: verificación de celular, reenvío por `POST /v1/auth/otp/resend` con el `challenge_id` vigente (el contador solo reinicia con 200)
+6. `BackupCodesScreen` y luego `/login`
 
 ### Endpoints conectados
 
