@@ -6,6 +6,7 @@ import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/auth_background.dart';
+import 'package:vera/core/widgets/auth_scroll_body.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
 import 'package:vera/core/widgets/pin_pad.dart';
 import 'package:vera/core/widgets/vera_logo.dart';
@@ -157,19 +158,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return AuthBackground(
       child: Column(
         children: [
-          _TopBar(step: _step, totalSteps: 4, onBack: _back),
+          // La barra superior se desplaza con el contenido: en pantallas bajas
+          // con teclado el botón fijo se queda con el espacio mínimo. La clave
+          // por paso evita heredar el desplazamiento del paso anterior.
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(28, 24, 28, 0),
-              child: _step == 0
-                  ? _TypeStep(
-                      selected: _accountType,
-                      onChanged: (t) => setState(() => _accountType = t),
-                    )
-                  : Form(
-                      key: _formKey,
-                      child: _stepContent(),
-                    ),
+              key: ValueKey(_step),
+              child: Column(
+                children: [
+                  _TopBar(step: _step, totalSteps: 4, onBack: _back),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(28, 24, 28, 0),
+                    child: _step == 0
+                        ? _TypeStep(
+                            selected: _accountType,
+                            onChanged: (t) => setState(() => _accountType = t),
+                          )
+                        : Form(
+                            key: _formKey,
+                            child: _stepContent(),
+                          ),
+                  ),
+                ],
+              ),
             ),
           ),
           if (_step == 3 && !_consentimientosCompletos)
@@ -1040,82 +1051,84 @@ class _OtpRegisterScreenState extends State<OtpRegisterScreen> {
       );
     }
     return AuthBackground(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(28, 20, 28, 0),
-            child: Row(
-              children: [
-                const SizedBox.shrink(),
-                const Spacer(),
-                const VeraLogo(size: 22),
-              ],
+      child: AuthScrollBody(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 20, 28, 0),
+              child: Row(
+                children: [
+                  const SizedBox.shrink(),
+                  const Spacer(),
+                  const VeraLogo(size: 22),
+                ],
+              ),
             ),
-          ),
-          const Spacer(flex: 2),
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              gradient: AppGradients.brand,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.gradientMid.withAlpha(100),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 32),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Verifica tu número',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 26,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Enviamos un código por WhatsApp a\n$_maskedCelular',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 15,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 48),
-          _loading
-              ? const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation(AppColors.gradientStart),
-                )
-              : PinDots(length: _otpLength, filled: _otp.length),
-          const Spacer(flex: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: NumPad(onDigit: _onDigit, onDelete: _onDelete),
-          ),
-          const SizedBox(height: 20),
-          _resendSeconds > 0
-              ? Text(
-                  'Reenviar en ${_resendSeconds}s',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
-                )
-              : TextButton(
-                  onPressed: _resending ? null : _resend,
-                  style: TextButton.styleFrom(foregroundColor: AppColors.gradientStart),
-                  child: const Text(
-                    'Reenviar código',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+            const EspacioFlexible(flex: 2, minimo: 16),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                gradient: AppGradients.brand,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.gradientMid.withAlpha(100),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
                   ),
-                ),
-          const Spacer(flex: 1),
-        ],
+                ],
+              ),
+              child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 32),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Verifica tu número',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Enviamos un código por WhatsApp a\n$_maskedCelular',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 15,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 48),
+            _loading
+                ? const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation(AppColors.gradientStart),
+                  )
+                : PinDots(length: _otpLength, filled: _otp.length),
+            const EspacioFlexible(flex: 1, minimo: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: NumPad(onDigit: _onDigit, onDelete: _onDelete),
+            ),
+            const SizedBox(height: 20),
+            _resendSeconds > 0
+                ? Text(
+                    'Reenviar en ${_resendSeconds}s',
+                    style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+                  )
+                : TextButton(
+                    onPressed: _resending ? null : _resend,
+                    style: TextButton.styleFrom(foregroundColor: AppColors.gradientStart),
+                    child: const Text(
+                      'Reenviar código',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+            const EspacioFlexible(flex: 1, minimo: 12),
+          ],
+        ),
       ),
     );
   }

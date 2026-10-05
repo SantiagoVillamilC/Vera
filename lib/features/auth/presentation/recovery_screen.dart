@@ -4,6 +4,7 @@ import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/auth_background.dart';
+import 'package:vera/core/widgets/auth_scroll_body.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
 import 'package:vera/core/widgets/password_field.dart';
 import 'package:vera/core/widgets/pin_pad.dart';
@@ -62,77 +63,79 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 28),
         child: Form(
           key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => context.pop(),
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: AppColors.textSecondary,
-                      size: 20,
+          child: AuthScrollBody(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => context.pop(),
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: AppColors.textSecondary,
+                        size: 20,
+                      ),
+                      padding: EdgeInsets.zero,
                     ),
-                    padding: EdgeInsets.zero,
+                    const Spacer(),
+                    const VeraLogo(size: 22),
+                  ],
+                ),
+                const SizedBox(height: 48),
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: AppColors.gradientMid.withAlpha(30),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.gradientMid.withAlpha(80)),
                   ),
-                  const Spacer(),
-                  const VeraLogo(size: 22),
-                ],
-              ),
-              const SizedBox(height: 48),
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: AppColors.gradientMid.withAlpha(30),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.gradientMid.withAlpha(80)),
+                  child: const Icon(Icons.lock_reset_rounded, color: AppColors.gradientStart, size: 28),
                 ),
-                child: const Icon(Icons.lock_reset_rounded, color: AppColors.gradientStart, size: 28),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Recuperar contraseña',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.6,
+                const SizedBox(height: 24),
+                const Text(
+                  'Recuperar contraseña',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.6,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Ingresa el correo electrónico de tu cuenta. Enviaremos un código de verificación por WhatsApp.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.55),
-              ),
-              const SizedBox(height: 32),
-              TextFormField(
-                controller: _correoCtrl,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) => _sendOtp(),
-                autofocus: true,
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
-                decoration: const InputDecoration(
-                  hintText: 'tu@correo.com',
-                  prefixIcon: Icon(Icons.mail_outline_rounded, size: 20),
+                const SizedBox(height: 10),
+                const Text(
+                  'Ingresa el correo electrónico de tu cuenta. Enviaremos un código de verificación por WhatsApp.',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.55),
                 ),
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Ingresa tu correo';
-                  if (!RegExp(r'^[\w.+-]+@[\w-]+\.\w+$').hasMatch(v)) return 'Correo inválido';
-                  return null;
-                },
-              ),
-              const Spacer(),
-              GradientButton(
-                label: 'Enviar código',
-                loading: _loading,
-                onPressed: _sendOtp,
-              ),
-              const SizedBox(height: 40),
-            ],
+                const SizedBox(height: 32),
+                TextFormField(
+                  controller: _correoCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _sendOtp(),
+                  autofocus: true,
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+                  decoration: const InputDecoration(
+                    hintText: 'tu@correo.com',
+                    prefixIcon: Icon(Icons.mail_outline_rounded, size: 20),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Ingresa tu correo';
+                    if (!RegExp(r'^[\w.+-]+@[\w-]+\.\w+$').hasMatch(v)) return 'Correo inválido';
+                    return null;
+                  },
+                ),
+                const EspacioFlexible(minimo: 24),
+                GradientButton(
+                  label: 'Enviar código',
+                  loading: _loading,
+                  onPressed: _sendOtp,
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),
