@@ -1,6 +1,7 @@
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/app_config.dart';
 import 'package:vera/core/network/session_store.dart';
+import 'package:vera/features/auth/data/auth_repository.dart';
 
 class NucleoRepository {
   /// [session] solo se usa para construir el ApiClient por defecto. El Bearer
@@ -80,6 +81,17 @@ class NucleoRepository {
 
   // ── Transferencias ────────────────────────────────────────────
 
+  /// GET /v1/destinatarios?celular=
+  /// [celularE164] ya normalizado. El nombre llega enmascarado desde el
+  /// servidor y se muestra tal cual. 404 RecipientNotFound sube como ApiException.
+  Future<Destinatario> getDestinatario(String celularE164) async {
+    final raw = await _client.get(
+      '/v1/destinatarios',
+      queryParams: {'celular': celularE164},
+    );
+    return Destinatario.fromJson(raw['data'] as Map<String, dynamic>? ?? raw);
+  }
+
   /// POST /v1/transferencias
   /// Envía dinero a otro usuario Vera.
   /// [destino] celular u otro identificador del destinatario.
@@ -124,7 +136,33 @@ class NucleoRepository {
   }
 }
 
+const maxLongitudDestino = 320;
+
+/// Normaliza el destino como celular E.164. Devuelve null si está vacío, no
+/// tiene dígitos o excede [maxLongitudDestino].
+String? normalizarDestino(String raw) {
+  final texto = raw.trim();
+  if (texto.isEmpty || texto.length > maxLongitudDestino) return null;
+  if (!RegExp(r'\d').hasMatch(texto)) return null;
+  final e164 = AuthRepository.toE164(texto);
+  return e164.length > maxLongitudDestino ? null : e164;
+}
+
 // ── Modelos ───────────────────────────────────────────────────────────────────
+
+/// Nombre visible del destinatario, ya enmascarado por el servidor.
+class Destinatario {
+  const Destinatario({required this.nombre});
+  final String nombre;
+
+  factory Destinatario.fromJson(Map<String, dynamic> j) {
+    final nombre = j['nombre'];
+    if (nombre is! String) {
+      throw FormatException('Campo "nombre" ausente', nombre);
+    }
+    return Destinatario(nombre: nombre);
+  }
+}
 
 final _enteroRe = RegExp(r'^-?\d+$');
 
