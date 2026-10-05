@@ -1,0 +1,44 @@
+# Única verificación de que la app compila para iOS: no hay Mac local, así que
+# este job en GitHub es la única forma de comprobarlo.
+# Los minutos de macOS cuestan unas 10 veces más que los de Linux en repos
+# privados, por eso solo corre cuando cambian archivos que afectan a iOS, o a mano.
+name: iOS build
+
+on:
+  pull_request:
+    branches: [dev, staging, main]
+    paths:
+      - "ios/**"
+      - "lib/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/ios-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    name: Build iOS (no codesign)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: 3.47.2
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS
+        run: flutter build ios --release --no-codesign
