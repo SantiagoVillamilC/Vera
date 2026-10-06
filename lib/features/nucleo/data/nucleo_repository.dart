@@ -108,6 +108,16 @@ class NucleoRepository {
     return Transferencia.fromJson(raw);
   }
 
+  // ── KYC ──────────────────────────────────────────────────────
+
+  /// GET /v1/kyc/estado
+  /// Devuelve producto, estado KYC y límites del mes.
+  Future<KycEstado> getKycEstado() async {
+    final token = await _token();
+    final raw = await _client.get('/v1/kyc/estado', bearerToken: token);
+    return KycEstado.fromJson(raw['data'] as Map<String, dynamic>? ?? raw);
+  }
+
   /// POST /v1/transferencias/interbancarias
   /// Envía por llave (CVU, celular de otra entidad, etc.).
   Future<EnvioPorLlave> transferirInterbancaria({
@@ -331,6 +341,39 @@ class Transferencia {
         creadaEn: DateTime.tryParse(j['creada_en'] as String? ?? '') ?? DateTime.now(),
         actualizadaEn: DateTime.tryParse(j['actualizada_en'] as String? ?? '') ?? DateTime.now(),
       );
+}
+
+class KycEstado {
+  const KycEstado({
+    required this.producto,
+    required this.estadoKyc,
+    this.topeMensualCentavos,
+    this.disponibleMesCentavos,
+  });
+
+  final String producto;
+  final String estadoKyc;
+  final int? topeMensualCentavos;
+  final int? disponibleMesCentavos;
+
+  String get productoLabel => switch (producto) {
+        'bajo_monto' => 'Depósito de bajo monto',
+        'pleno' => 'Cuenta plena',
+        'deposito_ordinario' => 'Depósito ordinario',
+        _ => producto,
+      };
+
+  factory KycEstado.fromJson(Map<String, dynamic> j) {
+    final limites = j['limites'] as Map<String, dynamic>? ?? {};
+    return KycEstado(
+      producto: j['producto'] as String? ?? '',
+      estadoKyc: j['estado_kyc'] as String? ?? '',
+      topeMensualCentavos:
+          int.tryParse(limites['tope_mensual'] as String? ?? ''),
+      disponibleMesCentavos:
+          int.tryParse(limites['disponible_mes'] as String? ?? ''),
+    );
+  }
 }
 
 class EnvioPorLlave {

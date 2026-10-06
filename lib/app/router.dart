@@ -4,8 +4,10 @@ import 'package:vera/features/auth/presentation/login_screen.dart';
 import 'package:vera/features/auth/presentation/recovery_screen.dart';
 import 'package:vera/features/auth/presentation/register_screen.dart';
 import 'package:vera/features/home/presentation/enviar_screen.dart';
+import 'package:vera/features/home/presentation/enviar_por_llave_screen.dart';
 import 'package:vera/features/home/presentation/estadisticas_screen.dart';
 import 'package:vera/features/home/presentation/home_screen.dart';
+import 'package:vera/features/home/presentation/recargar_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/home', // TODO: revertir a '/login' antes de producción
@@ -68,6 +70,14 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/enviar',
       builder: (context, state) => const EnviarScreen(),
+    ),
+    GoRoute(
+      path: '/enviar-por-llave',
+      builder: (context, state) => const EnviarPorLlaveScreen(),
+    ),
+    GoRoute(
+      path: '/recargar',
+      builder: (context, state) => const RecargarScreen(),
     ),
     GoRoute(
       path: '/estadisticas',

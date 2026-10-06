@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/utils/currency.dart';
 import 'package:vera/features/home/presentation/movimientos_tab.dart';
 import 'package:vera/features/home/presentation/tarjetas_tab.dart';
 import 'package:vera/features/home/presentation/perfil_tab.dart';
@@ -8,17 +9,6 @@ import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
 // TODO: leer desde AuthRepository.getNombreCompleto() (flutter_secure_storage)
 const _mockNombre = 'Elisa';
-
-String _pesos(int centavos) {
-  final s = (centavos ~/ 100).toString();
-  final b = StringBuffer();
-  for (int i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) b.write('.');
-    b.write(s[i]);
-  }
-  final cents = (centavos % 100).toString().padLeft(2, '0');
-  return '\$ ${b.toString()},$cents';
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -36,20 +26,32 @@ class _HomeScreenState extends State<HomeScreen> {
   final _nucleo = NucleoRepository();
   int? _saldoCentavos;
   bool _errorSaldo = false;
+  KycEstado? _kyc;
 
   @override
   void initState() {
     super.initState();
-    _cargarSaldo();
+    _cargar();
+  }
+
+  Future<void> _cargar() async {
+    await Future.wait([_cargarSaldo(), _cargarKyc()]);
   }
 
   Future<void> _cargarSaldo() async {
     try {
       final s = await _nucleo.getSaldo();
-      if (mounted) setState(() => _saldoCentavos = s.montoCentavos);
+      if (mounted) setState(() { _saldoCentavos = s.montoCentavos; _errorSaldo = false; });
     } catch (_) {
       if (mounted) setState(() => _errorSaldo = true);
     }
+  }
+
+  Future<void> _cargarKyc() async {
+    try {
+      final k = await _nucleo.getKycEstado();
+      if (mounted) setState(() => _kyc = k);
+    } catch (_) {}
   }
 
   void _onNavTap(int i) {
@@ -70,7 +72,9 @@ class _HomeScreenState extends State<HomeScreen> {
             saldoVisible: _saldoVisible,
             saldoCentavos: _saldoCentavos,
             errorSaldo: _errorSaldo,
+            kyc: _kyc,
             onToggleSaldo: () => setState(() => _saldoVisible = !_saldoVisible),
+            onRefresh: _cargar,
           ),
       };
 
@@ -206,12 +210,16 @@ class _InicioTab extends StatelessWidget {
     required this.onToggleSaldo,
     required this.saldoCentavos,
     required this.errorSaldo,
+    required this.kyc,
+    required this.onRefresh,
   });
 
   final bool saldoVisible;
   final VoidCallback onToggleSaldo;
   final int? saldoCentavos;
   final bool errorSaldo;
+  final KycEstado? kyc;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -224,18 +232,31 @@ class _InicioTab extends StatelessWidget {
           errorSaldo: errorSaldo,
         ),
         Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _ActionsCard(),
-                const SizedBox(height: 28),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20),
-                  child: _MovimientosSection(),
-                ),
-                const SizedBox(height: 100),
-              ],
+          child: RefreshIndicator(
+            onRefresh: onRefresh,
+            color: AppColors.gradientStart,
+            backgroundColor: AppColors.surface,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _ActionsCard(),
+                  if (kyc != null) ...[
+                    const SizedBox(height: 20),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _KycBlock(kyc: kyc!),
+                    ),
+                  ],
+                  const SizedBox(height: 28),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: _MovimientosSection(),
+                  ),
+                  const SizedBox(height: 100),
+                ],
+              ),
             ),
           ),
         ),
@@ -277,7 +298,7 @@ class _Header extends StatelessWidget {
       );
     }
     return Text(
-      saldoVisible ? _pesos(saldoCentavos!) : '\$ ••••••',
+      saldoVisible ? formatPesosConCentavos(saldoCentavos!) : '\$ ••••••',
       style: const TextStyle(
         color: Colors.white,
         fontSize: 42,
@@ -375,11 +396,11 @@ class _ActionsCard extends StatelessWidget {
 
   static const _actions = [
     (Icons.send_rounded, 'Enviar\ndinero', '/enviar'),
+    (Icons.swap_horiz_rounded, 'Enviar\npor llave', '/enviar-por-llave'),
+    (Icons.add_circle_outline_rounded, 'Recargar', '/recargar'),
     (Icons.receipt_long_rounded, 'Pagar\nservicios', ''),
     (Icons.credit_card_rounded, 'Pedir\ntarjeta', ''),
-    (Icons.add_circle_outline_rounded, 'Recargar', ''),
     (Icons.key_rounded, 'Mis\nclaves', ''),
-    (Icons.account_balance_wallet_rounded, 'Remune-\nración', ''),
   ];
 
   @override
@@ -544,6 +565,85 @@ class _CardRow extends StatelessWidget {
             child: const Icon(Icons.chevron_right_rounded,
                 color: AppColors.textMuted, size: 20),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Bloque KYC (depósito de bajo monto) ───────────────────────
+
+class _KycBlock extends StatelessWidget {
+  const _KycBlock({required this.kyc});
+  final KycEstado kyc;
+
+  @override
+  Widget build(BuildContext context) {
+    final tope = kyc.topeMensualCentavos;
+    final disponible = kyc.disponibleMesCentavos;
+    final usado = (tope != null && disponible != null) ? tope - disponible : null;
+    final progreso = (tope != null && usado != null && tope > 0)
+        ? (usado / tope).clamp(0.0, 1.0)
+        : null;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                decoration: BoxDecoration(
+                  gradient: AppGradients.brand,
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Text(
+                  kyc.productoLabel,
+                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const Spacer(),
+              if (tope != null)
+                Text(
+                  'Tope ${formatPesos(tope)}/mes',
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                ),
+            ],
+          ),
+          if (disponible != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Disponible este mes', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                Text(
+                  formatPesos(disponible),
+                  style: const TextStyle(color: AppColors.accentGreen, fontSize: 14, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ],
+          if (progreso != null) ...[
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progreso,
+                minHeight: 5,
+                backgroundColor: AppColors.surfaceVariant,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  progreso > 0.85 ? Colors.orange : AppColors.gradientStart,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -739,7 +839,7 @@ class _MovItem extends StatelessWidget {
             ),
           ),
           Text(
-            '${esIngreso ? '+' : '-'}${_pesos(centavos)}',
+            '${esIngreso ? '+' : '-'}${formatPesos(centavos)}',
             style: TextStyle(
               color: esIngreso ? AppColors.accentGreen : AppColors.textPrimary,
               fontSize: 15,
