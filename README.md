@@ -233,6 +233,37 @@ Los siguientes valores deben configurarse antes de conectar el backend:
 
 ---
 
+## Compilados y releases
+
+Todos los builds del CI apuntan a `https://veraapp.tech` con `--dart-define=API_BASE_URL`.
+
+| Qué | Cuándo | Dónde queda |
+|---|---|---|
+| APK de Android | Cada push y PR | Artefacto de Actions (7 días) |
+| `.ipa` de iOS sin firmar | PR que toca `ios/`, `lib/` o `pubspec` | Artefacto de Actions (7 días) |
+| Release firmado | Tag `vX.Y.Z` cuyo commit está en `main` | GitHub Release: APK firmado, `.ipa` sin firmar y sus `.sha256` |
+
+El APK de release se firma con la keystore guardada en los secrets del repositorio (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD`, `ANDROID_KEY_ALIAS`). La copia de respaldo está en la VPS, en `/opt/centinela/secrets/android/`. Sin `android/key.properties` el build local firma con la clave de depuración.
+
+Para publicar una versión, desde `main`:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+### iOS
+
+El `.ipa` del CI no está firmado, así que no se instala tal cual. Se firma en el Mac con un Apple ID gratuito:
+
+1. Descargar el `.ipa` del Release o del artefacto del PR.
+2. Abrirlo con Sideloadly o AltStore en el Mac, con el iPhone conectado.
+3. En el iPhone, activar el modo desarrollador y confiar en el perfil (Ajustes, General, VPN y gestión de dispositivos).
+
+Con un Apple ID gratuito el certificado dura 7 días y hay que repetir la instalación. Una cuenta de Apple Developer (99 USD al año) permitiría TestFlight o Ad Hoc firmado en el CI.
+
+---
+
 ## Ramas del repositorio
 
 | Rama | Propósito |
