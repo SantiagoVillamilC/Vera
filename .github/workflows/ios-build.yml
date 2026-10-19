@@ -1,5 +1,6 @@
-# Única verificación de que la app compila para iOS: no hay Mac local, así que
-# este job en GitHub es la única forma de comprobarlo.
+# Verifica que la app compila para iOS y empaqueta un .ipa sin firmar como
+# artefacto. El .ipa no se instala tal cual: se firma en un Mac con un Apple ID
+# (ver README, sección "iOS").
 # Los minutos de macOS cuestan unas 10 veces más que los de Linux en repos
 # privados, por eso solo corre cuando cambian archivos que afectan a iOS, o a mano.
 name: iOS build
@@ -41,4 +42,19 @@ jobs:
         run: flutter pub get
 
       - name: Build iOS
-        run: flutter build ios --release --no-codesign
+        run: flutter build ios --release --no-codesign --dart-define=API_BASE_URL=https://veraapp.tech
+
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/Runner.app
+          zip -qry vera-unsigned.ipa Payload
+          unzip -l vera-unsigned.ipa | tail -1
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vera-ipa-sin-firmar-${{ github.sha }}
+          path: vera-unsigned.ipa
+          retention-days: 7
+          if-no-files-found: error
