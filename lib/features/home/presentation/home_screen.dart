@@ -50,12 +50,12 @@ class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
   bool _saldoVisible = true;
 
-  late final NucleoRepository _nucleo =
-      widget.repository ?? NucleoRepository();
+  late final NucleoRepository _nucleo = widget.repository ?? NucleoRepository();
   BigInt? _saldoCentavos;
   bool _errorSaldo = false;
   String? _nombre;
   bool _hayRecargaPendiente = false;
+  KycEstado? _kyc;
   late Future<MovimientosPage> _movimientos;
 
   @override
@@ -63,6 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _movimientos = _nucleo.getMovimientos(limit: 3);
     _cargarSaldo();
+    _cargarKyc();
     _cargarNombre();
     _cargarPendiente();
   }
@@ -88,8 +89,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _cargarNombre() async {
     try {
-      final perfil =
-          await (widget.session ?? defaultSessionStore).readProfile();
+      final perfil = await (widget.session ?? defaultSessionStore)
+          .readProfile();
       if (mounted) setState(() => _nombre = nombreDePerfil(perfil));
     } catch (_) {
       // Sin perfil legible se queda el saludo genérico.
@@ -110,6 +111,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _cargarKyc() async {
+    try {
+      final kyc = await _nucleo.getKycEstado();
+      if (mounted) setState(() => _kyc = kyc);
+    } catch (_) {
+      // Sin estado de KYC el bloque de bajo monto no se muestra.
+    }
+  }
+
   void _recargarPreview() {
     final preview = _nucleo.getMovimientos(limit: 3);
     setState(() {
@@ -123,42 +133,50 @@ class _HomeScreenState extends State<HomeScreen> {
       _movimientos = preview;
     });
     // Un fallo del preview lo muestra el FutureBuilder, no debe romper el gesto.
-    await Future.wait([_cargarSaldo(), preview.then((_) {}, onError: (_) {})]);
+    await Future.wait([
+      _cargarSaldo(),
+      _cargarKyc(),
+      preview.then((_) {}, onError: (_) {}),
+    ]);
+  }
+
+  /// Una transferencia confirmada en el chat cambia el saldo: se refresca al volver.
+  Future<void> _abrirAsistente() async {
+    await context.push('/asistente');
+    if (mounted) await _refrescar();
   }
 
   void _onNavTap(int i) {
     if (i == 2) {
-      context.push('/asistente');
+      _abrirAsistente();
       return;
     }
     setState(() => _tab = i);
   }
 
   Widget get _body => switch (_tab) {
-        1 => MovimientosTab(
-            repository: _nucleo,
-            offsetLocal: widget.offsetLocal,
-          ),
-        3 => TarjetasTab(session: widget.session),
-        4 => PerfilTab(
-            session: widget.session ?? defaultSessionStore,
-            authRepository: widget.authRepository,
-          ),
-        _ => _InicioTab(
-            nombre: _nombre,
-            saldoVisible: _saldoVisible,
-            saldoCentavos: _saldoCentavos,
-            errorSaldo: _errorSaldo,
-            recargaPendiente: _hayRecargaPendiente,
-            onAbrir: _abrir,
-            onToggleSaldo: () => setState(() => _saldoVisible = !_saldoVisible),
-            movimientos: _movimientos,
-            offsetLocal: widget.offsetLocal,
-            onRefrescar: _refrescar,
-            onVerTodos: () => setState(() => _tab = 1),
-            onReintentarMovimientos: _recargarPreview,
-          ),
-      };
+    1 => MovimientosTab(repository: _nucleo, offsetLocal: widget.offsetLocal),
+    3 => TarjetasTab(session: widget.session),
+    4 => PerfilTab(
+      session: widget.session ?? defaultSessionStore,
+      authRepository: widget.authRepository,
+    ),
+    _ => _InicioTab(
+      nombre: _nombre,
+      saldoVisible: _saldoVisible,
+      saldoCentavos: _saldoCentavos,
+      errorSaldo: _errorSaldo,
+      recargaPendiente: _hayRecargaPendiente,
+      kyc: _kyc,
+      onAbrir: _abrir,
+      onToggleSaldo: () => setState(() => _saldoVisible = !_saldoVisible),
+      movimientos: _movimientos,
+      offsetLocal: widget.offsetLocal,
+      onRefrescar: _refrescar,
+      onVerTodos: () => setState(() => _tab = 1),
+      onReintentarMovimientos: _recargarPreview,
+    ),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -227,21 +245,26 @@ class _BottomNav extends StatelessWidget {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(icon, size: 22,
+                            Icon(
+                              icon,
+                              size: 22,
+                              color: active
+                                  ? AppColors.textPrimary
+                                  : AppColors.textMuted,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              label,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: active
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
                                 color: active
                                     ? AppColors.textPrimary
-                                    : AppColors.textMuted),
-                            const SizedBox(height: 4),
-                            Text(label,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: active
-                                      ? FontWeight.w600
-                                      : FontWeight.w400,
-                                  color: active
-                                      ? AppColors.textPrimary
-                                      : AppColors.textMuted,
-                                )),
+                                    : AppColors.textMuted,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -256,24 +279,33 @@ class _BottomNav extends StatelessWidget {
             left: 0,
             right: 0,
             child: Center(
-              child: GestureDetector(
+              child: Semantics(
+                button: true,
+                label: 'Hablar con Vera',
+                excludeSemantics: true,
                 onTap: () => onTap(2),
-                child: Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    gradient: AppGradients.brand,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.gradientMid.withAlpha(120),
-                        blurRadius: 20,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                child: GestureDetector(
+                  onTap: () => onTap(2),
+                  child: Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      gradient: AppGradients.brand,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.gradientMid.withAlpha(120),
+                          blurRadius: 20,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.mic_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
                   ),
-                  child: const Icon(Icons.mic_rounded,
-                      color: Colors.white, size: 26),
                 ),
               ),
             ),
@@ -294,6 +326,7 @@ class _InicioTab extends StatelessWidget {
     required this.saldoCentavos,
     required this.errorSaldo,
     required this.recargaPendiente,
+    required this.kyc,
     required this.onAbrir,
     required this.movimientos,
     required this.offsetLocal,
@@ -308,6 +341,7 @@ class _InicioTab extends StatelessWidget {
   final BigInt? saldoCentavos;
   final bool errorSaldo;
   final bool recargaPendiente;
+  final KycEstado? kyc;
   final void Function(String ruta) onAbrir;
   final Future<MovimientosPage> movimientos;
   final Duration? offsetLocal;
@@ -336,10 +370,10 @@ class _InicioTab extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (recargaPendiente)
-                    _AvisoRecargaPendiente(
-                      onTap: () => onAbrir('/recargar'),
-                    ),
-                  _ActionsCard(onAbrir: onAbrir),
+                    _AvisoRecargaPendiente(onTap: () => onAbrir('/recargar')),
+                  _ActionsCard(onAbrir: onAbrir, onHistorial: onVerTodos),
+                  if (kyc case final kyc? when kyc.esBajoMonto)
+                    _BloqueBajoMonto(kyc: kyc),
                   const SizedBox(height: 28),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -389,10 +423,7 @@ class _Header extends StatelessWidget {
       return const SizedBox(
         width: 20,
         height: 20,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: Colors.white54,
-        ),
+        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54),
       );
     }
     return Text(
@@ -449,8 +480,10 @@ class _Header extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withAlpha(30),
                   borderRadius: BorderRadius.circular(20),
@@ -497,6 +530,117 @@ class _Header extends StatelessWidget {
   }
 }
 
+// ── Depósito de bajo monto ─────────────────────────────────────
+
+class _BloqueBajoMonto extends StatelessWidget {
+  const _BloqueBajoMonto({required this.kyc});
+
+  final KycEstado kyc;
+
+  @override
+  Widget build(BuildContext context) {
+    final tope = kyc.topeMensual;
+    final disponible = kyc.disponibleMes;
+    final usado = tope != null && disponible != null && tope > BigInt.zero
+        ? 1 - (disponible.toDouble() / tope.toDouble()).clamp(0.0, 1.0)
+        : null;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Container(
+        key: const Key('bloque_bajo_monto'),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Depósito de bajo monto',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            if (kyc.tieneLimites) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _CifraLimite(
+                    etiqueta: 'Disponible del mes',
+                    valor: formatPesos(disponible!),
+                  ),
+                  _CifraLimite(
+                    etiqueta: 'Tope mensual',
+                    valor: formatPesos(tope!),
+                    alinearDerecha: true,
+                  ),
+                ],
+              ),
+              if (usado != null) ...[
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: usado,
+                    minHeight: 6,
+                    color: AppColors.gradientStart,
+                    backgroundColor: AppColors.surfaceVariant,
+                  ),
+                ),
+              ],
+            ] else
+              const Text(
+                'Tu cupo mensual aún no está disponible.',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CifraLimite extends StatelessWidget {
+  const _CifraLimite({
+    required this.etiqueta,
+    required this.valor,
+    this.alinearDerecha = false,
+  });
+
+  final String etiqueta;
+  final String valor;
+  final bool alinearDerecha;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: alinearDerecha
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        Text(
+          etiqueta,
+          style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          valor,
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // ── Actions card ───────────────────────────────────────────────
 
 class _AvisoRecargaPendiente extends StatelessWidget {
@@ -520,8 +664,11 @@ class _AvisoRecargaPendiente extends StatelessWidget {
           ),
           child: const Row(
             children: [
-              Icon(Icons.hourglass_top_rounded,
-                  color: AppColors.gradientStart, size: 18),
+              Icon(
+                Icons.hourglass_top_rounded,
+                color: AppColors.gradientStart,
+                size: 18,
+              ),
               SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -533,8 +680,11 @@ class _AvisoRecargaPendiente extends StatelessWidget {
                   ),
                 ),
               ),
-              Icon(Icons.chevron_right_rounded,
-                  color: AppColors.textSecondary, size: 18),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textSecondary,
+                size: 18,
+              ),
             ],
           ),
         ),
@@ -544,14 +694,19 @@ class _AvisoRecargaPendiente extends StatelessWidget {
 }
 
 class _ActionsCard extends StatelessWidget {
-  const _ActionsCard({required this.onAbrir});
+  const _ActionsCard({required this.onAbrir, required this.onHistorial});
 
   final void Function(String ruta) onAbrir;
+  final VoidCallback onHistorial;
+
+  /// Historial no es una ruta: abre la pestaña de movimientos.
+  static const _historial = 'historial';
 
   static const _actions = [
     (Icons.send_rounded, 'Enviar\ndinero', '/enviar'),
     (Icons.key_rounded, 'Enviar por llave', '/enviar-llave'),
     (Icons.add_circle_outline_rounded, 'Recargar', '/recargar'),
+    (Icons.history_rounded, 'Historial', _historial),
     (Icons.receipt_long_rounded, 'Pagar\nservicios', ''),
     (Icons.credit_card_rounded, 'Pedir\ntarjeta', ''),
     (Icons.lock_outline_rounded, 'Mis\nclaves', ''),
@@ -601,7 +756,11 @@ class _ActionsCard extends StatelessWidget {
                 return _ActionCell(
                   icon: icon,
                   label: label,
-                  onTap: route.isNotEmpty ? () => onAbrir(route) : null,
+                  onTap: switch (route) {
+                    '' => null,
+                    _historial => onHistorial,
+                    _ => () => onAbrir(route),
+                  },
                 );
               }).toList(),
             ),
@@ -623,6 +782,7 @@ class _ActionCell extends StatelessWidget {
 
   final IconData icon;
   final String label;
+
   /// Sin acción la celda queda marcada (WIP) y no responde al toque.
   final VoidCallback? onTap;
 
@@ -671,7 +831,8 @@ class _ActionCell extends StatelessWidget {
     );
     if (!enDesarrollo) return cuerpo;
     return Semantics(
-      label: '${label.replaceAll('-\n', '').replaceAll('\n', ' ')}, en desarrollo',
+      label:
+          '${label.replaceAll('-\n', '').replaceAll('\n', ' ')}, en desarrollo',
       excludeSemantics: true,
       child: cuerpo,
     );
@@ -701,22 +862,26 @@ class _CardRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: const [
-                Text('VERA',
-                    textScaler: TextScaler.noScaling,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1,
-                    )),
-                Text('VISA',
-                    textScaler: TextScaler.noScaling,
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 8,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1,
-                    )),
+                Text(
+                  'VERA',
+                  textScaler: TextScaler.noScaling,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1,
+                  ),
+                ),
+                Text(
+                  'VISA',
+                  textScaler: TextScaler.noScaling,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1,
+                  ),
+                ),
               ],
             ),
           ),
@@ -726,18 +891,21 @@ class _CardRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(tarjetaMuestraRotulo,
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    )),
+                Text(
+                  tarjetaMuestraRotulo,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 SizedBox(height: 3),
-                Text(tarjetaMuestraNumero,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style:
-                        TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                Text(
+                  tarjetaMuestraNumero,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                ),
               ],
             ),
           ),
@@ -746,7 +914,6 @@ class _CardRow extends StatelessWidget {
     );
   }
 }
-
 
 // ── Movimientos recientes en home (preview, últimos 3) ─────────
 // El Future vive en el estado de HomeScreen para que un rebuild no relance
@@ -766,10 +933,10 @@ class _MovimientosSection extends StatelessWidget {
   final VoidCallback onReintentar;
 
   BoxDecoration get _tarjeta => BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-      );
+    color: AppColors.surface,
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(color: AppColors.border),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -799,9 +966,10 @@ class _MovimientosSection extends StatelessWidget {
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text('Ver todos',
-                  style: TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w600)),
+              child: const Text(
+                'Ver todos',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         ),
@@ -834,9 +1002,10 @@ class _MovimientosSection extends StatelessWidget {
                 padding: const EdgeInsets.all(24),
                 decoration: _tarjeta,
                 child: const Center(
-                  child: Text('Sin movimientos aún',
-                      style: TextStyle(
-                          color: AppColors.textMuted, fontSize: 14)),
+                  child: Text(
+                    'Sin movimientos aún',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+                  ),
                 ),
               );
             }
@@ -852,7 +1021,10 @@ class _MovimientosSection extends StatelessWidget {
                     ),
                     if (i < filas.length - 1)
                       const Divider(
-                          color: AppColors.border, height: 1, indent: 72),
+                        color: AppColors.border,
+                        height: 1,
+                        indent: 72,
+                      ),
                   ],
                 ],
               ),

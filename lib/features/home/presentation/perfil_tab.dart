@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/wip_badge.dart';
+import 'package:vera/features/asistente/data/asistente_repository.dart';
+import 'package:vera/features/asistente/presentation/confirmar_borrado.dart';
+import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/features/auth/data/auth_repository.dart';
 
 /// Nombre de la persona o, si no hay, la razón social. Un texto vacío cuenta
@@ -15,12 +18,20 @@ String? nombreDePerfil(SessionProfile perfil) {
 }
 
 class PerfilTab extends StatefulWidget {
-  const PerfilTab({super.key, this.session, this.authRepository});
+  const PerfilTab({
+    super.key,
+    this.session,
+    this.authRepository,
+    this.asistente,
+  });
 
   final SessionStore? session;
 
   /// Por defecto el repositorio de autenticación real.
   final AuthRepository? authRepository;
+
+  /// Por defecto el repositorio real del asistente (borrar el historial de Vera).
+  final AsistenteRepository? asistente;
 
   @override
   State<PerfilTab> createState() => _PerfilTabState();
@@ -29,8 +40,13 @@ class PerfilTab extends StatefulWidget {
 class _PerfilTabState extends State<PerfilTab> {
   late final AuthRepository _repository =
       widget.authRepository ?? AuthRepository();
+  late final AsistenteRepository _asistente =
+      widget.asistente ?? AsistenteRepository();
   String? _nombre;
   bool _cerrando = false;
+  bool _borrandoHistorial = false;
+  ConsentimientoAsistente? _consentVera;
+  bool _revocandoVera = false;
   bool _biometriaDisponible = false;
   bool _biometriaActiva = false;
   bool _cambiandoBiometria = false;
@@ -40,6 +56,55 @@ class _PerfilTabState extends State<PerfilTab> {
     super.initState();
     _cargarNombre();
     _cargarBiometria();
+    _cargarConsentimientoVera();
+  }
+
+  Future<void> _cargarConsentimientoVera() async {
+    try {
+      final c = await _asistente.consultarConsentimiento();
+      if (mounted) setState(() => _consentVera = c);
+    } catch (_) {
+      // Sin el dato no se ofrece desactivar a Vera.
+    }
+  }
+
+  /// Revoca el consentimiento de IA: el chat queda bloqueado hasta una nueva activación.
+  /// Después ofrece borrar también el historial.
+  Future<void> _desactivarVera() async {
+    final c = _consentVera;
+    if (c == null || _revocandoVera) return;
+    final ok = await confirmarBorrado(
+      context,
+      titulo: '¿Desactivar a Vera?',
+      detalle:
+          'Vera dejará de usar tus datos y no podrás conversar con ella hasta que la actives de nuevo.',
+      etiquetaConfirmar: 'Desactivar',
+    );
+    if (ok != true || !mounted) return;
+    await _revocarVera(c);
+  }
+
+  Future<void> _revocarVera(ConsentimientoAsistente c) async {
+    setState(() => _revocandoVera = true);
+    try {
+      await _asistente.revocarConsentimiento(c.versionTexto);
+      if (!mounted) return;
+      setState(() => _consentVera = null);
+      final borrar = await confirmarBorrado(
+        context,
+        titulo: '¿Borrar también tu historial?',
+        detalle:
+            'Se borran tus conversaciones con Vera y se cancelan sus acciones pendientes.',
+        etiquetaConfirmar: 'Borrar historial',
+        etiquetaCancelar: 'Conservar',
+      );
+      if (borrar == true && mounted) await _ejecutarBorradoHistorial();
+    } catch (e) {
+      if (mounted) {
+        avisarErrorDeBorrado(context, mensajeDeError(e), () => _revocarVera(c));
+      }
+    }
+    if (mounted) setState(() => _revocandoVera = false);
   }
 
   Future<void> _cargarBiometria() async {
@@ -72,6 +137,38 @@ class _PerfilTabState extends State<PerfilTab> {
       // El interruptor queda como estaba si el sistema rechaza la operación.
     }
     if (mounted) setState(() => _cambiandoBiometria = false);
+  }
+
+  Future<void> _borrarHistorialDeVera() async {
+    if (_borrandoHistorial) return;
+    final ok = await confirmarBorrado(
+      context,
+      titulo: '¿Borrar el historial de Vera?',
+      detalle:
+          'Se borran todas tus conversaciones y se cancelan sus acciones pendientes. No se puede deshacer.',
+    );
+    if (ok == true && mounted) await _ejecutarBorradoHistorial();
+  }
+
+  Future<void> _ejecutarBorradoHistorial() async {
+    setState(() => _borrandoHistorial = true);
+    try {
+      await _asistente.borrarConversaciones();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Historial de Vera borrado.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        avisarErrorDeBorrado(
+          context,
+          mensajeDeError(e),
+          _ejecutarBorradoHistorial,
+        );
+      }
+    }
+    if (mounted) setState(() => _borrandoHistorial = false);
   }
 
   Future<bool?> _confirmarDesactivar() => showDialog<bool>(
@@ -231,6 +328,54 @@ class _PerfilTabState extends State<PerfilTab> {
                       indent: 60,
                     ),
                   ],
+                  if (_consentVera?.autorizado ?? false) ...[
+                    Material(
+                      type: MaterialType.transparency,
+                      child: ListTile(
+                        key: const Key('desactivar_vera'),
+                        enabled: !_revocandoVera,
+                        onTap: _desactivarVera,
+                        leading: const Icon(
+                          Icons.auto_awesome_outlined,
+                          color: AppColors.textSecondary,
+                        ),
+                        title: const Text(
+                          'Desactivar a Vera',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Divider(
+                      color: AppColors.border,
+                      height: 1,
+                      indent: 60,
+                    ),
+                  ],
+                  Material(
+                    type: MaterialType.transparency,
+                    child: ListTile(
+                      key: const Key('borrar_historial_vera'),
+                      enabled: !_borrandoHistorial,
+                      onTap: _borrarHistorialDeVera,
+                      leading: const Icon(
+                        Icons.delete_sweep_outlined,
+                        color: AppColors.textSecondary,
+                      ),
+                      title: const Text(
+                        'Borrar historial de Vera',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Divider(color: AppColors.border, height: 1, indent: 60),
                   const _MenuItem(
                     icon: Icons.security_rounded,
                     label: 'Seguridad y PIN',

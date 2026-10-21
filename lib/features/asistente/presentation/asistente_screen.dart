@@ -2,14 +2,19 @@ import 'dart:async';
 
 import 'dart:typed_data';
 
+import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/api_client.dart';
+import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/features/asistente/data/asistente_mensajes.dart';
 import 'package:vera/features/asistente/data/asistente_repository.dart';
 import 'package:vera/features/asistente/data/grabador_voz.dart';
+import 'package:vera/features/asistente/data/lector_voz.dart';
+import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/features/asistente/presentation/accion_card.dart';
+import 'package:vera/features/asistente/presentation/activacion_vera_view.dart';
 import 'package:vera/features/asistente/presentation/fondo_asistente.dart';
 
 /// Burbuja del chat. [texto] de una burbuja de voz arranca vacío y se llena con la transcripción.
@@ -22,6 +27,8 @@ class _Burbuja {
     this.transcribiendo = false,
     this.esError = false,
     this.reintentable = false,
+    this.anunciar = false,
+    this.acciones = const [],
     this.accion,
   });
 
@@ -34,6 +41,15 @@ class _Burbuja {
 
   /// Un error tras el cual conviene reintentar el mismo envío (misma clave de idempotencia).
   final bool reintentable;
+
+  /// Una respuesta recién llegada: el lector de pantalla la anuncia. Las del historial no.
+  final bool anunciar;
+
+  /// Botones de una burbuja de error: por ejemplo Reintentar y Escribir tras un audio no entendido.
+  final List<({String etiqueta, VoidCallback alTocar})> acciones;
+
+  /// El envío de este mensaje del usuario falló y sigue sin llegar al servidor.
+  bool noEnviado = false;
   AccionPendiente? accion;
 }
 
@@ -56,20 +72,45 @@ class _Envio {
 
 class AsistenteScreen extends StatefulWidget {
   /// [conversacionId] reabre una conversación del historial.
-  const AsistenteScreen({super.key, this.conversacionId, this.repository});
+  const AsistenteScreen({
+    super.key,
+    this.conversacionId,
+    this.repository,
+    this.grabador,
+    this.lector,
+    this.preferenciaLectura,
+    this.abrirAjustes,
+  });
   final String? conversacionId;
 
   /// Solo para pruebas; por defecto el repositorio real.
   final AsistenteRepository? repository;
 
+  /// Solo para pruebas; por defecto el micrófono real.
+  final GrabadorDeVoz? grabador;
+
+  /// Solo para pruebas; por defecto la voz del sistema.
+  final LectorDeVoz? lector;
+
+  /// Solo para pruebas; por defecto el almacenamiento seguro del dispositivo.
+  final PreferenciaLectura? preferenciaLectura;
+
+  /// Solo para pruebas; por defecto abre los ajustes de la app.
+  final Future<void> Function()? abrirAjustes;
+
   @override
   State<AsistenteScreen> createState() => _AsistenteScreenState();
 }
 
-class _AsistenteScreenState extends State<AsistenteScreen> {
+class _AsistenteScreenState extends State<AsistenteScreen>
+    with WidgetsBindingObserver {
   late final AsistenteRepository _repo =
       widget.repository ?? AsistenteRepository();
-  final _grabador = GrabadorVoz();
+  late final GrabadorDeVoz _grabador = widget.grabador ?? GrabadorVoz();
+  late final LectorDeVoz _lector = widget.lector ?? LectorFlutterTts();
+  late final PreferenciaLectura _preferencia =
+      widget.preferenciaLectura ?? const PreferenciaLecturaSegura();
+  final _foco = FocusNode();
   final _ctrl = TextEditingController();
   final _scroll = ScrollController();
   final _burbujas = <_Burbuja>[];
@@ -78,9 +119,14 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
   bool _cargandoHistorial = false;
   bool _enviando = false;
   bool _grabando = false;
+  bool _leerEnVozAlta = false;
+  bool _leyendo = false;
   Duration _tiempoGrabado = Duration.zero;
   ConsentimientoAsistente? _consent;
+  bool _consultandoConsent = true;
+  Object? _errorConsulta;
   bool _aceptando = false;
+  String? _errorActivacion;
   _Envio? _pendiente;
   Timer? _cronometro;
   int _seq = 0;
@@ -95,15 +141,44 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
   void initState() {
     super.initState();
     _conversacionId = widget.conversacionId;
+    WidgetsBinding.instance.addObserver(this);
     _grabador.onTope = _detenerYEnviarVoz;
-    if (_conversacionId != null) _cargarMensajes();
-    _consultarConsentimiento();
+    _cargarPreferencia();
+    _iniciar();
+  }
+
+  Future<void> _cargarPreferencia() async {
+    try {
+      final activada = await _preferencia.activada();
+      if (mounted) setState(() => _leerEnVozAlta = activada);
+    } catch (_) {
+      // Sin preferencia legible la lectura queda apagada.
+    }
+  }
+
+  /// Segundo plano o una llamada entrante: la grabación se cancela y la lectura se detiene.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) return;
+    if (_grabando) _cancelarGrabacion();
+    _detenerLectura();
+  }
+
+  /// El historial solo se pide con consentimiento vigente.
+  Future<void> _iniciar() async {
+    await _consultarConsentimiento();
+    if (mounted && _chatDisponible && _conversacionId != null) {
+      _cargarMensajes();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _cronometro?.cancel();
     _grabador.dispose();
+    _lector.dispose();
+    _foco.dispose();
     _ctrl.dispose();
     _scroll.dispose();
     super.dispose();
@@ -146,7 +221,11 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
     });
   }
 
-  void _agregarError(String msg, {bool reintentable = false}) {
+  void _agregarError(
+    String msg, {
+    bool reintentable = false,
+    List<({String etiqueta, VoidCallback alTocar})> acciones = const [],
+  }) {
     if (!mounted) return;
     setState(
       () => _burbujas.add(
@@ -156,6 +235,8 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
           texto: msg,
           esError: true,
           reintentable: reintentable,
+          anunciar: true,
+          acciones: acciones,
         ),
       ),
     );
@@ -163,6 +244,7 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
   }
 
   void _nuevaConversacion() {
+    _detenerLectura();
     setState(() {
       _burbujas.clear();
       _conversacionId = null;
@@ -171,26 +253,59 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
 
   // ── Consentimiento de IA ────────────────────────────────────
 
-  Future<void> _consultarConsentimiento() async {
+  /// Sin consentimiento vigente no se abre el chat. Si la consulta falla tampoco: se ofrece
+  /// reintentar. Devuelve si el servidor dice que falta autorización.
+  Future<bool> _consultarConsentimiento() async {
     try {
       final c = await _repo.consultarConsentimiento();
       if (mounted) setState(() => _consent = c);
-    } catch (_) {
-      // Sin el dato no se bloquea el chat: el backend responde ConsentRequired si falta.
+      return !c.autorizado;
+    } catch (e) {
+      if (mounted) setState(() => _errorConsulta = e);
+      return false;
+    } finally {
+      if (mounted) setState(() => _consultandoConsent = false);
     }
   }
 
-  Future<void> _aceptarConsentimiento() async {
+  Future<void> _reintentarConsulta() async {
+    setState(() {
+      _consultandoConsent = true;
+      _errorConsulta = null;
+    });
+    await _iniciar();
+  }
+
+  bool get _chatDisponible =>
+      !_consultandoConsent &&
+      _errorConsulta == null &&
+      _consent?.autorizado == true;
+
+  Future<void> _activar() async {
     final c = _consent;
     if (c == null || _aceptando) return;
-    setState(() => _aceptando = true);
+    setState(() {
+      _aceptando = true;
+      _errorActivacion = null;
+    });
     try {
       await _repo.otorgarConsentimiento(c.versionTexto);
       if (mounted) setState(() => _consent = c.autorizadoAhora());
+      if (mounted && _conversacionId != null && _burbujas.isEmpty) {
+        _cargarMensajes();
+      }
     } catch (e) {
-      _agregarError(mensajeDeErrorAsistente(e));
+      if (mounted) setState(() => _errorActivacion = mensajeDeError(e));
     } finally {
       if (mounted) setState(() => _aceptando = false);
+    }
+  }
+
+  void _ahoraNo() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/home');
     }
   }
 
@@ -223,8 +338,10 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
 
   Future<void> _ejecutar(_Envio envio) async {
     final burbuja = envio.burbuja;
+    _detenerLectura();
     setState(() {
       _enviando = true;
+      burbuja.noEnviado = false;
       if (envio.bytes != null) burbuja.transcribiendo = true;
     });
     try {
@@ -253,16 +370,53 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
       _quitar(burbuja);
       _agregarError('El audio es demasiado largo. Máximo 60 segundos.');
     } catch (e) {
-      final reintentable = esErrorReintentable(e);
+      if (e is ApiException && e.code == 'ConsentRequired') {
+        await _pedirActivacion(envio, e);
+        return;
+      }
+      if (envio.bytes != null &&
+          e is ApiException &&
+          e.code == 'AudioNotUnderstood') {
+        _pendiente = null;
+        _quitar(burbuja);
+        _agregarError(
+          mensajeDeErrorAsistente(e),
+          acciones: [
+            (etiqueta: 'Reintentar', alTocar: _alternarGrabacion),
+            (etiqueta: 'Escribir', alTocar: _foco.requestFocus),
+          ],
+        );
+        return;
+      }
+      final reintentable = esErrorReenviable(e);
       _pendiente = reintentable ? envio : null;
-      if (mounted) setState(() => burbuja.transcribiendo = false);
+      if (mounted) {
+        setState(() {
+          burbuja.transcribiendo = false;
+          burbuja.noEnviado = true;
+        });
+      }
       if (envio.bytes != null && !reintentable) _quitar(burbuja);
       _agregarError(mensajeDeErrorAsistente(e), reintentable: reintentable);
-      if (e is ApiException && e.code == 'ConsentRequired') {
-        _consultarConsentimiento();
-      }
     } finally {
       if (mounted) setState(() => _enviando = false);
+    }
+  }
+
+  /// El servidor dice que falta la autorización: el mensaje no se envió, así que se quita de la
+  /// conversación, el texto vuelve al campo y se presenta la activación en vez de un error.
+  Future<void> _pedirActivacion(_Envio envio, ApiException e) async {
+    _pendiente = null;
+    if (mounted) {
+      setState(() {
+        _burbujas.remove(envio.burbuja);
+        _enviando = false;
+        if (envio.texto != null) _ctrl.text = envio.texto!;
+      });
+    }
+    final falta = await _consultarConsentimiento();
+    if (!falta && _errorConsulta == null) {
+      _agregarError(mensajeDeErrorAsistente(e));
     }
   }
 
@@ -275,11 +429,43 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
           id: r.mensajeId,
           esUsuario: false,
           texto: r.texto,
+          anunciar: true,
           accion: r.accionPendiente,
         ),
       );
     });
     _irAlFinal();
+    if (_leerEnVozAlta) _leerRespuesta(r.texto);
+  }
+
+  // ── Lectura en voz alta ─────────────────────────────────────
+
+  void _leerRespuesta(String texto) {
+    if (texto.trim().isEmpty) return;
+    setState(() => _leyendo = true);
+    _lector.leer(
+      texto,
+      alTerminar: () {
+        if (mounted) setState(() => _leyendo = false);
+      },
+    );
+  }
+
+  Future<void> _detenerLectura() async {
+    if (!_leyendo) return;
+    await _lector.detener();
+    if (mounted) setState(() => _leyendo = false);
+  }
+
+  Future<void> _alternarLectura() async {
+    final nueva = !_leerEnVozAlta;
+    setState(() => _leerEnVozAlta = nueva);
+    if (!nueva) await _detenerLectura();
+    try {
+      await _preferencia.guardar(nueva);
+    } catch (_) {
+      // Si no se puede guardar, la preferencia vale solo en esta sesión.
+    }
   }
 
   // ── Voz ─────────────────────────────────────────────────────
@@ -287,9 +473,24 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
   Future<void> _alternarGrabacion() async {
     if (_enviando) return;
     if (_grabando) return _detenerYEnviarVoz();
-    if (!await _grabador.tienePermiso()) {
-      _agregarError('Activa el permiso del micrófono para hablarle a Vera.');
-      return;
+    await _detenerLectura();
+    if (!await _grabador.tienePermiso(pedir: false)) {
+      final seguir = await _explicarMicrofono();
+      if (seguir != true || !mounted) return;
+      if (!await _grabador.tienePermiso()) {
+        _agregarError(
+          'No tenemos permiso para usar el micrófono. Puedes escribir tu pregunta o habilitarlo en los ajustes.',
+          acciones: [
+            (
+              etiqueta: 'Abrir ajustes',
+              alTocar: () =>
+                  (widget.abrirAjustes ?? AppSettings.openAppSettings)(),
+            ),
+            (etiqueta: 'Escribir', alTocar: _foco.requestFocus),
+          ],
+        );
+        return;
+      }
     }
     await _grabador.iniciar();
     _cronometro = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -301,6 +502,32 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
     });
   }
 
+  /// Antes del diálogo del sistema, explica para qué se usa el micrófono.
+  Future<bool?> _explicarMicrofono() => showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: AppColors.surface,
+      title: const Text(
+        'Vera necesita el micrófono',
+        style: TextStyle(color: AppColors.textPrimary),
+      ),
+      content: const Text(
+        'Lo usa solo mientras grabas, para escuchar tu pregunta. El audio no queda guardado en tu teléfono.',
+        style: TextStyle(color: AppColors.textSecondary),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Ahora no'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Continuar'),
+        ),
+      ],
+    ),
+  );
+
   Future<void> _cancelarGrabacion() async {
     _cronometro?.cancel();
     await _grabador.cancelar();
@@ -310,10 +537,12 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
   Future<void> _detenerYEnviarVoz() async {
     if (!_grabando) return;
     _cronometro?.cancel();
+    final duracion = _tiempoGrabado;
     final bytes = await _grabador.detener();
     if (!mounted) return;
     setState(() => _grabando = false);
-    if (bytes == null) return;
+    // Un toque sin hablar: menos de un segundo se descarta sin enviar.
+    if (bytes == null || duracion < const Duration(seconds: 1)) return;
 
     final burbuja = _Burbuja(
       id: _idLocal(),
@@ -344,6 +573,7 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final chat = _chatDisponible;
     return Scaffold(
       backgroundColor: AppColors.background,
       extendBodyBehindAppBar: true,
@@ -353,32 +583,97 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
         actions: [
-          IconButton(
-            tooltip: 'Nueva conversación',
-            icon: const Icon(Icons.add_comment_outlined),
-            onPressed: _enviando ? null : _nuevaConversacion,
-          ),
-          IconButton(
-            tooltip: 'Historial',
-            icon: const Icon(Icons.history_rounded),
-            onPressed: _abrirHistorial,
-          ),
+          if (chat) ...[
+            IconButton(
+              tooltip: _leerEnVozAlta
+                  ? 'Dejar de leer las respuestas en voz alta'
+                  : 'Leer las respuestas en voz alta',
+              icon: Icon(
+                _leerEnVozAlta
+                    ? Icons.volume_up_rounded
+                    : Icons.volume_off_rounded,
+              ),
+              onPressed: _alternarLectura,
+            ),
+            IconButton(
+              tooltip: 'Nueva conversación',
+              icon: const Icon(Icons.add_comment_outlined),
+              onPressed: _enviando ? null : _nuevaConversacion,
+            ),
+            IconButton(
+              tooltip: 'Historial',
+              icon: const Icon(Icons.history_rounded),
+              onPressed: _abrirHistorial,
+            ),
+          ],
         ],
       ),
       body: Stack(
         children: [
           Positioned.fill(child: FondoAsistente(intenso: _grabando)),
-          SafeArea(
-            bottom: false,
-            child: Column(
-              children: [
-                Expanded(child: _lista()),
-                _barraEntrada(),
-              ],
-            ),
-          ),
+          chat ? _chat() : _antesDelChat(),
         ],
       ),
+    );
+  }
+
+  Widget _chat() => SafeArea(
+    bottom: false,
+    child: Column(
+      children: [
+        Expanded(child: _lista()),
+        if (_leyendo) _chipLeyendo(),
+        _barraEntrada(),
+      ],
+    ),
+  );
+
+  /// Un toque detiene la lectura en voz alta.
+  Widget _chipLeyendo() => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Semantics(
+      button: true,
+      label: 'Detener la lectura',
+      excludeSemantics: true,
+      onTap: _detenerLectura,
+      child: ActionChip(
+        key: const Key('detener_lectura'),
+        avatar: const Icon(Icons.stop_rounded, size: 18),
+        label: const Text('Leyendo… Toca para detener'),
+        onPressed: _detenerLectura,
+        backgroundColor: AppColors.surfaceVariant,
+        labelStyle: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+        side: const BorderSide(color: AppColors.border),
+      ),
+    ),
+  );
+
+  /// Lo que se ve mientras no hay consentimiento vigente: nada del chat ni de sus envíos.
+  Widget _antesDelChat() {
+    if (_consultandoConsent) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: AppColors.gradientStart,
+          strokeWidth: 2.5,
+        ),
+      );
+    }
+    final error = _errorConsulta;
+    if (error != null) {
+      return SafeArea(
+        child: EstadoVista.deError(
+          error,
+          mensaje: mensajeDeError(error),
+          onReintentar: _reintentarConsulta,
+        ),
+      );
+    }
+    return ActivacionVeraView(
+      consentimiento: _consent!,
+      activando: _aceptando,
+      error: _errorActivacion,
+      onActivar: _activar,
+      onAhoraNo: _ahoraNo,
     );
   }
 
@@ -478,66 +773,7 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
         color: AppColors.surface.withAlpha(200),
         border: const Border(top: BorderSide(color: AppColors.borderGlass)),
       ),
-      child: _consent != null && !_consent!.autorizado
-          ? _panelConsentimiento()
-          : _grabando
-          ? _barraGrabando()
-          : _barraTexto(),
-    );
-  }
-
-  Widget _panelConsentimiento() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Antes de empezar',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 150),
-          child: SingleChildScrollView(
-            child: Text(
-              _consent!.texto,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: _aceptando ? null : _aceptarConsentimiento,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.gradientMid,
-              minimumSize: const Size.fromHeight(48),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-            child: _aceptando
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('Aceptar y continuar'),
-          ),
-        ),
-      ],
+      child: _grabando ? _barraGrabando() : _barraTexto(),
     );
   }
 
@@ -548,6 +784,7 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
         Expanded(
           child: TextField(
             controller: _ctrl,
+            focusNode: _foco,
             enabled: !_enviando,
             maxLength: 1000,
             minLines: 1,
@@ -689,70 +926,112 @@ class _BurbujaView extends StatelessWidget {
               ? CrossAxisAlignment.end
               : CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(18),
-                  topRight: const Radius.circular(18),
-                  bottomLeft: Radius.circular(b.esUsuario ? 18 : 4),
-                  bottomRight: Radius.circular(b.esUsuario ? 4 : 18),
+            Semantics(
+              liveRegion: b.anunciar,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
                 ),
-                border: b.esError
-                    ? Border.all(color: AppColors.error.withAlpha(90))
-                    : null,
-              ),
-              child: b.transcribiendo
-                  ? const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.mic_rounded,
-                          size: 16,
-                          color: Colors.white70,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Transcribiendo…',
-                          style: TextStyle(color: Colors.white70, fontSize: 15),
-                        ),
-                      ],
-                    )
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (b.esVoz) ...[
-                          const Padding(
-                            padding: EdgeInsets.only(top: 3),
-                            child: Icon(
-                              Icons.mic_rounded,
-                              size: 14,
-                              color: Colors.white70,
-                            ),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(18),
+                    topRight: const Radius.circular(18),
+                    bottomLeft: Radius.circular(b.esUsuario ? 18 : 4),
+                    bottomRight: Radius.circular(b.esUsuario ? 4 : 18),
+                  ),
+                  border: b.esError
+                      ? Border.all(color: AppColors.error.withAlpha(90))
+                      : null,
+                ),
+                child: b.transcribiendo
+                    ? const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.mic_rounded,
+                            size: 16,
+                            color: Colors.white70,
                           ),
-                          const SizedBox(width: 6),
-                        ],
-                        Flexible(
-                          child: Text(
-                            b.texto.isEmpty
-                                ? (b.esVoz && b.esUsuario
-                                      ? 'Audio sin enviar'
-                                      : '(sin transcripción)')
-                                : b.texto,
+                          SizedBox(width: 8),
+                          Text(
+                            'Transcribiendo…',
                             style: TextStyle(
-                              color: b.esError
-                                  ? AppColors.error
-                                  : AppColors.textPrimary,
+                              color: Colors.white70,
                               fontSize: 15,
-                              height: 1.35,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (b.esVoz) ...[
+                            const Padding(
+                              padding: EdgeInsets.only(top: 3),
+                              child: Icon(
+                                Icons.mic_rounded,
+                                size: 14,
+                                color: Colors.white70,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          Flexible(
+                            child: Text(
+                              b.texto.isEmpty
+                                  ? (b.esVoz && b.esUsuario
+                                        ? 'Audio sin enviar'
+                                        : '(sin transcripción)')
+                                  : b.texto,
+                              style: TextStyle(
+                                color: b.esError
+                                    ? AppColors.error
+                                    : AppColors.textPrimary,
+                                fontSize: 15,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
             ),
+            if (b.noEnviado)
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.error_outline_rounded,
+                      size: 14,
+                      color: AppColors.error,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'No enviado',
+                      style: TextStyle(color: AppColors.error, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            if (b.acciones.isNotEmpty)
+              Wrap(
+                spacing: 4,
+                children: [
+                  for (final a in b.acciones)
+                    TextButton(
+                      onPressed: a.alTocar,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.accentPink,
+                      ),
+                      child: Text(a.etiqueta),
+                    ),
+                ],
+              ),
             if (b.reintentable)
               TextButton.icon(
                 onPressed: onReintentar,

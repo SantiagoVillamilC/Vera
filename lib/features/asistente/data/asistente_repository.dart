@@ -37,7 +37,7 @@ class AsistenteRepository {
   final ApiClient _client;
 
   /// Las llamadas que esperan a la IA o a la transcripción tardan más que el resto.
-  static const _timeoutIa = Duration(seconds: 45);
+  static const timeoutIa = Duration(seconds: 60);
 
   // ── Mensajes ──────────────────────────────────────────────────
 
@@ -52,7 +52,7 @@ class AsistenteRepository {
     final raw = await _client.post(
       '/v1/vera/mensajes',
       {'conversacion_id': conversacionId, 'texto': texto},
-      timeout: _timeoutIa,
+      timeout: timeoutIa,
       headers: {'Idempotency-Key': idempotencyKey},
     );
     return RespuestaAsistente.fromJson(raw);
@@ -81,7 +81,7 @@ class AsistenteRepository {
         'audio': audio,
         'formato': LimitesAudio.formato,
       },
-      timeout: _timeoutIa,
+      timeout: timeoutIa,
       headers: {'Idempotency-Key': idempotencyKey},
     );
     return RespuestaAsistente.fromJson(raw);
@@ -141,6 +141,19 @@ class AsistenteRepository {
   }
 
   /// POST /v1/auth/consents
+  /// Revoca el consentimiento de [versionTexto] (la vigente). El backend exige `aceptado: false`
+  /// junto con `accion: revocar`.
+  Future<void> revocarConsentimiento(String versionTexto) async {
+    await _client.post('/v1/auth/consents', {
+      'tipo': 'asistente_ia',
+      'version_texto': versionTexto,
+      'aceptado': false,
+      'accion': 'revocar',
+      'metodo': 'app',
+    });
+  }
+
+  /// POST /v1/auth/consents
   /// Acepta [versionTexto], que debe ser la vigente que devolvió [consultarConsentimiento].
   Future<void> otorgarConsentimiento(String versionTexto) async {
     await _client.post('/v1/auth/consents', {
@@ -167,15 +180,19 @@ class AsistenteRepository {
   /// POST /v1/vera/acciones/{id}/confirmar
   /// Si `requiereCodigo`, enviar [desafioId] (de [solicitarCodigo]) y [codigo].
   /// Un `ConsentRequired` aquí significa que el backend ya canceló la acción.
+  /// [sinVerificacionLocal] avisa que el teléfono no tiene biometría ni bloqueo con los que
+  /// verificar, y el servidor exige el código aunque la acción no lo pidiera.
   Future<AccionResuelta> confirmarAccion(
     String accionId, {
     String? desafioId,
     String? codigo,
+    bool sinVerificacionLocal = false,
   }) async {
     final raw = await _client.post('/v1/vera/acciones/$accionId/confirmar', {
       'desafio_id': ?desafioId,
       'codigo': ?codigo,
-    }, timeout: _timeoutIa);
+      if (sinVerificacionLocal) 'sin_verificacion_local': true,
+    }, timeout: timeoutIa);
     return AccionResuelta.fromJson(raw);
   }
 

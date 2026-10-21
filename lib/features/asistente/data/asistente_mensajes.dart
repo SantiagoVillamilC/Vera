@@ -23,6 +23,12 @@ bool esErrorReintentable(Object e) {
   return false;
 }
 
+/// Un error tras el cual se ofrece reenviar el mismo mensaje: los reintentables y el 429 por cupo.
+/// Con el 429 el servidor no guardó el turno, así que la misma clave no duplica nada.
+bool esErrorReenviable(Object e) =>
+    esErrorReintentable(e) ||
+    (e is ApiException && e.code == 'TooManyRequests');
+
 /// Mensaje en español para un error del asistente. El 429 de las cuotas del asistente trae
 /// `Retry-After` con los segundos hasta poder reintentar.
 String mensajeDeErrorAsistente(Object e) {

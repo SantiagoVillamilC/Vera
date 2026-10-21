@@ -4,10 +4,14 @@ import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/features/asistente/data/asistente_repository.dart';
+import 'package:vera/features/asistente/presentation/confirmar_borrado.dart';
 
 /// Historial de conversaciones con Vera. Al tocar una, hace pop con su id.
 class HistorialAsistenteScreen extends StatefulWidget {
-  const HistorialAsistenteScreen({super.key});
+  const HistorialAsistenteScreen({super.key, this.repository});
+
+  /// Por defecto el repositorio real.
+  final AsistenteRepository? repository;
 
   @override
   State<HistorialAsistenteScreen> createState() =>
@@ -15,17 +19,38 @@ class HistorialAsistenteScreen extends StatefulWidget {
 }
 
 class _HistorialAsistenteScreenState extends State<HistorialAsistenteScreen> {
-  final _repo = AsistenteRepository();
+  late final AsistenteRepository _repo =
+      widget.repository ?? AsistenteRepository();
+  final _scroll = ScrollController();
   final _items = <ConversacionVera>[];
   String? _cursor;
   bool _hayMas = false;
   bool _cargando = true;
   Object? _error;
 
+  /// Falló pedir una página siguiente: se muestra con Reintentar al pie de la lista.
+  Object? _errorMas;
+
+  static const _umbralScroll = 240.0;
+
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_revisarFinal);
     _cargar();
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _revisarFinal() {
+    if (!_scroll.hasClients || _cargando || !_hayMas || _errorMas != null) {
+      return;
+    }
+    if (_scroll.position.extentAfter < _umbralScroll) _cargar();
   }
 
   Future<void> _cargar({bool recargar = false}) async {
@@ -36,6 +61,7 @@ class _HistorialAsistenteScreenState extends State<HistorialAsistenteScreen> {
     setState(() {
       _cargando = true;
       _error = null;
+      _errorMas = null;
     });
     try {
       final p = await _repo.listarConversaciones(cursor: _cursor);
@@ -46,67 +72,71 @@ class _HistorialAsistenteScreenState extends State<HistorialAsistenteScreen> {
         _hayMas = p.hasMore;
       });
     } catch (e) {
-      if (mounted) setState(() => _error = e);
+      if (mounted) {
+        setState(() {
+          if (_items.isEmpty) {
+            _error = e;
+          } else {
+            _errorMas = e;
+          }
+        });
+      }
     } finally {
-      if (mounted) setState(() => _cargando = false);
+      if (mounted) {
+        setState(() => _cargando = false);
+        // Una primera página corta no genera scroll que pida la siguiente.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _revisarFinal();
+        });
+      }
     }
   }
 
   Future<void> _borrar(ConversacionVera c) async {
-    final ok = await _confirmar(
-      '¿Borrar esta conversación?',
-      'También se cancelan sus acciones pendientes.',
+    final ok = await confirmarBorrado(
+      context,
+      titulo: '¿Borrar esta conversación?',
+      detalle: 'También se cancelan sus acciones pendientes.',
     );
     if (ok != true) return;
-    try {
-      await _repo.borrarConversacion(c.id);
-      if (mounted) setState(() => _items.remove(c));
-    } catch (e) {
-      _aviso(mensajeDeError(e));
-    }
+    await _ejecutarBorrado(
+      () => _repo.borrarConversacion(c.id),
+      () => _items.remove(c),
+    );
   }
 
   Future<void> _borrarTodas() async {
-    final ok = await _confirmar(
-      '¿Borrar todo el historial?',
-      'No se puede deshacer.',
+    final ok = await confirmarBorrado(
+      context,
+      titulo: '¿Borrar todo el historial?',
+      detalle: 'No se puede deshacer.',
     );
     if (ok != true) return;
+    await _ejecutarBorrado(_repo.borrarConversaciones, () {
+      _items.clear();
+      _hayMas = false;
+      _cursor = null;
+    });
+  }
+
+  /// Solo quita de la lista lo que el servidor confirmó borrado. Si falla, el aviso
+  /// ofrece repetir la misma operación sin volver a pedir confirmación.
+  Future<void> _ejecutarBorrado(
+    Future<void> Function() operacion,
+    VoidCallback alQuitar,
+  ) async {
     try {
-      await _repo.borrarConversaciones();
-      if (mounted) setState(_items.clear);
+      await operacion();
+      if (mounted) setState(alQuitar);
     } catch (e) {
-      _aviso(mensajeDeError(e));
+      if (!mounted) return;
+      avisarErrorDeBorrado(
+        context,
+        mensajeDeError(e),
+        () => _ejecutarBorrado(operacion, alQuitar),
+      );
     }
   }
-
-  void _aviso(String m) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
-    }
-  }
-
-  Future<bool?> _confirmar(String titulo, String detalle) => showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      backgroundColor: AppColors.surface,
-      title: Text(titulo, style: const TextStyle(color: AppColors.textPrimary)),
-      content: Text(
-        detalle,
-        style: const TextStyle(color: AppColors.textSecondary),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, false),
-          child: const Text('Cancelar'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('Borrar', style: TextStyle(color: AppColors.error)),
-        ),
-      ],
-    ),
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -145,16 +175,13 @@ class _HistorialAsistenteScreenState extends State<HistorialAsistenteScreen> {
     return RefreshIndicator(
       onRefresh: () => _cargar(recargar: true),
       child: ListView.separated(
+        controller: _scroll,
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
-        itemCount: _items.length + (_hayMas ? 1 : 0),
+        itemCount: _items.length + (_hayMas || _errorMas != null ? 1 : 0),
         separatorBuilder: (_, _) => const SizedBox(height: 8),
         itemBuilder: (_, i) {
-          if (i == _items.length) {
-            return TextButton(
-              onPressed: _cargando ? null : _cargar,
-              child: const Text('Ver más'),
-            );
-          }
+          if (i == _items.length) return _pie();
           final c = _items[i];
           return Dismissible(
             key: ValueKey(c.id),
@@ -205,6 +232,31 @@ class _HistorialAsistenteScreenState extends State<HistorialAsistenteScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _pie() {
+    if (_errorMas != null) {
+      return Column(
+        children: [
+          Text(
+            mensajeDeError(_errorMas!),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.error, fontSize: 13),
+          ),
+          TextButton(onPressed: _cargar, child: const Text('Reintentar')),
+        ],
+      );
+    }
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 12),
+      child: Center(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
       ),
     );
   }
