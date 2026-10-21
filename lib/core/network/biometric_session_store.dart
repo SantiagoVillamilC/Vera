@@ -11,12 +11,10 @@ import 'package:vera/core/security/refresh_cipher.dart';
 /// cada vez. El servidor nunca ve nada de esto.
 class BiometricSessionStore implements SessionStore {
   BiometricSessionStore({
-    SessionStore base = const FlutterSecureStorageSessionStore(),
+    this._base = const FlutterSecureStorageSessionStore(),
     BiometricKeyVault? vault,
-    RefreshCipher cipher = const RefreshCipher(),
-  }) : _base = base,
-       _vault = vault ?? BiometricStorageKeyVault(),
-       _cipher = cipher;
+    this._cipher = const RefreshCipher(),
+  }) : _vault = vault ?? BiometricStorageKeyVault();
 
   final SessionStore _base;
   final BiometricKeyVault _vault;

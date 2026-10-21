@@ -563,10 +563,12 @@ class _PersonaStep extends StatelessWidget {
           maxLength: _maxNombre,
           validator: (v) {
             if (v == null || v.trim().isEmpty) return 'Ingresa tu nombre';
-            if (v.trim().split(' ').length < 2)
+            if (v.trim().split(' ').length < 2) {
               return 'Escribe nombre y apellido';
-            if (v.trim().length > _maxNombre)
+            }
+            if (v.trim().length > _maxNombre) {
               return 'Máximo $_maxNombre caracteres';
+            }
             return null;
           },
         ),
@@ -627,8 +629,9 @@ class _EmpresaStep extends StatelessWidget {
           maxLength: _maxNombre,
           validator: (v) {
             if (v == null || v.trim().isEmpty) return 'Ingresa la razón social';
-            if (v.trim().length > _maxNombre)
+            if (v.trim().length > _maxNombre) {
               return 'Máximo $_maxNombre caracteres';
+            }
             return null;
           },
         ),
@@ -780,8 +783,9 @@ class _EmpresaRepStep extends StatelessWidget {
           validator: (v) {
             if (v == null || v.trim().isEmpty) return 'Ingresa el nombre';
             if (v.trim().split(' ').length < 2) return 'Nombre y apellido';
-            if (v.trim().length > _maxNombre)
+            if (v.trim().length > _maxNombre) {
               return 'Máximo $_maxNombre caracteres';
+            }
             return null;
           },
         ),
@@ -864,10 +868,12 @@ class _PasswordStep extends StatelessWidget {
           ),
           validator: (v) {
             if (v == null || v.isEmpty) return 'Ingresa una contraseña';
-            if (v.length < _minContrasena)
+            if (v.length < _minContrasena) {
               return 'Mínimo $_minContrasena caracteres';
-            if (v.length > _maxContrasena)
+            }
+            if (v.length > _maxContrasena) {
               return 'Máximo $_maxContrasena caracteres';
+            }
             return null;
           },
         ),

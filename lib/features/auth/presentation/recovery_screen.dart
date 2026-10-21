@@ -140,8 +140,9 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Ingresa tu correo';
-                    if (!RegExp(r'^[\w.+-]+@[\w-]+\.\w+$').hasMatch(v))
+                    if (!RegExp(r'^[\w.+-]+@[\w-]+\.\w+$').hasMatch(v)) {
                       return 'Correo inválido';
+                    }
                     return null;
                   },
                 ),
