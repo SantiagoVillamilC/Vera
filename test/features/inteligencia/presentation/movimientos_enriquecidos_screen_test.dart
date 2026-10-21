@@ -19,6 +19,7 @@ MovimientoEnriquecido _movimiento({
   DireccionMovimiento direccion = DireccionMovimiento.salida,
   String contraparte = 'Tienda D1',
   BigInt? monto,
+  OrigenCategoria? origen,
 }) =>
     MovimientoEnriquecido(
       transaccionId: id,
@@ -31,9 +32,10 @@ MovimientoEnriquecido _movimiento({
       descripcion: 'COMPRA POS',
       categoria: categoria,
       categoriaNombre: categoriaNombre,
-      origenCategoria: categoria == codigoSinCategoria
-          ? OrigenCategoria.sinCategoria
-          : OrigenCategoria.catalogo,
+      origenCategoria: origen ??
+          (categoria == codigoSinCategoria
+              ? OrigenCategoria.sinCategoria
+              : OrigenCategoria.catalogo),
     );
 
 class _FakeInteligencia implements InteligenciaRepository {
@@ -48,12 +50,16 @@ class _FakeInteligencia implements InteligenciaRepository {
   int lecturas = 0;
   int filasCambiadas = 2;
   ApiException? errorDeCorreccion;
+  bool fallaLaRecarga = false;
 
   @override
   Future<List<MovimientoEnriquecido>> listarMovimientos({
     int limit = 50,
   }) async {
     lecturas++;
+    if (fallaLaRecarga && lecturas > 1) {
+      throw Exception('sin red');
+    }
     return List.of(movimientos);
   }
 
@@ -76,16 +82,21 @@ class _FakeInteligencia implements InteligenciaRepository {
           _movimiento(
             id: m.transaccionId,
             categoria: categoria,
-            categoriaNombre: 'Transporte',
+            categoriaNombre: categoria == m.categoria
+                ? m.categoriaNombre
+                : 'Transporte',
             contraparte: m.contraparte,
             monto: m.montoCentavos,
+            origen: OrigenCategoria.memoria,
           )
         else
           m,
     ];
     return CorreccionAplicada(
       filasCambiadas: filasCambiadas,
-      movimiento: movimientos.first,
+      movimiento: movimientos.firstWhere(
+        (m) => m.transaccionId == transaccionId,
+      ),
     );
   }
 }
@@ -221,6 +232,125 @@ void main() {
     await _pump(tester, repo);
     expect(find.text('Sin movimientos'), findsOneWidget);
     expect(find.text('+ Categoría'), findsNothing);
+  });
+
+  testWidgets('una categoría sugerida se marca y se confirma sin cambiarla',
+      (tester) async {
+    final repo = _FakeInteligencia([
+      _movimiento(
+        id: _idTransporte,
+        categoria: 'transporte',
+        categoriaNombre: 'Transporte',
+        contraparte: 'Uber',
+        origen: OrigenCategoria.tfidf,
+      ),
+    ]);
+    await _pump(tester, repo);
+
+    expect(find.byKey(const ValueKey('marca-sugerida')), findsOneWidget);
+    expect(
+      find.text('1 sugerida por Vera, toca para confirmar'),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('categoria-$_idTransporte')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Vera la sugiere. Confírmala o elige otra.'),
+      findsOneWidget,
+    );
+    expect(find.text('Confirmar categoría'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('boton-aplicar-correccion')));
+    await tester.pumpAndSettle();
+
+    expect(repo.llamadas, hasLength(1));
+    expect(repo.llamadas.single.categoria, 'transporte');
+    expect(repo.llamadas.single.nombreComercio, isNull);
+    // El backend la guarda en memoria y deja de ser sugerencia.
+    expect(find.byKey(const ValueKey('marca-sugerida')), findsNothing);
+  });
+
+  testWidgets('si la recarga falla, la lista se queda y avisa', (tester) async {
+    final repo = _FakeInteligencia([
+      _movimiento(
+        id: _idTransporte,
+        categoria: 'transporte',
+        categoriaNombre: 'Transporte',
+        contraparte: 'Uber',
+        origen: OrigenCategoria.tfidf,
+      ),
+    ])
+      ..fallaLaRecarga = true;
+    await _pump(tester, repo);
+
+    await tester.tap(
+      find.byKey(const ValueKey('categoria-$_idTransporte')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('boton-aplicar-correccion')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('No se pudo actualizar'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('enriquecido-$_idTransporte')),
+      findsOneWidget,
+    );
+    expect(find.text('Uber'), findsOneWidget);
+    // La fila se actualizó en memoria aunque la recarga fallara.
+    expect(find.byKey(const ValueKey('marca-sugerida')), findsNothing);
+  });
+
+  testWidgets('una sugerencia de gasto en una entrada no se confirma sola',
+      (tester) async {
+    final repo = _FakeInteligencia([
+      _movimiento(
+        id: _idTransporte,
+        categoria: 'comisiones_costos_financieros',
+        categoriaNombre: 'Comisiones y costos financieros',
+        direccion: DireccionMovimiento.entrada,
+        contraparte: 'Banco custodio',
+        origen: OrigenCategoria.lexico,
+      ),
+    ]);
+    await _pump(tester, repo);
+
+    await tester.tap(
+      find.byKey(const ValueKey('categoria-$_idTransporte')),
+    );
+    await tester.pumpAndSettle();
+
+    // La categoría sugerida no es de ingreso: no se ofrece confirmarla.
+    expect(find.textContaining('Vera la sugiere'), findsNothing);
+    expect(find.text('Confirmar categoría'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('boton-aplicar-correccion')));
+    await tester.pumpAndSettle();
+    expect(repo.llamadas, isEmpty);
+
+    await tester.tap(find.byKey(const ValueKey('opcion-categoria-salario')));
+    await tester.pumpAndSettle();
+    expect(find.text('Aplicar'), findsOneWidget);
+  });
+
+  testWidgets('una categoría ya confirmada no se marca como sugerida',
+      (tester) async {
+    final repo = _FakeInteligencia([
+      _movimiento(
+        id: _idTransporte,
+        categoria: 'transporte',
+        categoriaNombre: 'Transporte',
+        contraparte: 'Uber',
+        origen: OrigenCategoria.memoria,
+      ),
+    ]);
+    await _pump(tester, repo);
+
+    expect(find.byKey(const ValueKey('marca-sugerida')), findsNothing);
+    expect(find.textContaining('sugeridas por Vera'), findsNothing);
   });
 
   testWidgets('la sección del tab de movimientos navega a /inteligencia',
