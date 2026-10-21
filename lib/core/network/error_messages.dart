@@ -106,6 +106,12 @@ const _porCodigo = <String, String>{
       'El servicio no está listo en este momento. Intenta de nuevo en unos minutos.',
   'CorreccionEnCurso':
       'Hay otra actualización en curso. Intenta de nuevo en unos segundos.',
+  'AudioNotUnderstood': 'No entendí el audio, repite o escribe.',
+  'AssistantUnavailable':
+      'Vera no está disponible ahora. Intenta de nuevo en un momento.',
+  'ActionExpired':
+      'La acción pendiente venció. Pídele a Vera que la prepare otra vez.',
+  'ActionNotPending': 'Esta acción ya no está pendiente.',
   'CopiaSinReconstruir':
       'Los movimientos aún se están procesando. Intenta de nuevo en un momento.',
 };

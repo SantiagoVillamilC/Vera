@@ -1,5 +1,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/session_store.dart';
+import 'package:vera/features/asistente/presentation/asistente_screen.dart';
+import 'package:vera/features/asistente/presentation/historial_screen.dart';
 import 'package:vera/features/auth/data/auth_repository.dart';
 import 'package:vera/features/auth/presentation/backup_codes_screen.dart';
 import 'package:vera/features/auth/presentation/login_screen.dart';
@@ -87,6 +89,17 @@ GoRouter buildRouter(
         session: sessionStore,
         repository: nucleoRepository,
       ),
+    ),
+    GoRoute(
+      path: '/asistente',
+      builder: (context, state) =>
+          AsistenteScreen(conversacionId: state.extra as String?),
+      routes: [
+        GoRoute(
+          path: 'historial',
+          builder: (context, state) => const HistorialAsistenteScreen(),
+        ),
+      ],
     ),
     GoRoute(
       path: '/enviar',

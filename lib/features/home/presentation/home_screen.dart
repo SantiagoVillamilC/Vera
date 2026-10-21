@@ -128,9 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onNavTap(int i) {
     if (i == 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vera copilot (WIP)')),
-      );
+      context.push('/asistente');
       return;
     }
     setState(() => _tab = i);

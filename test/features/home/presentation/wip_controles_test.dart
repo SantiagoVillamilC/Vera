@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/widgets/wip_badge.dart';
 import 'package:vera/features/home/presentation/enviar_screen.dart';
@@ -134,14 +135,28 @@ void main() {
       );
     });
 
-    testWidgets('el micrófono muestra Vera copilot (WIP)', (tester) async {
-      await _pumpHome(tester);
-
-      await tester.tap(find.byIcon(Icons.mic_rounded).last);
+    testWidgets('el micrófono abre el asistente', (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final router = GoRouter(routes: [
+        GoRoute(
+          path: '/',
+          builder: (_, _) => HomeScreen(
+            repository: FakeNucleoRepository(),
+            session: FakeSessionStore(),
+          ),
+        ),
+        GoRoute(path: '/asistente', builder: (_, _) => const Text('chat-asistente')),
+      ]);
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pump();
       await tester.pump();
 
-      expect(find.text('Vera copilot (WIP)'), findsOneWidget);
-      expect(find.textContaining('próximamente'), findsNothing);
+      await tester.tap(find.byIcon(Icons.mic_rounded).last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('chat-asistente'), findsOneWidget);
     });
 
     testWidgets('lo conectado no lleva (WIP)', (tester) async {

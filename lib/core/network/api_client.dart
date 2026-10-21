@@ -120,6 +120,24 @@ class ApiClient {
     return _parseRaw(response);
   }
 
+  /// DELETE sin cuerpo. Los borrados responden 204.
+  Future<void> delete(
+    String path, {
+    String? bearerToken,
+    bool? auth,
+    Duration? timeout,
+  }) async {
+    final response = await _request(
+      'DELETE',
+      Uri.parse('$baseUrl$path'),
+      path: path,
+      bearerToken: bearerToken,
+      auth: auth,
+      timeout: timeout,
+    );
+    _parseRaw(response);
+  }
+
   /// POST /v1/auth/logout con Bearer y {refresh_token}, responde 204.
   /// No intenta refrescar: un 401 aquí solo significa que la sesión ya no sirve.
   Future<void> logout() async {
@@ -193,9 +211,11 @@ class ApiClient {
     final client = _clientFactory();
     try {
       final headers = _headers(token);
-      final future = method == 'GET'
-          ? client.get(uri, headers: headers)
-          : client.post(uri, headers: headers, body: body);
+      final future = switch (method) {
+        'GET' => client.get(uri, headers: headers),
+        'DELETE' => client.delete(uri, headers: headers),
+        _ => client.post(uri, headers: headers, body: body),
+      };
       return await future.timeout(timeout);
     } finally {
       client.close();
