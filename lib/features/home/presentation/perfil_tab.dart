@@ -15,13 +15,9 @@ String? nombreDePerfil(SessionProfile perfil) {
 }
 
 class PerfilTab extends StatefulWidget {
-  const PerfilTab({
-    super.key,
-    this.session = defaultSessionStore,
-    this.authRepository,
-  });
+  const PerfilTab({super.key, this.session, this.authRepository});
 
-  final SessionStore session;
+  final SessionStore? session;
 
   /// Por defecto el repositorio de autenticación real.
   final AuthRepository? authRepository;
@@ -31,18 +27,77 @@ class PerfilTab extends StatefulWidget {
 }
 
 class _PerfilTabState extends State<PerfilTab> {
+  late final AuthRepository _repository =
+      widget.authRepository ?? AuthRepository();
   String? _nombre;
   bool _cerrando = false;
+  bool _biometriaDisponible = false;
+  bool _biometriaActiva = false;
+  bool _cambiandoBiometria = false;
 
   @override
   void initState() {
     super.initState();
     _cargarNombre();
+    _cargarBiometria();
   }
+
+  Future<void> _cargarBiometria() async {
+    try {
+      final disponible = await _repository.biometriaDisponible();
+      final activa = disponible && await _repository.biometriaHabilitada();
+      if (mounted) {
+        setState(() {
+          _biometriaDisponible = disponible;
+          _biometriaActiva = activa;
+        });
+      }
+    } catch (_) {
+      // Sin poder consultar la biometría la opción no se ofrece.
+    }
+  }
+
+  Future<void> _cambiarBiometria(bool activar) async {
+    if (_cambiandoBiometria) return;
+    setState(() => _cambiandoBiometria = true);
+    try {
+      if (activar) {
+        final ok = await _repository.habilitarBiometria();
+        if (mounted) setState(() => _biometriaActiva = ok);
+      } else if (await _confirmarDesactivar() == true) {
+        // Desactivar borra el enrolamiento local y la sesión: sigue el login completo.
+        await _repository.logout();
+      }
+    } catch (_) {
+      // El interruptor queda como estaba si el sistema rechaza la operación.
+    }
+    if (mounted) setState(() => _cambiandoBiometria = false);
+  }
+
+  Future<bool?> _confirmarDesactivar() => showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Desactivar desbloqueo biométrico'),
+      content: const Text(
+        'Cerraremos tu sesión y tendrás que iniciar sesión completa la próxima vez.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Desactivar'),
+        ),
+      ],
+    ),
+  );
 
   Future<void> _cargarNombre() async {
     try {
-      final perfil = await widget.session.readProfile();
+      final perfil = await (widget.session ?? defaultSessionStore)
+          .readProfile();
       if (mounted) setState(() => _nombre = nombreDePerfil(perfil));
     } catch (_) {
       // Sin perfil legible se queda "Mi cuenta".
@@ -53,7 +108,7 @@ class _PerfilTabState extends State<PerfilTab> {
     if (_cerrando) return;
     setState(() => _cerrando = true);
     try {
-      await (widget.authRepository ?? AuthRepository()).logout();
+      await _repository.logout();
     } catch (_) {
       // logout() borra la sesión local antes de propagar cualquier error,
       // así que el router ya llevó a /login.
@@ -146,18 +201,47 @@ class _PerfilTabState extends State<PerfilTab> {
                 border: Border.all(color: AppColors.border),
               ),
               child: Column(
-                children: const [
-                  _MenuItem(
+                children: [
+                  if (_biometriaDisponible) ...[
+                    Material(
+                      type: MaterialType.transparency,
+                      child: SwitchListTile(
+                        key: const Key('biometria_switch'),
+                        value: _biometriaActiva,
+                        onChanged: _cambiandoBiometria
+                            ? null
+                            : _cambiarBiometria,
+                        secondary: const Icon(
+                          Icons.fingerprint_rounded,
+                          color: AppColors.textSecondary,
+                        ),
+                        title: const Text(
+                          'Desbloqueo con huella o rostro',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Divider(
+                      color: AppColors.border,
+                      height: 1,
+                      indent: 60,
+                    ),
+                  ],
+                  const _MenuItem(
                     icon: Icons.security_rounded,
                     label: 'Seguridad y PIN',
                   ),
-                  Divider(color: AppColors.border, height: 1, indent: 60),
-                  _MenuItem(
+                  const Divider(color: AppColors.border, height: 1, indent: 60),
+                  const _MenuItem(
                     icon: Icons.badge_rounded,
                     label: 'Mis documentos',
                   ),
-                  Divider(color: AppColors.border, height: 1, indent: 60),
-                  _MenuItem(
+                  const Divider(color: AppColors.border, height: 1, indent: 60),
+                  const _MenuItem(
                     icon: Icons.account_balance_rounded,
                     label: 'Cuentas bancarias',
                   ),

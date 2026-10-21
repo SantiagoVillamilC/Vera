@@ -66,9 +66,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     for (final c in [
-      _correoCtrl, _celularCtrl, _contrasenaCtrl, _confirmarCtrl,
-      _nombreCtrl, _numDocCtrl, _nacidaEnCtrl, _razonSocialCtrl, _nitCtrl,
-      _repNombreCtrl, _repNumDocCtrl,
+      _correoCtrl,
+      _celularCtrl,
+      _contrasenaCtrl,
+      _confirmarCtrl,
+      _nombreCtrl,
+      _numDocCtrl,
+      _nacidaEnCtrl,
+      _razonSocialCtrl,
+      _nitCtrl,
+      _repNombreCtrl,
+      _repNumDocCtrl,
     ]) {
       c.dispose();
     }
@@ -127,7 +135,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
@@ -181,12 +191,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: _step == 0
                           ? _TypeStep(
                               selected: _accountType,
-                              onChanged: (t) => setState(() => _accountType = t),
+                              onChanged: (t) =>
+                                  setState(() => _accountType = t),
                             )
-                          : Form(
-                              key: _formKey,
-                              child: _stepContent(),
-                            ),
+                          : Form(key: _formKey, child: _stepContent()),
                     ),
                   ],
                 ),
@@ -198,7 +206,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Text(
                   'Marca las dos casillas para crear la cuenta.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             Padding(
@@ -206,7 +217,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: GradientButton(
                 label: _step < 3 ? 'Continuar' : 'Crear cuenta',
                 loading: _loading,
-                onPressed: _loading || (_step == 3 && !_consentimientosCompletos)
+                onPressed:
+                    _loading || (_step == 3 && !_consentimientosCompletos)
                     ? null
                     : _next,
               ),
@@ -253,7 +265,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           obscurePass: _obscurePass,
           obscureConfirm: _obscureConfirm,
           onTogglePass: () => setState(() => _obscurePass = !_obscurePass),
-          onToggleConfirm: () => setState(() => _obscureConfirm = !_obscureConfirm),
+          onToggleConfirm: () =>
+              setState(() => _obscureConfirm = !_obscureConfirm),
           aceptaTratamientoDatos: _aceptaTratamientoDatos,
           aceptaWhatsappOptin: _aceptaWhatsappOptin,
           onTratamientoDatosChanged: (v) =>
@@ -271,7 +284,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 // Top bar with step indicator
 // ──────────────────────────────────────────────
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.step, required this.totalSteps, required this.onBack});
+  const _TopBar({
+    required this.step,
+    required this.totalSteps,
+    required this.onBack,
+  });
   final int step;
   final int totalSteps;
   final VoidCallback onBack;
@@ -322,7 +339,10 @@ class _TopBar extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             _subtitle(step),
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 15,
+            ),
           ),
           const SizedBox(height: 8),
         ],
@@ -442,7 +462,7 @@ class _TypeCard extends StatelessWidget {
                   color: AppColors.gradientMid.withAlpha(80),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
-                )
+                ),
               ]
             : null,
       ),
@@ -478,7 +498,9 @@ class _TypeCard extends StatelessWidget {
                       Text(
                         title,
                         style: TextStyle(
-                          color: selected ? Colors.white : AppColors.textPrimary,
+                          color: selected
+                              ? Colors.white
+                              : AppColors.textPrimary,
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
                         ),
@@ -541,8 +563,10 @@ class _PersonaStep extends StatelessWidget {
           maxLength: _maxNombre,
           validator: (v) {
             if (v == null || v.trim().isEmpty) return 'Ingresa tu nombre';
-            if (v.trim().split(' ').length < 2) return 'Escribe nombre y apellido';
-            if (v.trim().length > _maxNombre) return 'Máximo $_maxNombre caracteres';
+            if (v.trim().split(' ').length < 2)
+              return 'Escribe nombre y apellido';
+            if (v.trim().length > _maxNombre)
+              return 'Máximo $_maxNombre caracteres';
             return null;
           },
         ),
@@ -603,7 +627,8 @@ class _EmpresaStep extends StatelessWidget {
           maxLength: _maxNombre,
           validator: (v) {
             if (v == null || v.trim().isEmpty) return 'Ingresa la razón social';
-            if (v.trim().length > _maxNombre) return 'Máximo $_maxNombre caracteres';
+            if (v.trim().length > _maxNombre)
+              return 'Máximo $_maxNombre caracteres';
             return null;
           },
         ),
@@ -696,7 +721,8 @@ class _PersonaIdentityStep extends StatelessWidget {
           icon: Icons.badge_outlined,
           keyboardType: TextInputType.number,
           formatters: [FilteringTextInputFormatter.digitsOnly],
-          validator: (v) => v == null || v.length < 6 ? 'Número inválido' : null,
+          validator: (v) =>
+              v == null || v.length < 6 ? 'Número inválido' : null,
         ),
         const SizedBox(height: 20),
         _Label('Fecha de nacimiento'),
@@ -708,7 +734,9 @@ class _PersonaIdentityStep extends StatelessWidget {
               controller: nacidaEnCtrl,
               hint: 'YYYY-MM-DD',
               icon: Icons.calendar_today_outlined,
-              validator: (v) => v == null || v.isEmpty ? 'Selecciona tu fecha de nacimiento' : null,
+              validator: (v) => v == null || v.isEmpty
+                  ? 'Selecciona tu fecha de nacimiento'
+                  : null,
             ),
           ),
         ),
@@ -752,7 +780,8 @@ class _EmpresaRepStep extends StatelessWidget {
           validator: (v) {
             if (v == null || v.trim().isEmpty) return 'Ingresa el nombre';
             if (v.trim().split(' ').length < 2) return 'Nombre y apellido';
-            if (v.trim().length > _maxNombre) return 'Máximo $_maxNombre caracteres';
+            if (v.trim().length > _maxNombre)
+              return 'Máximo $_maxNombre caracteres';
             return null;
           },
         ),
@@ -769,7 +798,8 @@ class _EmpresaRepStep extends StatelessWidget {
           icon: Icons.badge_outlined,
           keyboardType: TextInputType.number,
           formatters: [FilteringTextInputFormatter.digitsOnly],
-          validator: (v) => v == null || v.length < 6 ? 'Número inválido' : null,
+          validator: (v) =>
+              v == null || v.length < 6 ? 'Número inválido' : null,
         ),
         const SizedBox(height: 24),
       ],
@@ -825,15 +855,19 @@ class _PasswordStep extends StatelessWidget {
             suffixIcon: IconButton(
               onPressed: onTogglePass,
               icon: Icon(
-                obscurePass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                obscurePass
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
                 size: 20,
               ),
             ),
           ),
           validator: (v) {
             if (v == null || v.isEmpty) return 'Ingresa una contraseña';
-            if (v.length < _minContrasena) return 'Mínimo $_minContrasena caracteres';
-            if (v.length > _maxContrasena) return 'Máximo $_maxContrasena caracteres';
+            if (v.length < _minContrasena)
+              return 'Mínimo $_minContrasena caracteres';
+            if (v.length > _maxContrasena)
+              return 'Máximo $_maxContrasena caracteres';
             return null;
           },
         ),
@@ -855,7 +889,9 @@ class _PasswordStep extends StatelessWidget {
             suffixIcon: IconButton(
               onPressed: onToggleConfirm,
               icon: Icon(
-                obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                obscureConfirm
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
                 size: 20,
               ),
             ),
@@ -960,7 +996,10 @@ class _OtpRegisterScreenState extends State<OtpRegisterScreen> {
       if (!_sinSalida) _avisar(mensajeDeError(e));
     } catch (_) {
       if (!mounted) return;
-      setState(() { _loading = false; _otp = ''; });
+      setState(() {
+        _loading = false;
+        _otp = '';
+      });
       _avisar('Error de conexión. Intenta de nuevo.');
     }
   }
@@ -968,8 +1007,9 @@ class _OtpRegisterScreenState extends State<OtpRegisterScreen> {
   static bool _esCallejonSinSalida(ApiException e) =>
       e.code == 'OtpTooManyResends' || e.code == 'ChallengeInvalid';
 
-  void _avisar(String mensaje) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(mensaje)));
+  void _avisar(String mensaje) => ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(mensaje)));
 
   /// El contador de 60 s solo reinicia cuando el backend respondió 200.
   Future<void> _resend() async {
@@ -1005,7 +1045,11 @@ class _OtpRegisterScreenState extends State<OtpRegisterScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 44),
+          const Icon(
+            Icons.error_outline_rounded,
+            color: AppColors.error,
+            size: 44,
+          ),
           const SizedBox(height: 20),
           const Text(
             'Esta verificación ya no puede continuar',
@@ -1018,7 +1062,11 @@ class _OtpRegisterScreenState extends State<OtpRegisterScreen> {
           const SizedBox(height: 10),
           const Text(
             'Pediste demasiados códigos o el código ya no es válido. Inicia sesión o recupera tu cuenta para seguir.',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.55),
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 15,
+              height: 1.55,
+            ),
           ),
           const SizedBox(height: 28),
           GradientButton(
@@ -1028,7 +1076,9 @@ class _OtpRegisterScreenState extends State<OtpRegisterScreen> {
           const SizedBox(height: 12),
           TextButton(
             onPressed: () => context.go('/login/recovery'),
-            style: TextButton.styleFrom(foregroundColor: AppColors.gradientStart),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.gradientStart,
+            ),
             child: const Text(
               'Recuperar mi cuenta',
               style: TextStyle(fontWeight: FontWeight.w600),
@@ -1051,7 +1101,10 @@ class _OtpRegisterScreenState extends State<OtpRegisterScreen> {
               children: [
                 const Padding(
                   padding: EdgeInsets.fromLTRB(28, 0, 28, 40),
-                  child: Align(alignment: Alignment.centerRight, child: VeraLogo(size: 22)),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: VeraLogo(size: 22),
+                  ),
                 ),
                 _callejonSinSalida(),
               ],
@@ -1089,7 +1142,11 @@ class _OtpRegisterScreenState extends State<OtpRegisterScreen> {
                   ),
                 ],
               ),
-              child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 32),
+              child: const Icon(
+                Icons.chat_bubble_outline_rounded,
+                color: Colors.white,
+                size: 32,
+              ),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -1126,11 +1183,16 @@ class _OtpRegisterScreenState extends State<OtpRegisterScreen> {
             _resendSeconds > 0
                 ? Text(
                     'Reenviar en ${_resendSeconds}s',
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 14,
+                    ),
                   )
                 : TextButton(
                     onPressed: _resending ? null : _resend,
-                    style: TextButton.styleFrom(foregroundColor: AppColors.gradientStart),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.gradientStart,
+                    ),
                     child: const Text(
                       'Reenviar código',
                       style: TextStyle(fontWeight: FontWeight.w600),
@@ -1260,9 +1322,15 @@ class _PhoneField extends StatelessWidget {
             children: [
               Text('🇨🇴', style: TextStyle(fontSize: 18)),
               SizedBox(width: 8),
-              Text('+57', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+              Text(
+                '+57',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+              ),
               SizedBox(width: 8),
-              SizedBox(height: 18, child: VerticalDivider(color: AppColors.border, width: 1)),
+              SizedBox(
+                height: 18,
+                child: VerticalDivider(color: AppColors.border, width: 1),
+              ),
             ],
           ),
         ),
@@ -1303,9 +1371,15 @@ class _DocTypeDropdown extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.borderFocus, width: 1.5),
+          borderSide: const BorderSide(
+            color: AppColors.borderFocus,
+            width: 1.5,
+          ),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 18,
+        ),
       ),
       items: const [
         DropdownMenuItem(value: 'CC', child: Text('Cédula de ciudadanía')),

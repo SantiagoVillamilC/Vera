@@ -5,6 +5,7 @@ import 'package:vera/features/asistente/presentation/asistente_screen.dart';
 import 'package:vera/features/asistente/presentation/historial_screen.dart';
 import 'package:vera/features/auth/data/auth_repository.dart';
 import 'package:vera/features/auth/presentation/backup_codes_screen.dart';
+import 'package:vera/features/auth/presentation/desbloqueo_screen.dart';
 import 'package:vera/features/auth/presentation/login_screen.dart';
 import 'package:vera/features/auth/presentation/recovery_screen.dart';
 import 'package:vera/features/auth/presentation/register_screen.dart';
@@ -41,12 +42,17 @@ GoRouter buildRouter(
   redirect: (context, state) {
     final path = state.uri.path;
     if (_skipLogin) return null;
+    if (session.locked) return path == '/desbloqueo' ? null : '/desbloqueo';
     if (!session.authenticated) {
       return _isPublicLocation(path) ? null : '/login';
     }
-    return path == '/login' ? '/home' : null;
+    return path == '/login' || path == '/desbloqueo' ? '/home' : null;
   },
   routes: [
+    GoRoute(
+      path: '/desbloqueo',
+      builder: (context, state) => DesbloqueoScreen(repository: authRepository),
+    ),
     GoRoute(
       path: '/login',
       builder: (context, state) => const LoginScreen(),

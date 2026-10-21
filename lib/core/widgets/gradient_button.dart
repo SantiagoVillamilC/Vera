@@ -21,9 +21,7 @@ class GradientButton extends StatelessWidget {
       height: 58,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        gradient: onPressed == null
-            ? null
-            : AppGradients.brand,
+        gradient: onPressed == null ? null : AppGradients.brand,
         color: onPressed == null ? AppColors.surfaceVariant : null,
         boxShadow: onPressed == null
             ? null
@@ -45,7 +43,10 @@ class GradientButton extends StatelessWidget {
                 ? const SizedBox(
                     width: 22,
                     height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
                   )
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -57,7 +58,9 @@ class GradientButton extends StatelessWidget {
                       Text(
                         label,
                         style: TextStyle(
-                          color: onPressed == null ? AppColors.textMuted : Colors.white,
+                          color: onPressed == null
+                              ? AppColors.textMuted
+                              : Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.2,
