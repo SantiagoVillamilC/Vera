@@ -104,6 +104,10 @@ const _porCodigo = <String, String>{
   'DepositNotFound': 'No encontramos el depósito indicado.',
   'NotReady':
       'El servicio no está listo en este momento. Intenta de nuevo en unos minutos.',
+  'CorreccionEnCurso':
+      'Hay otra actualización en curso. Intenta de nuevo en unos segundos.',
+  'CopiaSinReconstruir':
+      'Los movimientos aún se están procesando. Intenta de nuevo en un momento.',
 };
 
 const _etiquetas = <String, ({String nombre, bool masculino})>{
@@ -126,6 +130,8 @@ const _etiquetas = <String, ({String nombre, bool masculino})>{
   'destino': (nombre: 'destino', masculino: true),
   'tipo_llave': (nombre: 'tipo de llave', masculino: true),
   'version_texto': (nombre: 'versión del texto', masculino: false),
+  'categoria': (nombre: 'categoría', masculino: false),
+  'nombre_comercio': (nombre: 'nombre del comercio', masculino: true),
 };
 
 String _mensajeDeCampo(String campo, String regla, String? param) {
@@ -162,6 +168,10 @@ String _mensajeDeCampo(String campo, String regla, String? param) {
           : mensajeValidacionGeneral;
     case 'oneof':
       return '$articulo $nombre no es una opción válida';
+    case 'categoria_visible':
+      return 'Esa categoría no aplica a este movimiento';
+    case 'solo_comercio':
+      return 'Solo puedes cambiar el nombre de un pago a un comercio';
     default:
       return mensajeValidacionGeneral;
   }

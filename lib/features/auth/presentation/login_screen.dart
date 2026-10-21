@@ -12,7 +12,18 @@ import 'package:vera/features/auth/data/auth_repository.dart';
 
 // Step 1: phone number entry
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({
+    super.key,
+    this.repository,
+    this.showcase = const bool.fromEnvironment('SHOWCASE'),
+    this.showcaseCelular = const String.fromEnvironment('SHOWCASE_CELULAR'),
+    this.showcaseContrasena = const String.fromEnvironment('SHOWCASE_CONTRASENA'),
+  });
+
+  final AuthRepository? repository;
+  final bool showcase;
+  final String showcaseCelular;
+  final String showcaseContrasena;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -21,6 +32,16 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _showcaseLoading = false;
+  String? _showcaseError;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.showcase && widget.showcaseCelular.isNotEmpty) {
+      _phoneController.text = widget.showcaseCelular;
+    }
+  }
 
   @override
   void dispose() {
@@ -31,6 +52,28 @@ class _LoginScreenState extends State<LoginScreen> {
   void _continue() {
     if (!_formKey.currentState!.validate()) return;
     context.push('/login/pin', extra: _phoneController.text.trim());
+  }
+
+  Future<void> _showcaseLogin() async {
+    if (_showcaseLoading) return;
+    setState(() {
+      _showcaseLoading = true;
+      _showcaseError = null;
+    });
+    try {
+      final repo = widget.repository ?? AuthRepository();
+      await repo.login(
+        celular: widget.showcaseCelular,
+        contrasena: widget.showcaseContrasena,
+      );
+      if (mounted) context.go('/home');
+    } on Exception catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _showcaseLoading = false;
+        _showcaseError = mensajeDeError(e);
+      });
+    }
   }
 
   @override
@@ -156,6 +199,32 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
+              if (widget.showcase) ...[
+                const SizedBox(height: 4),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: _showcaseLoading ? null : _showcaseLogin,
+                    icon: _showcaseLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.visibility_outlined, size: 18),
+                    label: const Text('Entrar a la demo'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.gradientStart,
+                    ),
+                  ),
+                ),
+                if (_showcaseError != null)
+                  Center(
+                    child: Text(
+                      _showcaseError!,
+                      style: const TextStyle(color: AppColors.error, fontSize: 13),
+                    ),
+                  ),
+              ],
               const SizedBox(height: 32),
             ],
           ),
