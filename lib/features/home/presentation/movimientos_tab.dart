@@ -187,6 +187,7 @@ class _MovimientosTabState extends State<MovimientosTab> {
           _buildHeader(context),
           _buildSummaryCard(),
           _buildFilterChips(),
+          _buildAccesoCategorias(context),
           const SizedBox(height: 16),
           Expanded(child: _buildBody()),
         ],
@@ -323,6 +324,44 @@ class _MovimientosTabState extends State<MovimientosTab> {
             ),
           );
         }),
+      ),
+    );
+  }
+
+  /// Acceso a la vista enriquecida. Es una sección y no una pestaña nueva
+  /// para no tocar el orden del menú inferior.
+  Widget _buildAccesoCategorias(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: GestureDetector(
+        key: const ValueKey('acceso-categorias'),
+        onTap: () => context.push('/inteligencia'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          decoration: BoxDecoration(
+            gradient: AppGradients.brand,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.local_offer_rounded, color: Colors.white, size: 17),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Movimientos con categoría',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: Colors.white, size: 20),
+            ],
+          ),
+        ),
       ),
     );
   }

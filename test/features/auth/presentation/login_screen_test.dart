@@ -249,4 +249,31 @@ void main() {
       expect(textos.contains(String.fromCharCode(0x2013)), isFalse);
     });
   });
+
+  group('LoginScreen, showcase', () {
+    testWidgets('el botón fija el celular y entra sin teclear', (tester) async {
+      final repo = _FakeAuthRepository();
+      await _pump(
+        tester,
+        () => LoginScreen(
+          repository: repo,
+          showcase: true,
+          showcaseCelular: '3001234567',
+          showcaseContrasena: 'Vera-Demo-2026',
+        ),
+      );
+      expect(find.text('3001234567'), findsOneWidget);
+      await tester.tap(find.text('Entrar a la demo'));
+      await tester.pumpAndSettle();
+      expect(repo.llamadas, hasLength(1));
+      expect(repo.llamadas.single.celular, '3001234567');
+      expect(repo.llamadas.single.contrasena, 'Vera-Demo-2026');
+      expect(find.text('PANTALLA_HOME'), findsOneWidget);
+    });
+
+    testWidgets('sin la bandera no aparece el botón', (tester) async {
+      await _pump(tester, () => const LoginScreen());
+      expect(find.text('Entrar a la demo'), findsNothing);
+    });
+  });
 }

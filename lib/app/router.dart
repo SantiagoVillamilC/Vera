@@ -10,6 +10,7 @@ import 'package:vera/features/home/presentation/enviar_screen.dart';
 import 'package:vera/features/home/presentation/estadisticas_screen.dart';
 import 'package:vera/features/home/presentation/home_screen.dart';
 import 'package:vera/features/home/presentation/recargar_screen.dart';
+import 'package:vera/features/inteligencia/presentation/movimientos_enriquecidos_screen.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
 bool _isPublicLocation(String path) =>
@@ -106,6 +107,10 @@ GoRouter buildRouter(
     GoRoute(
       path: '/estadisticas',
       builder: (context, state) => const EstadisticasScreen(),
+    ),
+    GoRoute(
+      path: '/inteligencia',
+      builder: (context, state) => const MovimientosEnriquecidosScreen(),
     ),
   ],
 );
