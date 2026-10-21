@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/theme/app_theme.dart';
-import 'package:vera/core/widgets/wip_badge.dart';
 import 'package:vera/features/auth/data/auth_repository.dart';
 
 /// Nombre de la persona o, si no hay, la razón social. Un texto vacío cuenta
@@ -138,80 +137,6 @@ class _PerfilTabState extends State<PerfilTab> {
             ),
 
             const SizedBox(height: 24),
-            _SectionLabel('CUENTA'),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                children: const [
-                  _MenuItem(
-                    icon: Icons.security_rounded,
-                    label: 'Seguridad y PIN',
-                  ),
-                  Divider(color: AppColors.border, height: 1, indent: 60),
-                  _MenuItem(
-                    icon: Icons.badge_rounded,
-                    label: 'Mis documentos',
-                  ),
-                  Divider(color: AppColors.border, height: 1, indent: 60),
-                  _MenuItem(
-                    icon: Icons.account_balance_rounded,
-                    label: 'Cuentas bancarias',
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-            _SectionLabel('SOPORTE'),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                children: const [
-                  _MenuItem(
-                    icon: Icons.help_outline_rounded,
-                    label: 'Centro de ayuda',
-                  ),
-                  Divider(color: AppColors.border, height: 1, indent: 60),
-                  _MenuItem(
-                    icon: Icons.chat_bubble_outline_rounded,
-                    label: 'Chat con soporte',
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-            _SectionLabel('LEGAL'),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                children: const [
-                  _MenuItem(
-                    icon: Icons.description_outlined,
-                    label: 'Términos y condiciones',
-                  ),
-                  Divider(color: AppColors.border, height: 1, indent: 60),
-                  _MenuItem(
-                    icon: Icons.privacy_tip_outlined,
-                    label: 'Política de privacidad',
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -233,79 +158,6 @@ class _PerfilTabState extends State<PerfilTab> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: AppColors.textMuted,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 1.2,
-        ),
-      ),
-    );
-  }
-}
-
-class _MenuItem extends StatelessWidget {
-  const _MenuItem({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Icon(icon, color: AppColors.textSecondary, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const WipBadge(),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

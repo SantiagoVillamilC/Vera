@@ -9,8 +9,6 @@ import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 import 'cargar_roboto.dart';
 import 'fake_nucleo_repository.dart';
 
-const _avisoMuestra = 'Datos de muestra (WIP)';
-
 MontoCalculado _saldo(int centavos) => MontoCalculado(
       montoCentavos: BigInt.from(centavos),
       moneda: 'COP',
@@ -171,10 +169,11 @@ void main() {
     expect(find.text('\$89.772,90'), findsNothing);
   });
 
-  testWidgets('muestra el aviso Datos de muestra (WIP)', (tester) async {
+  testWidgets('no muestra marcas de trabajo en curso', (tester) async {
     await _pump(tester, FakeNucleoRepository());
 
-    expect(find.text(_avisoMuestra), findsOneWidget);
+    expect(find.textContaining('WIP'), findsNothing);
+    expect(find.text('Ver todos'), findsOneWidget);
     expect(find.textContaining('Próximamente'), findsNothing);
   });
 

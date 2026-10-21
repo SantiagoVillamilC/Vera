@@ -9,8 +9,6 @@ import 'cargar_roboto.dart';
 import 'fake_nucleo_repository.dart';
 import 'fake_session_store.dart';
 
-const _avisoMuestra = 'Datos de muestra (WIP)';
-
 Future<void> _pump(
   WidgetTester tester, {
   FakeSessionStore? session,
@@ -114,10 +112,10 @@ void main() {
     }
   });
 
-  testWidgets('muestra el aviso Datos de muestra (WIP)', (tester) async {
+  testWidgets('no muestra marcas de trabajo en curso', (tester) async {
     await _pump(tester);
 
-    expect(find.text(_avisoMuestra), findsOneWidget);
+    expect(find.textContaining('WIP'), findsNothing);
     expect(find.text('Mis Tarjetas'), findsOneWidget);
     expect(find.textContaining('Próximamente'), findsNothing);
   });

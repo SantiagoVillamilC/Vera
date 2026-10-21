@@ -6,7 +6,6 @@ import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
-import 'package:vera/core/widgets/wip_badge.dart';
 import 'package:vera/features/home/presentation/movimiento_vista.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
@@ -184,36 +183,9 @@ class _EstadisticasScreenState extends State<EstadisticasScreen>
                       ),
                     ),
                   ),
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceVariant,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: const Icon(
-                          Icons.more_horiz_rounded,
-                          color: AppColors.textSecondary,
-                          size: 20,
-                        ),
-                      ),
-                      const Positioned(
-                        top: -8,
-                        right: -4,
-                        child: WipBadge(),
-                      ),
-                    ],
-                  ),
+                  const SizedBox(width: 40),
                 ],
               ),
-            ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: WipAviso(),
             ),
             const SizedBox(height: 16),
             Padding(
@@ -328,8 +300,6 @@ class _EstadisticasScreenState extends State<EstadisticasScreen>
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        SizedBox(width: 6),
-                        WipBadge(),
                       ],
                     ),
                   ),

@@ -7,7 +7,6 @@ import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
-import 'package:vera/core/widgets/wip_badge.dart';
 import 'package:vera/features/nucleo/data/idempotency_intent.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 import 'package:vera/features/nucleo/data/transferencia_mensajes.dart';
@@ -154,25 +153,6 @@ class _EnviarScreenState extends State<EnviarScreen> {
           ),
         ),
         centerTitle: true,
-        actions: [
-          Tooltip(
-            message: '(WIP)',
-            child: Padding(
-              padding: const EdgeInsets.only(right: 12),
-              // En línea y no superpuesta: sobre el borde derecho la insignia
-              // se recortaba y tapaba la campana.
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.notifications_outlined,
-                      color: AppColors.textSecondary, size: 22),
-                  SizedBox(width: 6),
-                  WipBadge(),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20),

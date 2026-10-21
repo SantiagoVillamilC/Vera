@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vera/core/network/session_store.dart';
-import 'package:vera/core/widgets/wip_badge.dart';
 import 'package:vera/features/home/presentation/enviar_screen.dart';
 import 'package:vera/features/home/presentation/estadisticas_screen.dart';
 import 'package:vera/features/home/presentation/home_screen.dart';
@@ -60,18 +59,9 @@ Future<void> _pumpHome(
       fuenteReal: fuenteReal,
     );
 
-/// Insignias dentro de la celda que contiene [etiqueta].
-Finder _insigniaDeCelda(String etiqueta) => find.descendant(
-      of: find.ancestor(
-        of: find.text(etiqueta),
-        matching: find.byType(GestureDetector),
-      ).first,
-      matching: find.byType(WipBadge),
-    );
-
 void main() {
   group('Home', () {
-    testWidgets('las 4 celdas sin destino llevan (WIP)', (tester) async {
+    testWidgets('las celdas sin destino ya no se muestran', (tester) async {
       await _pumpHome(tester);
 
       for (final etiqueta in [
@@ -80,88 +70,62 @@ void main() {
         'Mis\nclaves',
         'Remune-\nración',
       ]) {
-        expect(_insigniaDeCelda(etiqueta), findsOneWidget, reason: etiqueta);
+        expect(find.text(etiqueta), findsNothing, reason: etiqueta);
       }
+      expect(find.textContaining('WIP'), findsNothing);
     });
 
-    testWidgets('las celdas conectadas no llevan (WIP)', (tester) async {
-      await _pumpHome(tester);
-
-      for (final etiqueta in [
-        'Enviar\ndinero',
-        'Enviar por llave',
-        'Recargar',
-      ]) {
-        expect(_insigniaDeCelda(etiqueta), findsNothing, reason: etiqueta);
-      }
-    });
-
-    testWidgets('la celda en desarrollo tiene etiqueta semántica',
-        (tester) async {
-      final handle = tester.ensureSemantics();
-      await _pumpHome(tester);
-
-      expect(
-        find.bySemanticsLabel('Pagar servicios, en desarrollo'),
-        findsOneWidget,
-      );
-      handle.dispose();
-    });
-
-    testWidgets('tocar una celda en desarrollo no muestra Próximamente',
+    testWidgets('las celdas conectadas siguen visibles y en una sola fila',
         (tester) async {
       await _pumpHome(tester);
 
-      await tester.tap(find.text('Pagar\nservicios'));
+      final etiquetas = ['Enviar\ndinero', 'Enviar por llave', 'Recargar'];
+      for (final etiqueta in etiquetas) {
+        expect(find.text(etiqueta), findsOneWidget, reason: etiqueta);
+      }
+      final fila = etiquetas
+          .map(
+            (e) => tester
+                .getCenter(
+                  find
+                      .ancestor(
+                        of: find.text(e),
+                        matching: find.byType(GestureDetector),
+                      )
+                      .first,
+                )
+                .dy,
+          )
+          .toSet();
+      expect(fila, hasLength(1));
+    });
+
+    testWidgets('Mis CVUs ya no se muestra', (tester) async {
+      await _pumpHome(tester);
+
+      expect(find.text('Mis CVUs'), findsNothing);
+    });
+
+    testWidgets('el micrófono central ya no se muestra', (tester) async {
+      await _pumpHome(tester);
+
+      expect(find.byIcon(Icons.mic_rounded), findsNothing);
+      expect(find.textContaining('copilot'), findsNothing);
+
+      await tester.tap(find.text('Perfil'));
+      await tester.pump();
       await tester.pump();
 
-      expect(find.text('Próximamente'), findsNothing);
       expect(find.byType(SnackBar), findsNothing);
     });
 
-    testWidgets('Mis CVUs lleva (WIP)', (tester) async {
-      await _pumpHome(tester);
-
-      expect(
-        find.descendant(
-          of: find.ancestor(
-            of: find.text('Mis CVUs'),
-            matching: find.byType(Row),
-          ).first,
-          matching: find.byType(WipBadge),
-        ),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('el micrófono muestra Vera copilot (WIP)', (tester) async {
-      await _pumpHome(tester);
-
-      await tester.tap(find.byIcon(Icons.mic_rounded).last);
-      await tester.pump();
-
-      expect(find.text('Vera copilot (WIP)'), findsOneWidget);
-      expect(find.textContaining('próximamente'), findsNothing);
-    });
-
-    testWidgets('lo conectado no lleva (WIP)', (tester) async {
+    testWidgets('lo conectado se mantiene sin marcas', (tester) async {
       final session = FakeSessionStore()..pendingDeposit = 'dep-1';
       await _pumpHome(tester, session: session);
 
       expect(find.text('Tienes una recarga pendiente'), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.ancestor(
-            of: find.text('Tienes una recarga pendiente'),
-            matching: find.byType(InkWell),
-          ).first,
-          matching: find.byType(WipBadge),
-        ),
-        findsNothing,
-      );
       expect(find.text('Sin movimientos aún'), findsOneWidget);
-      // 4 celdas + Mis CVUs, nada más en el Inicio.
-      expect(find.byType(WipBadge), findsNWidgets(5));
+      expect(find.textContaining('WIP'), findsNothing);
     });
 
     for (final tam in [const Size(320, 640), const Size(360, 640)]) {
@@ -188,53 +152,54 @@ void main() {
   });
 
   group('Enviar', () {
-    testWidgets('la campana lleva (WIP) con tooltip', (tester) async {
+    testWidgets('la campana ya no se muestra', (tester) async {
       await _pump(
         tester,
         () => EnviarScreen(repository: FakeNucleoRepository()),
       );
 
-      expect(find.byType(WipBadge), findsOneWidget);
-      expect(find.byTooltip('(WIP)'), findsOneWidget);
+      expect(find.byIcon(Icons.notifications_outlined), findsNothing);
+      expect(find.byTooltip('(WIP)'), findsNothing);
+      expect(find.textContaining('WIP'), findsNothing);
     });
 
     for (final (ancho, alto) in [(360.0, 640.0), (411.0, 914.0)]) {
-      testWidgets(
-        'a $ancho dp la insignia no se recorta ni tapa la campana ni el título',
-        (tester) async {
-          await _pump(
-            tester,
-            () => EnviarScreen(repository: FakeNucleoRepository()),
-            size: Size(ancho, alto),
-            fuenteReal: true,
-          );
+      testWidgets('a $ancho dp el título del AppBar no desborda',
+          (tester) async {
+        await _pump(
+          tester,
+          () => EnviarScreen(repository: FakeNucleoRepository()),
+          size: Size(ancho, alto),
+          fuenteReal: true,
+        );
 
-          final insignia = tester.getRect(find.byType(WipBadge));
-          final campana = tester.getRect(
-            find.byIcon(Icons.notifications_outlined),
-          );
-          final titulo = tester.getRect(find.text('Enviar dinero'));
-
-          expect(tester.takeException(), isNull);
-          expect(insignia.left, greaterThanOrEqualTo(0));
-          expect(insignia.top, greaterThanOrEqualTo(0));
-          expect(insignia.right, lessThanOrEqualTo(ancho));
-          expect(insignia.bottom, lessThanOrEqualTo(alto));
-          expect(insignia.overlaps(campana), isFalse);
-          expect(insignia.overlaps(titulo), isFalse);
-        },
-      );
+        expect(tester.takeException(), isNull);
+        final titulo = tester.getRect(find.text('Enviar dinero'));
+        expect(titulo.left, greaterThanOrEqualTo(0));
+        expect(titulo.right, lessThanOrEqualTo(ancho));
+      });
     }
   });
 
   group('Perfil', () {
-    testWidgets('las 7 filas sin acción llevan (WIP)', (tester) async {
+    testWidgets('las filas sin acción ya no se muestran', (tester) async {
       await _pump(
         tester,
         () => Scaffold(body: PerfilTab(session: FakeSessionStore())),
       );
 
-      expect(find.byType(WipBadge), findsNWidgets(7));
+      for (final etiqueta in [
+        'Seguridad y PIN',
+        'Mis documentos',
+        'Cuentas bancarias',
+        'Centro de ayuda',
+        'Chat con soporte',
+        'Términos y condiciones',
+        'Política de privacidad',
+      ]) {
+        expect(find.text(etiqueta), findsNothing, reason: etiqueta);
+      }
+      expect(find.textContaining('WIP'), findsNothing);
     });
 
     testWidgets('los subtítulos no prometen funciones inexistentes',
@@ -249,30 +214,14 @@ void main() {
       expect(find.text('Bancos vinculados'), findsNothing);
     });
 
-    testWidgets('nombre y Cerrar sesión no llevan (WIP)', (tester) async {
+    testWidgets('nombre y Cerrar sesión siguen visibles', (tester) async {
       final session = FakeSessionStore(
         profile: const SessionProfile(nombreCompleto: 'Ana Prueba'),
       );
       await _pump(tester, () => Scaffold(body: PerfilTab(session: session)));
 
       expect(find.text('Ana Prueba'), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byType(OutlinedButton),
-          matching: find.byType(WipBadge),
-        ),
-        findsNothing,
-      );
-      expect(
-        find.descendant(
-          of: find.ancestor(
-            of: find.text('Ana Prueba'),
-            matching: find.byType(Container),
-          ).first,
-          matching: find.byType(WipBadge),
-        ),
-        findsNothing,
-      );
+      expect(find.text('Cerrar sesión'), findsOneWidget);
     });
 
     testWidgets('a 320x640 con escala 1.3 no hay overflow', (tester) async {
@@ -289,34 +238,28 @@ void main() {
   });
 
   group('Tarjetas y Estadísticas', () {
-    testWidgets('el chip Agregar lleva (WIP)', (tester) async {
+    testWidgets('el chip Agregar ya no se muestra', (tester) async {
       await _pump(
         tester,
         () => Scaffold(body: TarjetasTab(session: FakeSessionStore())),
       );
 
-      expect(find.text('Agregar'), findsOneWidget);
-      expect(find.byType(WipBadge), findsOneWidget);
+      expect(find.text('Agregar'), findsNothing);
+      expect(find.textContaining('WIP'), findsNothing);
+      expect(find.text('Mis Tarjetas'), findsOneWidget);
     });
 
-    testWidgets('Ver todos y more_horiz llevan (WIP)', (tester) async {
+    testWidgets('Estadísticas conserva Ver todos y pierde more_horiz',
+        (tester) async {
       await _pump(
         tester,
         () => EstadisticasScreen(repository: FakeNucleoRepository()),
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(WipBadge), findsNWidgets(2));
-      expect(
-        find.descendant(
-          of: find.ancestor(
-            of: find.text('Ver todos'),
-            matching: find.byType(Row),
-          ).first,
-          matching: find.byType(WipBadge),
-        ),
-        findsOneWidget,
-      );
+      expect(find.textContaining('WIP'), findsNothing);
+      expect(find.byIcon(Icons.more_horiz_rounded), findsNothing);
+      expect(find.text('Ver todos'), findsOneWidget);
     });
   });
 }

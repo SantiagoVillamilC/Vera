@@ -24,7 +24,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Estadísticas'), findsOneWidget);
-    expect(find.text('Datos de muestra (WIP)'), findsOneWidget);
+    expect(find.textContaining('WIP'), findsNothing);
     expect(find.textContaining('Próximamente'), findsNothing);
     expect(find.textContaining('Nómina'), findsNothing);
   });
@@ -33,7 +33,7 @@ void main() {
       (tester) async {
     await _pump(tester, TarjetasTab(session: FakeSessionStore()));
     expect(find.text('Mis Tarjetas'), findsOneWidget);
-    expect(find.text('Datos de muestra (WIP)'), findsOneWidget);
+    expect(find.textContaining('WIP'), findsNothing);
     expect(find.textContaining('Próximamente'), findsNothing);
     expect(find.textContaining('4417'), findsWidgets);
     expect(find.textContaining('Rappi'), findsNothing);

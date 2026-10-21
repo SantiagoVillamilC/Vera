@@ -8,7 +8,6 @@ import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
-import 'package:vera/core/widgets/wip_badge.dart';
 import 'package:vera/features/auth/data/auth_repository.dart';
 import 'package:vera/features/home/presentation/movimiento_vista.dart';
 import 'package:vera/features/home/presentation/movimientos_tab.dart';
@@ -127,12 +126,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onNavTap(int i) {
-    if (i == 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vera copilot (WIP)')),
-      );
-      return;
-    }
     setState(() => _tab = i);
   }
 
@@ -191,96 +184,54 @@ class _BottomNav extends StatelessWidget {
   final double bottomPadding;
 
   static const _items = [
-    (Icons.home_rounded, 'Inicio'),
-    (Icons.bar_chart_rounded, 'Movim.'),
-    (Icons.mic_rounded, ''),
-    (Icons.credit_card_rounded, 'Tarjetas'),
-    (Icons.person_rounded, 'Perfil'),
+    (0, Icons.home_rounded, 'Inicio'),
+    (1, Icons.bar_chart_rounded, 'Movim.'),
+    (3, Icons.credit_card_rounded, 'Tarjetas'),
+    (4, Icons.person_rounded, 'Perfil'),
   ];
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 64 + bottomPadding + 16,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 64 + bottomPadding,
-              decoration: const BoxDecoration(
-                color: AppColors.surface,
-                border: Border(top: BorderSide(color: AppColors.border)),
-              ),
-              child: Padding(
-                padding: EdgeInsets.only(bottom: bottomPadding),
-                child: Row(
-                  children: List.generate(5, (i) {
-                    if (i == 2) return const Expanded(child: SizedBox());
-                    final active = currentIndex == i;
-                    final (icon, label) = _items[i];
-                    return Expanded(
-                      child: GestureDetector(
-                        onTap: () => onTap(i),
-                        behavior: HitTestBehavior.opaque,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(icon, size: 22,
-                                color: active
-                                    ? AppColors.textPrimary
-                                    : AppColors.textMuted),
-                            const SizedBox(height: 4),
-                            Text(label,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: active
-                                      ? FontWeight.w600
-                                      : FontWeight.w400,
-                                  color: active
-                                      ? AppColors.textPrimary
-                                      : AppColors.textMuted,
-                                )),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: bottomPadding + 20,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: GestureDetector(
-                onTap: () => onTap(2),
-                child: Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    gradient: AppGradients.brand,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.gradientMid.withAlpha(120),
-                        blurRadius: 20,
-                        offset: const Offset(0, 4),
-                      ),
+    return Container(
+      height: 64 + bottomPadding,
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomPadding),
+        child: Row(
+          children: [
+            for (final (i, icon, label) in _items)
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(i),
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(icon,
+                          size: 22,
+                          color: currentIndex == i
+                              ? AppColors.textPrimary
+                              : AppColors.textMuted),
+                      const SizedBox(height: 4),
+                      Text(label,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: currentIndex == i
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: currentIndex == i
+                                ? AppColors.textPrimary
+                                : AppColors.textMuted,
+                          )),
                     ],
                   ),
-                  child: const Icon(Icons.mic_rounded,
-                      color: Colors.white, size: 26),
                 ),
               ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -449,31 +400,6 @@ class _Header extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(30),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white30),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Mis CVUs',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(width: 6),
-                    WipBadge(),
-                  ],
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 18),
@@ -554,10 +480,6 @@ class _ActionsCard extends StatelessWidget {
     (Icons.send_rounded, 'Enviar\ndinero', '/enviar'),
     (Icons.key_rounded, 'Enviar por llave', '/enviar-llave'),
     (Icons.add_circle_outline_rounded, 'Recargar', '/recargar'),
-    (Icons.receipt_long_rounded, 'Pagar\nservicios', ''),
-    (Icons.credit_card_rounded, 'Pedir\ntarjeta', ''),
-    (Icons.lock_outline_rounded, 'Mis\nclaves', ''),
-    (Icons.account_balance_wallet_rounded, 'Remune-\nración', ''),
   ];
 
   /// 52 del icono, 6 de separación y dos líneas de etiqueta (11 con altura
@@ -603,7 +525,7 @@ class _ActionsCard extends StatelessWidget {
                 return _ActionCell(
                   icon: icon,
                   label: label,
-                  onTap: route.isNotEmpty ? () => onAbrir(route) : null,
+                  onTap: () => onAbrir(route),
                 );
               }).toList(),
             ),
@@ -625,37 +547,25 @@ class _ActionCell extends StatelessWidget {
 
   final IconData icon;
   final String label;
-  /// Sin acción la celda queda marcada (WIP) y no responde al toque.
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final enDesarrollo = onTap == null;
-    final cuerpo = GestureDetector(
+    return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Opacity(
-                opacity: enDesarrollo ? 0.6 : 1,
-                child: Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Icon(icon, color: AppColors.gradientStart, size: 24),
-                ),
-              ),
-              if (enDesarrollo)
-                const Positioned(top: -6, right: -10, child: WipBadge()),
-            ],
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Icon(icon, color: AppColors.gradientStart, size: 24),
           ),
           const SizedBox(height: 6),
           Text(
@@ -670,12 +580,6 @@ class _ActionCell extends StatelessWidget {
           ),
         ],
       ),
-    );
-    if (!enDesarrollo) return cuerpo;
-    return Semantics(
-      label: '${label.replaceAll('-\n', '').replaceAll('\n', ' ')}, en desarrollo',
-      excludeSemantics: true,
-      child: cuerpo,
     );
   }
 }

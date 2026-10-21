@@ -3,7 +3,6 @@ import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/format/tarjeta_muestra.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/theme/app_theme.dart';
-import 'package:vera/core/widgets/wip_badge.dart';
 import 'package:vera/features/home/presentation/perfil_tab.dart';
 
 /// Sin endpoint de tarjetas en el contrato: número, vencimiento, tipo, estado
@@ -46,52 +45,16 @@ class _TarjetasTabState extends State<TarjetasTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Mis Tarjetas',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.add_rounded,
-                          color: AppColors.textSecondary, size: 16),
-                      SizedBox(width: 4),
-                      Text(
-                        'Agregar',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      SizedBox(width: 6),
-                      WipBadge(),
-                    ],
-                  ),
-                ),
-              ],
+            const Text(
+              'Mis Tarjetas',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            const SizedBox(height: 8),
-            const WipAviso(),
             const SizedBox(height: 16),
             _TarjetaVisual(nombre: (_nombre ?? nombreTarjetaGenerico).toUpperCase()),
             const SizedBox(height: 12),
