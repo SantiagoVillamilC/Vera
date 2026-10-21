@@ -1,38 +1,48 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:async';
+import 'dart:io';
+
+import 'package:http/http.dart' as http;
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/app_config.dart';
+import 'package:vera/core/network/session_store.dart';
 
 class AuthRepository {
-  AuthRepository()
-      : _client = ApiClient(baseUrl: AppConfig.baseUrl),
-        _storage = const FlutterSecureStorage();
+  AuthRepository({
+    ApiClient? client,
+    SessionStore? session,
+    SessionNotifier? sessionNotifier,
+  })  : _session = session ?? defaultSessionStore,
+        // Con el cliente por defecto el repositorio notifica a la sesión global.
+        _sessionNotifier =
+            sessionNotifier ?? (client == null ? appSession : null),
+        _client = client ??
+            ApiClient(
+              baseUrl: AppConfig.baseUrl,
+              session: session ?? defaultSessionStore,
+              onSessionExpired: expireAppSession,
+            );
 
   final ApiClient _client;
-  final FlutterSecureStorage _storage;
-
-  static const _keyAccessToken = 'access_token';
-  static const _keyRefreshToken = 'refresh_token';
-  static const _keyNombreCompleto = 'nombre_completo';
-  static const _keyTipoCuenta = 'tipo_cuenta';
+  final SessionStore _session;
+  final SessionNotifier? _sessionNotifier;
 
   // ── Token + session storage ────────────────────────────────────
   Future<void> saveTokens({required String access, required String refresh}) =>
-      Future.wait([
-        _storage.write(key: _keyAccessToken, value: access),
-        _storage.write(key: _keyRefreshToken, value: refresh),
-      ]);
+      _session.saveTokens(access: access, refresh: refresh);
 
-  Future<String?> getAccessToken() => _storage.read(key: _keyAccessToken);
-  Future<String?> getRefreshToken() => _storage.read(key: _keyRefreshToken);
-  Future<String?> getNombreCompleto() => _storage.read(key: _keyNombreCompleto);
-  Future<String?> getTipoCuenta() => _storage.read(key: _keyTipoCuenta);
+  Future<String?> getAccessToken() => _session.readAccess();
+  Future<String?> getRefreshToken() => _session.readRefresh();
 
-  Future<void> clearTokens() => Future.wait([
-        _storage.delete(key: _keyAccessToken),
-        _storage.delete(key: _keyRefreshToken),
-        _storage.delete(key: _keyNombreCompleto),
-        _storage.delete(key: _keyTipoCuenta),
-      ]);
+  Future<SessionProfile> getProfile() => _session.readProfile();
+
+  /// Nombre de la persona o, si no hay, la razón social.
+  Future<String?> getNombreAMostrar() async =>
+      (await _session.readProfile()).nombreAMostrar;
+
+  Future<String?> getTipoCuenta() async =>
+      (await _session.readProfile()).tipoCuenta;
+
+  Future<void> clearTokens() => _session.clear();
 
   // ── Helpers ───────────────────────────────────────────────────
   static String toE164(String phone) {
@@ -52,11 +62,46 @@ class AuthRepository {
       'contrasena': contrasena,
     });
     final result = LoginResult.fromJson(data);
+    // Orden estricto: el router construye el Home al autenticar, así que
+    // el perfil ya debe estar guardado para entonces.
     await saveTokens(access: result.accessToken, refresh: result.refreshToken);
+    await _session.saveProfile(SessionProfile(
+      nombreCompleto: result.nombreCompleto,
+      razonSocial: result.razonSocial,
+      tipoCuenta: result.tipoCuenta,
+    ));
+    _sessionNotifier?.setAuthenticated(true);
     return result;
   }
 
   // ── Register ──────────────────────────────────────────────────
+  /// El backend exige tratamiento_datos y whatsapp_optin aceptados, ambos con
+  /// version_texto v1 (ConsentRequired en caso contrario).
+  static const versionConsentimientos = 'v1';
+
+  static List<ConsentimientoInput> _consentimientosRequeridos({
+    required bool aceptaTratamientoDatos,
+    required bool aceptaWhatsappOptin,
+  }) {
+    if (!aceptaTratamientoDatos || !aceptaWhatsappOptin) {
+      throw ArgumentError(
+        'El registro exige aceptar tratamiento_datos y whatsapp_optin.',
+      );
+    }
+    return const [
+      ConsentimientoInput(
+        tipo: 'tratamiento_datos',
+        versionTexto: versionConsentimientos,
+        aceptado: true,
+      ),
+      ConsentimientoInput(
+        tipo: 'whatsapp_optin',
+        versionTexto: versionConsentimientos,
+        aceptado: true,
+      ),
+    ];
+  }
+
   Future<RegisterResult> registerPersona({
     required String correo,
     required String contrasena,
@@ -64,8 +109,13 @@ class AuthRepository {
     required String nombreCompleto,
     required String tipoDocumento,
     required String numeroDocumento,
-    required List<ConsentimientoInput> consentimientos,
+    required bool aceptaTratamientoDatos,
+    required bool aceptaWhatsappOptin,
   }) async {
+    final consentimientos = _consentimientosRequeridos(
+      aceptaTratamientoDatos: aceptaTratamientoDatos,
+      aceptaWhatsappOptin: aceptaWhatsappOptin,
+    );
     final data = await _client.post('/v1/auth/register', {
       'tipo_cuenta': 'persona',
       'correo': correo,
@@ -88,8 +138,13 @@ class AuthRepository {
     required String repNombre,
     required String repTipoDoc,
     required String repNumDoc,
-    required List<ConsentimientoInput> consentimientos,
+    required bool aceptaTratamientoDatos,
+    required bool aceptaWhatsappOptin,
   }) async {
+    final consentimientos = _consentimientosRequeridos(
+      aceptaTratamientoDatos: aceptaTratamientoDatos,
+      aceptaWhatsappOptin: aceptaWhatsappOptin,
+    );
     final data = await _client.post('/v1/auth/register', {
       'tipo_cuenta': 'empresa',
       'razon_social': razonSocial,
@@ -118,18 +173,42 @@ class AuthRepository {
     return VerifyPhoneResult.fromJson(data);
   }
 
-  Future<void> resendOtp({required String challengeId}) =>
+  /// Reenvía el código sobre el mismo desafío: el challenge_id no cambia.
+  /// El contrato (openapi.yaml, ResendOtpRequest) solo acepta challenge_id y el
+  /// backend rechaza campos desconocidos, por eso `proposito` no se envía: es
+  /// solo contexto del llamador (el servidor lo devuelve en la respuesta).
+  Future<void> resendOtp({required String challengeId, String? proposito}) =>
       _client.post('/v1/auth/otp/resend', {'challenge_id': challengeId});
 
   // ── Session ───────────────────────────────────────────────────
+  /// Cierra la sesión en el servidor (204) y SIEMPRE borra la local.
+  /// Un fallo de red se ignora porque el logout local ya basta. Cualquier
+  /// otro error (por ejemplo un 500) se propaga después de limpiar.
   Future<void> logout() async {
-    final refresh = await getRefreshToken();
-    if (refresh != null) {
+    try {
+      final refresh = await getRefreshToken();
+      if (refresh != null && refresh.isNotEmpty) {
+        final access = await getAccessToken();
+        await _client.post(
+          '/v1/auth/logout',
+          {'refresh_token': refresh},
+          bearerToken: access,
+          auth: access != null,
+        );
+      }
+    } on SocketException {
+      // Sin red: la sesión local se borra igual.
+    } on TimeoutException {
+      // Igual que sin red.
+    } on http.ClientException {
+      // Igual que sin red.
+    } finally {
       try {
-        await _client.post('/v1/auth/logout', {'refresh_token': refresh});
-      } catch (_) {}
+        await clearTokens();
+      } finally {
+        _sessionNotifier?.setAuthenticated(false);
+      }
     }
-    await clearTokens();
   }
 
   // ── Recovery ──────────────────────────────────────────────────

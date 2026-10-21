@@ -1,7 +1,7 @@
 # Vera — Agent Guide
 
 Flutter mobile app — billetera digital para Colombia.
-Dart SDK ^3.12, Material 3, **dark-only theme**.
+Flutter 3.47.2, Dart SDK ^3.12, Material 3, **dark-only theme**.
 
 ---
 
@@ -9,11 +9,11 @@ Dart SDK ^3.12, Material 3, **dark-only theme**.
 
 | Layer | Package | Notes |
 |---|---|---|
-| State management | `flutter_riverpod` 2.x + `riverpod_annotation` | Always use code gen |
+| State management | `setState` in widgets. `flutter_riverpod` 2.x + `riverpod_annotation` only for the theme | Code gen only for `theme_provider` |
 | Navigation | `go_router` 14.x | Entry point: `/login` |
 | Typography | `google_fonts` 6.x | Playfair Display en el logo |
 | Code generation | `build_runner` + `riverpod_generator` | Run after every `@riverpod` change |
-| HTTP | `package:http` or `dio` | Not yet added — add when connecting backend |
+| HTTP | `package:http` | Client in `lib/core/network/api_client.dart` |
 
 ---
 
@@ -56,11 +56,18 @@ lib/
 └── features/
     ├── auth/
     │   └── presentation/
-    │       ├── login_screen.dart          # LoginScreen, PinScreen, OtpLoginScreen
+    │       ├── login_screen.dart          # LoginScreen, PinScreen
+    │       ├── recovery_screen.dart       # recovery flow
+    │       ├── backup_codes_screen.dart   # real backup codes (error if none)
     │       └── register_screen.dart       # RegisterScreen + OtpRegisterScreen
     └── home/
         └── presentation/
-            └── home_screen.dart           # post-login placeholder
+            ├── home_screen.dart           # real balance and movements
+            ├── enviar_screen.dart         # send money
+            ├── enviar_llave_screen.dart   # send by Bre-B key
+            ├── recargar_screen.dart       # top-up with url_pago and polling
+            ├── estadisticas_screen.dart   # Balance y movimientos reales, resto de muestra (WIP)
+            └── tarjetas_tab.dart          # Datos de muestra (WIP)
 ```
 
 ---
@@ -116,9 +123,18 @@ Entry point is `/login` — no landing page.
 |---|---|---|
 | `/login` | `LoginScreen` | — |
 | `/login/pin` | `PinScreen` | `String` (phone) |
-| `/login/otp` | `OtpLoginScreen` | `Map<String, dynamic>` {phone, challengeId} |
-| `/register` | `RegisterScreen` | — |
-| `/home` | `HomeScreen` | — |
+| `/login/recovery` | `RecoveryScreen` | - |
+| `/login/recovery/otp` | `RecoveryOtpScreen` | `Map<String, dynamic>` {correo, challengeId} |
+| `/login/recovery/new-pin` | `NewPinScreen` | `String` (reset_token) |
+| `/register` | `RegisterScreen` | - |
+| `/register/backup-codes` | `BackupCodesScreen` | `List<String>` (real codes) |
+| `/home` | `HomeScreen` | - |
+| `/enviar` | `EnviarScreen` | - |
+| `/enviar-llave` | `EnviarLlaveScreen` | - |
+| `/recargar` | `RecargarScreen` | - |
+| `/estadisticas` | `EstadisticasScreen` | - |
+
+Every route outside `/login*` and `/register*` is private: without a session it redirects to `/login`.
 
 ```dart
 context.go('/path');              // replace current route
@@ -129,39 +145,37 @@ context.push('/path', extra: x); // push with extra data
 
 ## Authentication flow
 
-### Login (3 screens)
-1. `LoginScreen` — phone number (+57, 10 digits)
-2. `PinScreen` — 6-digit PIN via `NumPad`
-3. `OtpLoginScreen` — 6-digit OTP sent via WhatsApp (60 s resend)
+### Login (2 screens, no intermediate OTP)
+1. `LoginScreen`: phone number (+57, 10 digits)
+2. `PinScreen`: a hidden password field, 8 to 64 characters (`LoginRequest.contrasena`). The name and the `/login/pin` route are kept. `NewPinScreen` (`/login/recovery/new-pin`) uses the same rule. `NumPad` and `PinDots` still exist for the OTP screens.
+
+Logout: the Perfil button calls `AuthRepository.logout()` (Bearer and refresh token), clears tokens and profile, and goes to `/login`. The Home greeting uses the stored name.
+
+Screens take the repository through an optional constructor parameter (real one by default) so widget tests can inject fakes.
+
+Pending: N-17 (company context at login), legal consent texts (decision 2), server-side sign-out for N-6 (S8), biometrics (SCRUM-81), and the batch 0 assumption of an 8 to 64 character password (`openapi.yaml:1091-1097`), to be confirmed by Santiago and Valeria.
 
 ### Register (4 steps + OTP)
 1. Account type: `persona` (natural person) | `empresa` (company)
 2. Contact info — persona: name, email, phone | empresa: razón social, NIT, email, phone
 3. Identity — persona: document type+number | empresa: legal representative info
-4. Password (8–64 chars, real-time strength bar)
-5. Phone OTP verification
+4. Password (8 to 64 chars, real-time strength bar) and consent checkboxes `tratamiento_datos` and `whatsapp_optin` (both `v1`), button disabled until both are checked
+5. Phone OTP verification, resend via `POST /v1/auth/otp/resend` with the current `challenge_id` (the counter restarts only on 200)
+6. `BackupCodesScreen`, then `/login`
 
-### Backend endpoints (stubbed — connect when API is ready)
+### Backend endpoints
 
-| Endpoint | Called from |
-|---|---|
-| `POST /auth/login` | `PinScreen._submit()` |
-| `POST /auth/login/verify-otp` | `OtpLoginScreen._verify()` |
-| `POST /auth/register` | `RegisterScreen._next()` (step 3→4) |
-| `POST /auth/register/verify-phone` | `_OtpRegisterScreen._verify()` |
-| `POST /auth/refresh` | future interceptor |
-| `POST /auth/logout` | client-side (discard tokens) |
+See `docs/conexion-backend-auth.md` and `docs/conexion-backend-nucleo.md` for the connected endpoints.
 
 > Token storage: use `flutter_secure_storage` — never `SharedPreferences` in plain text.
-> All API calls are marked with `// TODO` comments in the presentation files.
 
 ---
 
 ## Conventions
 
-### Riverpod providers
+### Riverpod providers (theme only)
 
-Always use code generation:
+Riverpod is only used for the theme. If a provider is added, use code generation:
 
 ```dart
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -174,15 +188,14 @@ class MyNotifier extends _$MyNotifier {
 }
 ```
 
-- `ConsumerWidget` for stateless widgets that read providers
-- `ConsumerStatefulWidget` when local widget state is also needed
-- Never use `setState` — delegate state to Riverpod
+- Local widget state uses `setState` in a `StatefulWidget`
+- `ConsumerWidget` only where a provider is read
 
 ### Adding a new feature
 
 1. Create `lib/features/<name>/presentation/<name>_screen.dart`
 2. Add route in `lib/app/router.dart`
-3. Create providers with `@riverpod`, run `build_runner build`
+3. Inject repositories through the constructor (no-arg defaults must keep working)
 4. Add data layer in `lib/features/<name>/data/` if needed
 
 ### Theme

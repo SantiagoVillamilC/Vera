@@ -24,8 +24,8 @@ acceso al API. Lee el `access_token` desde `flutter_secure_storage` (misma llave
 
 | Modelo | Campos clave | Notas |
 |---|---|---|
-| `MontoCalculado` | `montoCentavos: int`, `moneda`, `calculadoEn` | Saldo y monto máximo usan el mismo esquema |
-| `LineaMovimiento` | `montoCentavos: int`, `motivo: MotivoLinea` | Monto con signo: positivo = a favor, negativo = en contra |
+| `MontoCalculado` | `montoCentavos: BigInt`, `moneda`, `calculadoEn` | Saldo y monto máximo usan el mismo esquema |
+| `LineaMovimiento` | `montoCentavos: BigInt`, `motivo: MotivoLinea` | Monto con signo: positivo = a favor, negativo = en contra |
 | `Movimiento` | `entryId`, `ocurridoEn`, `lineas[]`, getters `lineaPrincipal` y `montoNeto` | No tiene contraparte ni descripción libre |
 | `MovimientosPage` | `items[]`, `nextCursor`, `hasMore` | Paginación por cursor (entry_id) |
 | `Deposito` | `id`, `referencia`, `montoCentavos`, `estado: EstadoDeposito` | Estados: pendiente/confirmada/rechazada/expirada |
@@ -56,49 +56,33 @@ y `_parseMap()` extrae solo el objeto `data`.
 | Endpoint | Método repo | Pantalla | Estado |
 |---|---|---|---|
 | `GET /v1/saldo` | `getSaldo()` | `HomeScreen` header | ✅ Conectado |
-| `GET /v1/transferencias/maximo` | `getMontoMaximo()` | `EnviarScreen` (validación) | ⏳ Repo listo, UI pendiente |
+| `GET /v1/transferencias/maximo` | `getMontoMaximo()` | `EnviarScreen` (validación) | ✅ Conectado |
 | `GET /v1/movimientos` | `getMovimientos()` | `MovimientosTab` (paginado) + preview en `HomeScreen` | ✅ Conectado |
-| `POST /v1/depositos` | `crearDeposito()` | Acción "Recargar" (home) | ⏳ Repo listo, pantalla pendiente |
-| `GET /v1/depositos/{id}` | `getDeposito()` | — | ⏳ Repo listo, sin pantalla |
-| `POST /v1/transferencias` | `transferir()` | `EnviarScreen` | ⚠️ UI lista, idempotency_key pendiente |
-| `POST /v1/transferencias/interbancarias` | `transferirInterbancaria()` | — | ⏳ Repo listo, sin pantalla |
+| `POST /v1/depositos` | `recargar()` (sobre `crearDeposito()`) | `RecargarScreen` (`/recargar`), acción "Recargar" del home | ✅ Conectado: abre `url_pago` con `UrlOpener` solo si es segura y conserva el depósito pendiente en `SessionStore` |
+| `GET /v1/depositos/{id}` | `getDeposito()` | `RecargarScreen` | ✅ Conectado: sondeo cada 5 s hasta 5 min y al volver a la app, con retoma del depósito pendiente |
+| `POST /v1/transferencias` | `transferir()` | `EnviarScreen` | ✅ Conectado, con `idempotency_key` |
+| `POST /v1/transferencias/interbancarias` | `enviarPorLlave()` (sobre `transferirInterbancaria()`) | `EnviarLlaveScreen` (`/enviar-llave`), acceso "Enviar por llave" del home | ✅ Conectado, con `idempotency_key`. Al aceptarse muestra "Enviado. Verás el resultado en tu historial." |
 
 ---
 
 ## Contrato vs. diseño: diferencias relevantes
 
 ### 1. `Movimiento` no tiene contraparte ni descripción
-**Contrato real:**
-```json
-{
-  "entry_id": 1234,
-  "ocurrido_en": "2026-10-01T08:02:00Z",
-  "moneda": "COP",
-  "lineas": [
-    { "monto": "18000000", "motivo": "transferencia_recibida" },
-    { "monto": "-540000",  "motivo": "gravamen" }
-  ]
-}
-```
 No hay `nombre`, `concepto`, ni `contraparte`. Las pantallas de movimientos derivan
 el label del `motivo` de la línea principal (primera que no sea gravamen/dev. gravamen)
 y el ícono del mismo campo.
 
 ### 2. Montos siempre como strings
 Todos los montos viajan como `"monto": "18000000"` (centavos, string).
-El frontend los parsea con `int.tryParse()`. La serialización inversa
-(para enviar al back) es `'$centavos'` donde `centavos = pesos * 100`.
+El frontend los parsea como `BigInt` (sin perder precisión) y los muestra con `formatPesos`
+(`lib/core/format/pesos.dart`). La serialización inversa (para enviar al back) es el entero en centavos como string.
 
 ### 3. Idempotencia obligatoria en mutaciones
 `POST /v1/depositos` y `POST /v1/transferencias` requieren `idempotency_key` (max 128 chars).
-Como el proyecto no tiene el paquete `uuid`, se genera con:
-```dart
-String _generateKey() {
-  final now = DateTime.now().microsecondsSinceEpoch;
-  final hash = now.hashCode ^ Object.hash(now, 'vera');
-  return 'vera-${now.toRadixString(16)}-${hash.toRadixString(16)}';
-}
-```
+Ya está implementada: `IdempotencyIntent` (`lib/features/nucleo/data/idempotency_intent.dart`)
+genera un UUID v4 con `Random.secure()` y conserva la misma clave mientras el resultado sea
+desconocido o reintentable y no cambien destino ni monto. Se renueva con cualquier respuesta
+definitiva del servidor.
 
 ### 4. Paginación por cursor en movimientos
 `GET /v1/movimientos` usa paginación por `entry_id`:
@@ -118,8 +102,10 @@ El token se lee de `flutter_secure_storage` con la llave `'access_token'`
 ### `HomeScreen` ✅ Real
 - Carga `NucleoRepository.getSaldo()` en `initState`; estados: spinner → monto real → error
 - Preview de últimos 3 movimientos vía `FutureBuilder<MovimientosPage>` (limit: 3)
-- Saldo mock `_saldoCentavos = 14512356` eliminado
-- Nombre aún mock (`_mockNombre = 'Elisa'`) — pendiente conectar `AuthRepository.getNombreCompleto()`
+- Saldo mock eliminado
+- El saludo usa el nombre guardado con la sesión (nombre completo o razón social). Sin nombre guardado muestra "Hola"
+- "Recargar" navega a `/recargar` y "Enviar por llave" a `/enviar-llave`. Los accesos viven en una grilla de 4 columnas
+- Si `SessionStore` guarda un depósito pendiente, muestra el aviso "Tienes una recarga pendiente" que lleva a `/recargar`. Se relee al abrir el home y al volver de una pantalla
 
 ### `MovimientosTab` ✅ Real
 - StatefulWidget; carga `getMovimientos(limit: 50)` en `initState`
@@ -130,9 +116,9 @@ El token se lee de `flutter_secure_storage` con la llave `'access_token'`
 - Estados: cargando (spinner), error (ícono + retry), vacío (texto)
 - Datos mock `_sections` eliminados
 
-### `EnviarScreen` ⚠️ UI lista, API pendiente de idempotency_key
-- UI completa con campo destinatario, monto, bottom sheet de confirmación
-- Falta agregar `idempotency_key` y llamar `NucleoRepository.transferir()`
+### `EnviarScreen` ✅ Conectada
+- Campo destinatario, monto, bottom sheet de confirmación
+- Llama `NucleoRepository.transferir()` con `idempotency_key` de `IdempotencyIntent`
 
 ---
 
@@ -159,11 +145,7 @@ go run ./cmd/api
 ```
 
 Desde Flutter:
-```bash
-flutter run --dart-define=API_BASE_URL=http://localhost:8080
-# En dispositivo físico (reemplazar con IP de tu máquina):
-flutter run --dart-define=API_BASE_URL=http://192.168.x.x:8080
-```
+Para configurar la URL según el entorno (emulador, dispositivo físico, etc.), ver la sección "Configurar la URL del backend" en [README.md](../README.md#configurar-la-url-del-backend).
 
 ---
 
@@ -171,27 +153,60 @@ flutter run --dart-define=API_BASE_URL=http://192.168.x.x:8080
 
 | Funcionalidad | Endpoint | Prioridad |
 |---|---|---|
-| Recargar saldo | `POST /v1/depositos` | Alta — acción "Recargar" en home |
-| Consultar estado recarga | `GET /v1/depositos/{id}` | Media — flujo post-depósito |
-| Monto máximo en enviar | `GET /v1/transferencias/maximo` | Media — validación pre-envío |
-| Envíos interbancarios | `POST /v1/transferencias/interbancarias` | Media — tab de tarjetas/CVU |
-| Estadísticas reales | `GET /v1/movimientos` agrupado | Media — `EstadisticasScreen` |
-| Refresh de token | `POST /v1/auth/refresh` | Alta — sesiones largas |
-| Logout desde perfil | `POST /v1/auth/logout` | Alta — botón en `PerfilTab` |
+| Estadísticas reales | Sin endpoint en el contrato | Media: `EstadisticasScreen` y `TarjetasTab` muestran datos de muestra con aviso "(WIP)" por decisión D6. El Balance de estadísticas y la lista de movimientos son reales |
+
+### No verificado todavía
+
+- Los builds de APK e iOS del CI con el plugin nativo `url_launcher` no se ejecutaron en el entorno de desarrollo de este lote. Solo se verificaron `flutter analyze`, las pruebas y `flutter build web`.
+- `ios/Podfile.lock` se actualiza con `pod install` en macOS, que no estaba disponible aquí.
+- La apertura real de `url_pago` en un navegador del dispositivo no se probó en equipo físico.
 
 ---
 
-## Errores del nucleo
+## Errores del núcleo y del API
 
-Los errores siguen el mismo envelope `{success: false, error: {code, message}}`.
-Códigos relevantes del nucleo:
+Los errores siguen el mismo envelope `{success: false, error: {code, message}}`. El cliente
+mapea por `code`, nunca por `message` (viene en inglés), con `mensajeDeError` en
+`lib/core/network/error_messages.dart`. Códigos del catálogo `APIError.code` de
+`api/openapi.yaml` más los que emiten `internal/nucleo/handler.go` y
+`internal/platform/httpserver/health.go`.
 
-| Código | Significado |
-|---|---|
-| `SaldoInsuficiente` | El monto supera el saldo disponible |
-| `MontoInvalido` | Monto <= 0 o mal formateado |
-| `DestinoNoEncontrado` | El `destino` no corresponde a ningún usuario Vera |
-| `IdempotencyConflict` | La `idempotency_key` ya existe con datos distintos |
-| `LimiteKYC` | La operación supera el límite del nivel KYC del usuario |
-| `RielNoDisponible` | El simulador de riel no responde (503) |
-| `CustodioNoDisponible` | El simulador de custodia no responde (504) |
+### Del núcleo financiero (`handler.go`)
+
+| Código | HTTP | Significado |
+|---|---|---|
+| `InsufficientFunds` | 422 | El monto supera el saldo disponible |
+| `OperationLimitExceeded` | 422 | El monto supera el límite por operación |
+| `MonthlyQuotaExceeded` | 422 | Se agotó la cuota mensual |
+| `IdempotencyConflict` | 409 | La `idempotency_key` se reutilizó con datos distintos |
+| `RecipientNotFound` | 404 | El destino no existe |
+| `SelfTransferNotAllowed` | 422 | El destino es el propio usuario |
+| `DirectoryUnavailable` | 503 | El directorio de llaves no está disponible |
+| `TargetNotAllowed` | 400 | Se intentó apuntar a la cuenta de otro usuario |
+| `DepositNotFound` | 404 | El depósito no existe |
+| `ConfirmationConflict` | 409 | La confirmación no coincide con el depósito |
+| `LateConfirmation` | 409 | El depósito ya no estaba pendiente |
+| `ValidationError` | 400 o 422 | Regla incumplida (monto, moneda, destino, límite de página) |
+| `Unauthorized` | 401 | Token ausente, vencido o alterado |
+| `NotFound` | 404 | Recurso inexistente |
+
+### Del servidor (`health.go`)
+
+| Código | HTTP | Significado |
+|---|---|---|
+| `NotReady` | 503 | Una dependencia (base de datos) no responde en `/readyz` |
+
+### Catálogo general (`openapi.yaml`, `APIError.code`)
+
+`BadRequest`, `ValidationError`, `Unauthorized`, `InvalidCredentials`, `AccountSuspended`,
+`AccountClosed`, `OtpInvalid`, `OtpExpired`, `ChallengeInvalid`, `OtpTooManyAttempts`,
+`OtpResendCooldown`, `RefreshInvalid`, `RefreshReused`, `SessionNotFound`, `NoCompanyRole`,
+`ContextInvalid`, `ResetInvalid`, `SecondFactorRequired`, `KycRequired`, `ConsentRequired`,
+`DuplicateIdentifier`, `PhoneUnverified`, `OtpTooManyResends`, `PhoneChangeCooldown`,
+`TooManyRequests`, `NotImplemented`, `PayloadTooLarge` (cuerpo mayor a 1 MiB),
+`RecipientNotFound`, `SelfTransferNotAllowed`, `MethodNotAllowed`, `NotFound`,
+`AuthUnavailable`, `OtpDeliveryFailed`, `Timeout` (504), `WhatsappUnicoCanal` (409),
+`InternalError` (siempre genérico).
+
+Los identificadores `SaldoInsuficiente`, `MontoInvalido`, `DestinoNoEncontrado`, `LimiteKYC`,
+`RielNoDisponible` y `CustodioNoDisponible` no existen en el contrato.

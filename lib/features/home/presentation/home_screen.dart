@@ -1,29 +1,46 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vera/core/format/pesos.dart';
+import 'package:vera/core/format/tarjeta_muestra.dart';
+import 'package:vera/core/network/error_messages.dart';
+import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/widgets/estado_vista.dart';
+import 'package:vera/core/widgets/wip_badge.dart';
+import 'package:vera/features/auth/data/auth_repository.dart';
+import 'package:vera/features/home/presentation/movimiento_vista.dart';
 import 'package:vera/features/home/presentation/movimientos_tab.dart';
 import 'package:vera/features/home/presentation/tarjetas_tab.dart';
 import 'package:vera/features/home/presentation/perfil_tab.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
-// TODO: leer desde AuthRepository.getNombreCompleto() (flutter_secure_storage)
-const _mockNombre = 'Elisa';
-
-String _pesos(int centavos) {
-  final s = (centavos ~/ 100).toString();
-  final b = StringBuffer();
-  for (int i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) b.write('.');
-    b.write(s[i]);
-  }
-  final cents = (centavos % 100).toString().padLeft(2, '0');
-  return '\$ ${b.toString()},$cents';
-}
+/// Saludo cuando no hay nombre guardado.
+const saludoGenerico = 'Hola';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({
+    super.key,
+    this.repository,
+    this.offsetLocal,
+    this.session,
+    this.authRepository,
+  });
+
+  /// Por defecto la sesión real.
+  final SessionStore? session;
+
+  /// Por defecto el repositorio de autenticación real (cierre de sesión).
+  final AuthRepository? authRepository;
+
+  /// Por defecto el repositorio real.
+  final NucleoRepository? repository;
+
+  /// Solo para pruebas: zona horaria fija en lugar de la del equipo.
+  final Duration? offsetLocal;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -33,29 +50,86 @@ class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
   bool _saldoVisible = true;
 
-  final _nucleo = NucleoRepository();
-  int? _saldoCentavos;
+  late final NucleoRepository _nucleo =
+      widget.repository ?? NucleoRepository();
+  BigInt? _saldoCentavos;
   bool _errorSaldo = false;
+  String? _nombre;
+  bool _hayRecargaPendiente = false;
+  late Future<MovimientosPage> _movimientos;
 
   @override
   void initState() {
     super.initState();
+    _movimientos = _nucleo.getMovimientos(limit: 3);
     _cargarSaldo();
+    _cargarNombre();
+    _cargarPendiente();
+  }
+
+  Future<void> _cargarPendiente() async {
+    try {
+      final id = await (widget.session ?? defaultSessionStore)
+          .readDepositoPendiente();
+      if (mounted) {
+        setState(() => _hayRecargaPendiente = id != null && id.isNotEmpty);
+      }
+    } catch (_) {
+      // Sin lectura posible no se ofrece el aviso.
+    }
+  }
+
+  /// Al volver de una pantalla que pudo guardar o limpiar el depósito
+  /// pendiente se relee, para que el aviso no quede desactualizado.
+  Future<void> _abrir(String ruta) async {
+    await context.push(ruta);
+    if (mounted) await _cargarPendiente();
+  }
+
+  Future<void> _cargarNombre() async {
+    try {
+      final perfil =
+          await (widget.session ?? defaultSessionStore).readProfile();
+      if (mounted) setState(() => _nombre = nombreDePerfil(perfil));
+    } catch (_) {
+      // Sin perfil legible se queda el saludo genérico.
+    }
   }
 
   Future<void> _cargarSaldo() async {
     try {
       final s = await _nucleo.getSaldo();
-      if (mounted) setState(() => _saldoCentavos = s.montoCentavos);
+      if (mounted) {
+        setState(() {
+          _saldoCentavos = s.montoCentavos;
+          _errorSaldo = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _errorSaldo = true);
     }
   }
 
+  void _recargarPreview() {
+    final preview = _nucleo.getMovimientos(limit: 3);
+    setState(() {
+      _movimientos = preview;
+    });
+  }
+
+  Future<void> _refrescar() async {
+    final preview = _nucleo.getMovimientos(limit: 3);
+    setState(() {
+      _movimientos = preview;
+    });
+    // Un fallo del preview lo muestra el FutureBuilder, no debe romper el gesto.
+    await Future.wait([_cargarSaldo(), preview.then((_) {}, onError: (_) {})]);
+  }
+
   void _onNavTap(int i) {
     if (i == 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vera copilot próximamente')),
+        const SnackBar(content: Text('Vera copilot (WIP)')),
       );
       return;
     }
@@ -63,14 +137,28 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget get _body => switch (_tab) {
-        1 => const MovimientosTab(),
-        3 => const TarjetasTab(),
-        4 => const PerfilTab(),
+        1 => MovimientosTab(
+            repository: _nucleo,
+            offsetLocal: widget.offsetLocal,
+          ),
+        3 => TarjetasTab(session: widget.session),
+        4 => PerfilTab(
+            session: widget.session ?? defaultSessionStore,
+            authRepository: widget.authRepository,
+          ),
         _ => _InicioTab(
+            nombre: _nombre,
             saldoVisible: _saldoVisible,
             saldoCentavos: _saldoCentavos,
             errorSaldo: _errorSaldo,
+            recargaPendiente: _hayRecargaPendiente,
+            onAbrir: _abrir,
             onToggleSaldo: () => setState(() => _saldoVisible = !_saldoVisible),
+            movimientos: _movimientos,
+            offsetLocal: widget.offsetLocal,
+            onRefrescar: _refrescar,
+            onVerTodos: () => setState(() => _tab = 1),
+            onReintentarMovimientos: _recargarPreview,
           ),
       };
 
@@ -202,40 +290,71 @@ class _BottomNav extends StatelessWidget {
 
 class _InicioTab extends StatelessWidget {
   const _InicioTab({
+    required this.nombre,
     required this.saldoVisible,
     required this.onToggleSaldo,
     required this.saldoCentavos,
     required this.errorSaldo,
+    required this.recargaPendiente,
+    required this.onAbrir,
+    required this.movimientos,
+    required this.offsetLocal,
+    required this.onRefrescar,
+    required this.onVerTodos,
+    required this.onReintentarMovimientos,
   });
 
+  final String? nombre;
   final bool saldoVisible;
   final VoidCallback onToggleSaldo;
-  final int? saldoCentavos;
+  final BigInt? saldoCentavos;
   final bool errorSaldo;
+  final bool recargaPendiente;
+  final void Function(String ruta) onAbrir;
+  final Future<MovimientosPage> movimientos;
+  final Duration? offsetLocal;
+  final Future<void> Function() onRefrescar;
+  final VoidCallback onVerTodos;
+  final VoidCallback onReintentarMovimientos;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         _Header(
+          nombre: nombre,
           saldoVisible: saldoVisible,
           onToggleSaldo: onToggleSaldo,
           saldoCentavos: saldoCentavos,
           errorSaldo: errorSaldo,
         ),
         Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _ActionsCard(),
-                const SizedBox(height: 28),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20),
-                  child: _MovimientosSection(),
-                ),
-                const SizedBox(height: 100),
-              ],
+          child: RefreshIndicator(
+            onRefresh: onRefrescar,
+            color: AppColors.gradientStart,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (recargaPendiente)
+                    _AvisoRecargaPendiente(
+                      onTap: () => onAbrir('/recargar'),
+                    ),
+                  _ActionsCard(onAbrir: onAbrir),
+                  const SizedBox(height: 28),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _MovimientosSection(
+                      futuro: movimientos,
+                      offsetLocal: offsetLocal,
+                      onVerTodos: onVerTodos,
+                      onReintentar: onReintentarMovimientos,
+                    ),
+                  ),
+                  const SizedBox(height: 100),
+                ],
+              ),
             ),
           ),
         ),
@@ -248,15 +367,17 @@ class _InicioTab extends StatelessWidget {
 
 class _Header extends StatelessWidget {
   const _Header({
+    required this.nombre,
     required this.saldoVisible,
     required this.onToggleSaldo,
     required this.saldoCentavos,
     required this.errorSaldo,
   });
 
+  final String? nombre;
   final bool saldoVisible;
   final VoidCallback onToggleSaldo;
-  final int? saldoCentavos;
+  final BigInt? saldoCentavos;
   final bool errorSaldo;
 
   Widget _buildSaldoWidget() {
@@ -277,7 +398,7 @@ class _Header extends StatelessWidget {
       );
     }
     return Text(
-      saldoVisible ? _pesos(saldoCentavos!) : '\$ ••••••',
+      saldoVisible ? formatPesos(saldoCentavos!) : '\$ ••••••',
       style: const TextStyle(
         color: Colors.white,
         fontSize: 42,
@@ -306,26 +427,29 @@ class _Header extends StatelessWidget {
         children: [
           Row(
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'En tu cuenta',
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    // TODO: reemplazar con AuthRepository.getNombreCompleto()
-                    _mockNombre,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'En tu cuenta',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      nombre ?? saludoGenerico,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -334,13 +458,20 @@ class _Header extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: Colors.white30),
                 ),
-                child: const Text(
-                  'Mis CVUs',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Mis CVUs',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(width: 6),
+                    WipBadge(),
+                  ],
                 ),
               ),
             ],
@@ -370,17 +501,71 @@ class _Header extends StatelessWidget {
 
 // ── Actions card ───────────────────────────────────────────────
 
+class _AvisoRecargaPendiente extends StatelessWidget {
+  const _AvisoRecargaPendiente({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceVariant,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.gradientStart),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.hourglass_top_rounded,
+                  color: AppColors.gradientStart, size: 18),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Tienes una recarga pendiente',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded,
+                  color: AppColors.textSecondary, size: 18),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ActionsCard extends StatelessWidget {
-  const _ActionsCard();
+  const _ActionsCard({required this.onAbrir});
+
+  final void Function(String ruta) onAbrir;
 
   static const _actions = [
     (Icons.send_rounded, 'Enviar\ndinero', '/enviar'),
+    (Icons.key_rounded, 'Enviar por llave', '/enviar-llave'),
+    (Icons.add_circle_outline_rounded, 'Recargar', '/recargar'),
     (Icons.receipt_long_rounded, 'Pagar\nservicios', ''),
     (Icons.credit_card_rounded, 'Pedir\ntarjeta', ''),
-    (Icons.add_circle_outline_rounded, 'Recargar', ''),
-    (Icons.key_rounded, 'Mis\nclaves', ''),
+    (Icons.lock_outline_rounded, 'Mis\nclaves', ''),
     (Icons.account_balance_wallet_rounded, 'Remune-\nración', ''),
   ];
+
+  /// 52 del icono, 6 de separación y dos líneas de etiqueta (11 con altura
+  /// 1.3) que crecen con la escala de texto del sistema.
+  static double _alturaCelda(BuildContext context) {
+    final escala = MediaQuery.textScalerOf(context).scale(11) / 11;
+    return math.max(96, 58 + 2 * 11 * 1.3 * escala + 4);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -402,23 +587,23 @@ class _ActionsCard extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-            child: GridView.count(
-              crossAxisCount: 3,
+            // Altura fija: con childAspectRatio la celda se encoge en pantallas
+            // angostas y la etiqueta de dos líneas desborda.
+            child: GridView(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                mainAxisSpacing: 4,
+                crossAxisSpacing: 4,
+                mainAxisExtent: _alturaCelda(context),
+              ),
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 4,
-              crossAxisSpacing: 4,
-              childAspectRatio: 1.05,
               children: _actions.map((a) {
                 final (icon, label, route) = a;
                 return _ActionCell(
                   icon: icon,
                   label: label,
-                  onTap: route.isNotEmpty
-                      ? () => context.push(route)
-                      : () => ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Próximamente')),
-                          ),
+                  onTap: route.isNotEmpty ? () => onAbrir(route) : null,
                 );
               }).toList(),
             ),
@@ -440,25 +625,37 @@ class _ActionCell extends StatelessWidget {
 
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  /// Sin acción la celda queda marcada (WIP) y no responde al toque.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final enDesarrollo = onTap == null;
+    final cuerpo = GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Icon(icon, color: AppColors.gradientStart, size: 24),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Opacity(
+                opacity: enDesarrollo ? 0.6 : 1,
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Icon(icon, color: AppColors.gradientStart, size: 24),
+                ),
+              ),
+              if (enDesarrollo)
+                const Positioned(top: -6, right: -10, child: WipBadge()),
+            ],
           ),
           const SizedBox(height: 6),
           Text(
@@ -473,6 +670,12 @@ class _ActionCell extends StatelessWidget {
           ),
         ],
       ),
+    );
+    if (!enDesarrollo) return cuerpo;
+    return Semantics(
+      label: '${label.replaceAll('-\n', '').replaceAll('\n', ' ')}, en desarrollo',
+      excludeSemantics: true,
+      child: cuerpo,
     );
   }
 }
@@ -501,6 +704,7 @@ class _CardRow extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: const [
                 Text('VERA',
+                    textScaler: TextScaler.noScaling,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 9,
@@ -508,6 +712,7 @@ class _CardRow extends StatelessWidget {
                       letterSpacing: 1,
                     )),
                 Text('VISA',
+                    textScaler: TextScaler.noScaling,
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 8,
@@ -518,31 +723,25 @@ class _CardRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 14),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text('Vera Débito',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  )),
-              SizedBox(height: 3),
-              Text('•••• •••• •••• 4417',
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
-            ],
-          ),
-          const Spacer(),
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border),
+          // Datos de muestra compartidos con la pestaña Tarjetas.
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tarjetaMuestraRotulo,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    )),
+                SizedBox(height: 3),
+                Text(tarjetaMuestraNumero,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        TextStyle(color: AppColors.textMuted, fontSize: 13)),
+              ],
             ),
-            child: const Icon(Icons.chevron_right_rounded,
-                color: AppColors.textMuted, size: 20),
           ),
         ],
       ),
@@ -550,12 +749,29 @@ class _CardRow extends StatelessWidget {
   }
 }
 
+
 // ── Movimientos recientes en home (preview, últimos 3) ─────────
-// Usa NucleoRepository directamente con FutureBuilder para
-// mostrar un preview sin estado complejo en HomeScreen.
+// El Future vive en el estado de HomeScreen para que un rebuild no relance
+// la petición.
 
 class _MovimientosSection extends StatelessWidget {
-  const _MovimientosSection();
+  const _MovimientosSection({
+    required this.futuro,
+    required this.offsetLocal,
+    required this.onVerTodos,
+    required this.onReintentar,
+  });
+
+  final Future<MovimientosPage> futuro;
+  final Duration? offsetLocal;
+  final VoidCallback onVerTodos;
+  final VoidCallback onReintentar;
+
+  BoxDecoration get _tarjeta => BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -565,16 +781,20 @@ class _MovimientosSection extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Últimos Movimientos',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
+            const Expanded(
+              child: Text(
+                'Últimos Movimientos',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: onVerTodos,
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.gradientStart,
                 padding: EdgeInsets.zero,
@@ -589,28 +809,32 @@ class _MovimientosSection extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         FutureBuilder<MovimientosPage>(
-          future: NucleoRepository().getMovimientos(limit: 3),
+          future: futuro,
           builder: (context, snap) {
-            if (snap.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: CircularProgressIndicator(
-                    color: AppColors.gradientStart,
-                    strokeWidth: 2,
-                  ),
+            if (snap.connectionState != ConnectionState.done) {
+              return const Padding(
+                padding: EdgeInsets.all(24),
+                child: EstadoVista.cargando(),
+              );
+            }
+            if (snap.hasError) {
+              return Container(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: _tarjeta,
+                child: EstadoVista.error(
+                  mensaje: mensajeDeError(snap.error!),
+                  onReintentar: onReintentar,
                 ),
               );
             }
-            final items = snap.data?.items ?? [];
-            if (items.isEmpty) {
+            final filas = construirFilas(
+              snap.data?.items ?? const [],
+              offset: offsetLocal,
+            );
+            if (filas.isEmpty) {
               return Container(
                 padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.border),
-                ),
+                decoration: _tarjeta,
                 child: const Center(
                   child: Text('Sin movimientos aún',
                       style: TextStyle(
@@ -618,136 +842,26 @@ class _MovimientosSection extends StatelessWidget {
                 ),
               );
             }
+            final ahora = ahoraLocal(offset: offsetLocal);
             return Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.border),
-              ),
+              decoration: _tarjeta,
               child: Column(
-                children: List.generate(items.length, (i) {
-                  final m = items[i];
-                  final linea = m.lineaPrincipal;
-                  final esIngreso = linea.motivo.esIngreso;
-                  final isLast = i == items.length - 1;
-                  return Column(
-                    children: [
-                      _MovItem(
-                        label: linea.motivo.label,
-                        fecha: _formatFecha(m.ocurridoEn),
-                        centavos: m.montoNeto.abs(),
-                        esIngreso: esIngreso,
-                        icon: _iconForMotivo(linea.motivo),
-                      ),
-                      if (!isLast)
-                        const Divider(
-                            color: AppColors.border,
-                            height: 1,
-                            indent: 72),
-                    ],
-                  );
-                }),
+                children: [
+                  for (var i = 0; i < filas.length; i++) ...[
+                    MovimientoFilaTile(
+                      fila: filas[i].fila,
+                      subtitulo: formatFechaCorta(filas[i].local, ahora),
+                    ),
+                    if (i < filas.length - 1)
+                      const Divider(
+                          color: AppColors.border, height: 1, indent: 72),
+                  ],
+                ],
               ),
             );
           },
         ),
       ],
-    );
-  }
-}
-
-String _formatFecha(DateTime dt) {
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-  final yesterday = today.subtract(const Duration(days: 1));
-  final day = DateTime(dt.year, dt.month, dt.day);
-  final h = dt.hour.toString().padLeft(2, '0');
-  final m = dt.minute.toString().padLeft(2, '0');
-  if (day == today) return 'Hoy $h:$m';
-  if (day == yesterday) return 'Ayer';
-  final months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-  return '${dt.day} ${months[dt.month - 1]}';
-}
-
-IconData _iconForMotivo(MotivoLinea motivo) => switch (motivo) {
-      MotivoLinea.deposito => Icons.arrow_downward_rounded,
-      MotivoLinea.transferenciaRecibida => Icons.arrow_downward_rounded,
-      MotivoLinea.envio => Icons.arrow_upward_rounded,
-      MotivoLinea.gravamen => Icons.account_balance_rounded,
-      MotivoLinea.devolucion => Icons.refresh_rounded,
-      MotivoLinea.devolucionGravamen => Icons.refresh_rounded,
-      MotivoLinea.desconocido => Icons.swap_horiz_rounded,
-    };
-
-class _MovItem extends StatelessWidget {
-  const _MovItem({
-    required this.label,
-    required this.fecha,
-    required this.centavos,
-    required this.esIngreso,
-    required this.icon,
-  });
-
-  final String label;
-  final String fecha;
-  final int centavos;
-  final bool esIngreso;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: esIngreso
-                  ? AppColors.accentGreen.withAlpha(20)
-                  : AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: esIngreso
-                    ? AppColors.accentGreen.withAlpha(50)
-                    : AppColors.border,
-              ),
-            ),
-            child: Icon(
-              icon,
-              color: esIngreso ? AppColors.accentGreen : AppColors.textMuted,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    )),
-                const SizedBox(height: 3),
-                Text(fecha,
-                    style: const TextStyle(
-                        color: AppColors.textMuted, fontSize: 12)),
-              ],
-            ),
-          ),
-          Text(
-            '${esIngreso ? '+' : '-'}${_pesos(centavos)}',
-            style: TextStyle(
-              color: esIngreso ? AppColors.accentGreen : AppColors.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -1,123 +1,181 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vera/core/format/pesos.dart';
+import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
-import 'package:vera/core/network/api_client.dart';
+import 'package:vera/core/widgets/estado_vista.dart';
+import 'package:vera/features/home/presentation/movimiento_vista.dart';
+import 'package:vera/features/nucleo/data/movimiento_filas.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
-String _pesos(int centavos) {
-  final s = (centavos ~/ 100).toString();
-  final b = StringBuffer();
-  for (int i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) b.write('.');
-    b.write(s[i]);
+typedef _Seccion = ({String label, List<FilaLocal> filas});
+
+List<_Seccion> _agruparPorDia(List<FilaLocal> filas, DateTime ahora) {
+  final mapa = <String, List<FilaLocal>>{};
+  for (final f in filas) {
+    mapa.putIfAbsent(encabezadoDeFecha(f.local, ahora), () => []).add(f);
   }
-  return '\$${b.toString()}';
-}
-
-IconData _iconForMotivo(MotivoLinea motivo) => switch (motivo) {
-      MotivoLinea.deposito => Icons.arrow_downward_rounded,
-      MotivoLinea.transferenciaRecibida => Icons.arrow_downward_rounded,
-      MotivoLinea.envio => Icons.arrow_upward_rounded,
-      MotivoLinea.gravamen => Icons.account_balance_rounded,
-      MotivoLinea.devolucion => Icons.refresh_rounded,
-      MotivoLinea.devolucionGravamen => Icons.refresh_rounded,
-      MotivoLinea.desconocido => Icons.swap_horiz_rounded,
-    };
-
-String _formatDateHeader(DateTime dt) {
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-  final yesterday = today.subtract(const Duration(days: 1));
-  final day = DateTime(dt.year, dt.month, dt.day);
-  if (day == today) return 'Hoy';
-  if (day == yesterday) return 'Ayer';
-  final weekdays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-  final months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-  return '${weekdays[dt.weekday - 1]} ${dt.day} ${months[dt.month - 1]}';
-}
-
-String _formatHour(DateTime dt) {
-  final h = dt.hour;
-  final m = dt.minute.toString().padLeft(2, '0');
-  final period = h < 12 ? 'am' : 'pm';
-  final displayH = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-  return '$displayH:$m $period';
-}
-
-// Groups a flat Movimiento list into date-keyed sections
-List<({String label, List<Movimiento> items})> _groupByDate(
-    List<Movimiento> items) {
-  final Map<String, List<Movimiento>> map = {};
-  for (final m in items) {
-    final key = _formatDateHeader(m.ocurridoEn);
-    map.putIfAbsent(key, () => []).add(m);
-  }
-  return map.entries.map((e) => (label: e.key, items: e.value)).toList();
+  return [for (final e in mapa.entries) (label: e.key, filas: e.value)];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class MovimientosTab extends StatefulWidget {
-  const MovimientosTab({super.key});
+  const MovimientosTab({super.key, this.repository, this.offsetLocal});
+
+  /// Por defecto el repositorio real.
+  final NucleoRepository? repository;
+
+  /// Solo para pruebas: zona horaria fija en lugar de la del equipo.
+  final Duration? offsetLocal;
 
   @override
   State<MovimientosTab> createState() => _MovimientosTabState();
 }
 
 class _MovimientosTabState extends State<MovimientosTab> {
-  final _repo = NucleoRepository();
+  static const _umbralScroll = 200.0;
+
+  /// Páginas seguidas que se piden solas cuando la lista visible no llena la
+  /// pantalla, antes de ofrecer el botón Cargar más.
+  static const _maxEncadenadas = 5;
+
+  late final NucleoRepository _repo = widget.repository ?? NucleoRepository();
+  final _scroll = ScrollController();
 
   int _selectedFilter = 0; // 0=Todos, 1=Ingresos, 2=Gastos
   bool _loading = true;
+  bool _cargandoMas = false;
+  bool _errorMas = false;
   String? _error;
   List<Movimiento> _todos = [];
   bool _hasMore = false;
   int? _nextCursor;
+  int _encadenadas = 0;
+
+  /// Descarta respuestas de una carga anterior cuando se reinicia la lista.
+  int _generacion = 0;
 
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_revisarFinal);
     _cargar();
   }
 
-  Future<void> _cargar({bool reset = true}) async {
-    if (reset) setState(() { _loading = true; _error = null; });
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  Future<void> _cargar() async {
+    final gen = ++_generacion;
+    _encadenadas = 0;
+    setState(() {
+      _loading = true;
+      _cargandoMas = false;
+      _errorMas = false;
+      _error = null;
+    });
     try {
-      final page = await _repo.getMovimientos(
-        limit: 50,
-        cursor: reset ? null : _nextCursor,
-      );
+      final page = await _repo.getMovimientos(limit: 50);
+      if (!mounted || gen != _generacion) return;
       setState(() {
-        if (reset) {
-          _todos = page.items;
-        } else {
-          _todos = [..._todos, ...page.items];
-        }
-        _hasMore = page.hasMore;
+        _todos = page.items;
+        _hasMore = page.hasMore && page.nextCursor != null;
         _nextCursor = page.nextCursor;
         _loading = false;
       });
+      _programarRevision();
     } catch (e) {
+      if (!mounted || gen != _generacion) return;
       setState(() {
-        _error = e is ApiException ? e.message : 'Error al cargar movimientos';
+        _error = mensajeDeError(e);
         _loading = false;
       });
     }
   }
 
-  List<Movimiento> get _filtered {
-    if (_selectedFilter == 0) return _todos;
-    final wantIngreso = _selectedFilter == 1;
-    return _todos.where((m) => m.lineaPrincipal.motivo.esIngreso == wantIngreso).toList();
+  /// Una sola petición a la vez: mientras haya una en vuelo no se lanza otra.
+  Future<void> _cargarMas({bool automatica = false}) async {
+    if (_loading || _cargandoMas || !_hasMore) return;
+    final gen = _generacion;
+    _encadenadas = automatica ? _encadenadas + 1 : 0;
+    setState(() {
+      _cargandoMas = true;
+      _errorMas = false;
+    });
+    try {
+      final page = await _repo.getMovimientos(limit: 50, cursor: _nextCursor);
+      if (!mounted || gen != _generacion) return;
+      setState(() {
+        _todos = [..._todos, ...page.items];
+        _hasMore = page.hasMore && page.nextCursor != null;
+        _nextCursor = page.nextCursor;
+        _cargandoMas = false;
+      });
+      _programarRevision();
+    } catch (_) {
+      if (!mounted || gen != _generacion) return;
+      setState(() {
+        _cargandoMas = false;
+        _errorMas = true;
+      });
+    }
   }
 
-  int get _ingresosCentavos => _todos
-      .where((m) => m.lineaPrincipal.motivo.esIngreso)
-      .fold(0, (acc, m) => acc + m.montoNeto.abs());
+  /// El scroll del usuario siempre cuenta como acción manual.
+  void _revisarFinal() {
+    if (!_scroll.hasClients) return;
+    if (_scroll.position.extentAfter < _umbralScroll && !_errorMas) {
+      _cargarMas();
+    }
+  }
 
-  int get _gastosCentavos => _todos
-      .where((m) => !m.lineaPrincipal.motivo.esIngreso)
-      .fold(0, (acc, m) => acc + m.montoNeto.abs());
+  bool get _mostrarBoton =>
+      _hasMore &&
+      !_loading &&
+      !_cargandoMas &&
+      !_errorMas &&
+      _encadenadas >= _maxEncadenadas;
+
+  /// Con un filtro la lista visible puede no llenar la pantalla y entonces no
+  /// hay scroll que dispare la siguiente página. Se encadenan pedidos hasta el
+  /// tope y después queda el botón Cargar más como respaldo.
+  void _programarRevision() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _errorMas || _loading || _cargandoMas || !_hasMore) {
+        return;
+      }
+      final vacia = _filas.isEmpty;
+      final sinRelleno = vacia ||
+          (_scroll.hasClients &&
+              _scroll.position.extentAfter < _umbralScroll);
+      if (!sinRelleno) return;
+      if (_encadenadas >= _maxEncadenadas) {
+        setState(() {});
+        return;
+      }
+      _cargarMas(automatica: true);
+    });
+  }
+
+  void _elegirFiltro(int i) {
+    setState(() => _selectedFilter = i);
+    _encadenadas = 0;
+    _programarRevision();
+  }
+
+  List<FilaLocal> get _filas => construirFilas(
+        _todos,
+        offset: widget.offsetLocal,
+        ingreso: switch (_selectedFilter) {
+          1 => true,
+          2 => false,
+          _ => null,
+        },
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -129,6 +187,7 @@ class _MovimientosTabState extends State<MovimientosTab> {
           _buildHeader(context),
           _buildSummaryCard(),
           _buildFilterChips(),
+          _buildAccesoCategorias(context),
           const SizedBox(height: 16),
           Expanded(child: _buildBody()),
         ],
@@ -153,7 +212,7 @@ class _MovimientosTabState extends State<MovimientosTab> {
           const Spacer(),
           if (!_loading)
             IconButton(
-              onPressed: () => _cargar(),
+              onPressed: _cargar,
               icon: const Icon(Icons.refresh_rounded,
                   color: AppColors.textSecondary, size: 20),
             ),
@@ -180,12 +239,7 @@ class _MovimientosTabState extends State<MovimientosTab> {
               ),
             ),
           ),
-          const SizedBox(width: 4),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.tune_rounded,
-                color: AppColors.textSecondary, size: 22),
-          ),
+          const SizedBox(width: 8),
         ],
       ),
     );
@@ -204,88 +258,28 @@ class _MovimientosTabState extends State<MovimientosTab> {
         child: Row(
           children: [
             Expanded(
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.accentGreen.withAlpha(20),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.arrow_upward_rounded,
-                        color: AppColors.accentGreen, size: 16),
-                  ),
-                  const SizedBox(width: 10),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Ingresos',
-                          style: TextStyle(
-                              color: AppColors.textMuted, fontSize: 11)),
-                      _loading
-                          ? const SizedBox(
-                              width: 60,
-                              height: 14,
-                              child: LinearProgressIndicator(
-                                  backgroundColor: AppColors.surfaceVariant,
-                                  color: AppColors.accentGreen),
-                            )
-                          : Text(
-                              _pesos(_ingresosCentavos),
-                              style: const TextStyle(
-                                color: AppColors.accentGreen,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                    ],
-                  ),
-                ],
+              child: _Total(
+                titulo: 'Ingresos',
+                centavos: totalIngresos(_todos),
+                cargando: _loading,
+                color: AppColors.accentGreen,
+                icono: Icons.arrow_upward_rounded,
+                fondoIcono: AppColors.accentGreen.withAlpha(20),
+                colorIcono: AppColors.accentGreen,
               ),
             ),
             Container(width: 1, height: 32, color: AppColors.border),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(left: 20),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceVariant,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.arrow_downward_rounded,
-                          color: AppColors.textSecondary, size: 16),
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Gastos',
-                            style: TextStyle(
-                                color: AppColors.textMuted, fontSize: 11)),
-                        _loading
-                            ? const SizedBox(
-                                width: 60,
-                                height: 14,
-                                child: LinearProgressIndicator(
-                                    backgroundColor: AppColors.surfaceVariant,
-                                    color: AppColors.gradientMid),
-                              )
-                            : Text(
-                                _pesos(_gastosCentavos),
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                      ],
-                    ),
-                  ],
+                child: _Total(
+                  titulo: 'Gastos',
+                  centavos: totalGastos(_todos),
+                  cargando: _loading,
+                  color: AppColors.textPrimary,
+                  icono: Icons.arrow_downward_rounded,
+                  fondoIcono: AppColors.surfaceVariant,
+                  colorIcono: AppColors.textSecondary,
                 ),
               ),
             ),
@@ -305,7 +299,7 @@ class _MovimientosTabState extends State<MovimientosTab> {
           return Padding(
             padding: EdgeInsets.only(right: i < 2 ? 10 : 0),
             child: GestureDetector(
-              onTap: () => setState(() => _selectedFilter = i),
+              onTap: () => _elegirFiltro(i),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 padding:
@@ -323,8 +317,7 @@ class _MovimientosTabState extends State<MovimientosTab> {
                   style: TextStyle(
                     color: active ? Colors.white : AppColors.textSecondary,
                     fontSize: 13,
-                    fontWeight:
-                        active ? FontWeight.w600 : FontWeight.w500,
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w500,
                   ),
                 ),
               ),
@@ -335,72 +328,73 @@ class _MovimientosTabState extends State<MovimientosTab> {
     );
   }
 
-  Widget _buildBody() {
-    if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: AppColors.gradientStart,
-          strokeWidth: 2,
-        ),
-      );
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off_rounded,
-                color: AppColors.textMuted, size: 44),
-            const SizedBox(height: 12),
-            Text(_error!,
-                style: const TextStyle(
-                    color: AppColors.textMuted, fontSize: 14)),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () => _cargar(),
-              child: const Text('Reintentar',
-                  style: TextStyle(color: AppColors.gradientStart)),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final filtered = _filtered;
-    final sections = _groupByDate(filtered);
-
-    if (sections.isEmpty) {
-      return const Center(
-        child: Text('Sin movimientos',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 15)),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-      itemCount: sections.length + (_hasMore && _selectedFilter == 0 ? 1 : 0),
-      itemBuilder: (context, si) {
-        if (si == sections.length) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Center(
-              child: TextButton(
-                onPressed: () => _cargar(reset: false),
-                child: const Text('Cargar más',
-                    style: TextStyle(color: AppColors.gradientStart)),
+  /// Acceso a la vista enriquecida. Es una sección y no una pestaña nueva
+  /// para no tocar el orden del menú inferior.
+  Widget _buildAccesoCategorias(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: GestureDetector(
+        key: const ValueKey('acceso-categorias'),
+        onTap: () => context.push('/inteligencia'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          decoration: BoxDecoration(
+            gradient: AppGradients.brand,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.local_offer_rounded, color: Colors.white, size: 17),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Movimientos con categoría',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
-            ),
-          );
-        }
+              Icon(Icons.chevron_right_rounded, color: Colors.white, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-        final section = sections[si];
+  Widget _buildBody() {
+    if (_loading) return const EstadoVista.cargando();
+    if (_error != null) {
+      return EstadoVista.error(mensaje: _error!, onReintentar: _cargar);
+    }
+
+    final ahora = ahoraLocal(offset: widget.offsetLocal);
+    final secciones = _agruparPorDia(_filas, ahora);
+
+    if (secciones.isEmpty) {
+      if (!_hasMore) return const EstadoVista.vacio(mensaje: 'Sin movimientos');
+      if (_errorMas || _mostrarBoton) return Center(child: _buildPie());
+      return const EstadoVista.cargando();
+    }
+
+    final hayPie = _cargandoMas || _errorMas || _mostrarBoton;
+    return ListView.builder(
+      controller: _scroll,
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+      itemCount: secciones.length + (hayPie ? 1 : 0),
+      itemBuilder: (context, si) {
+        if (si == secciones.length) return _buildPie();
+        final seccion = secciones[si];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (si > 0) const SizedBox(height: 24),
             Text(
-              section.label.toUpperCase(),
+              seccion.label.toUpperCase(),
               style: const TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 11,
@@ -416,29 +410,21 @@ class _MovimientosTabState extends State<MovimientosTab> {
                 border: Border.all(color: AppColors.border),
               ),
               child: Column(
-                children: List.generate(section.items.length, (ii) {
-                  final m = section.items[ii];
-                  final linea = m.lineaPrincipal;
-                  final esIngreso = linea.motivo.esIngreso;
-                  final isLast = ii == section.items.length - 1;
-                  return Column(
-                    children: [
-                      _MovRow(
-                        label: linea.motivo.label,
-                        hora: _formatHour(m.ocurridoEn),
-                        centavos: m.montoNeto.abs(),
-                        esIngreso: esIngreso,
-                        icon: _iconForMotivo(linea.motivo),
+                children: [
+                  for (var i = 0; i < seccion.filas.length; i++) ...[
+                    MovimientoFilaTile(
+                      fila: seccion.filas[i].fila,
+                      subtitulo: formatHora(seccion.filas[i].local),
+                      mostrarTipo: true,
+                    ),
+                    if (i < seccion.filas.length - 1)
+                      const Divider(
+                        color: AppColors.border,
+                        height: 1,
+                        indent: 72,
                       ),
-                      if (!isLast)
-                        const Divider(
-                          color: AppColors.border,
-                          height: 1,
-                          indent: 72,
-                        ),
-                    ],
-                  );
-                }),
+                  ],
+                ],
               ),
             ),
           ],
@@ -446,96 +432,93 @@ class _MovimientosTabState extends State<MovimientosTab> {
       },
     );
   }
+
+  Widget _buildPie() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: _errorMas || _mostrarBoton
+            ? TextButton(
+                key: _errorMas ? null : const ValueKey('boton-cargar-mas'),
+                onPressed: _cargarMas,
+                child: Text(_errorMas ? 'Reintentar' : 'Cargar más',
+                    style: const TextStyle(color: AppColors.gradientStart)),
+              )
+            : const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: AppColors.gradientStart,
+                  strokeWidth: 2,
+                ),
+              ),
+      ),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _MovRow extends StatelessWidget {
-  const _MovRow({
-    required this.label,
-    required this.hora,
+class _Total extends StatelessWidget {
+  const _Total({
+    required this.titulo,
     required this.centavos,
-    required this.esIngreso,
-    required this.icon,
+    required this.cargando,
+    required this.color,
+    required this.icono,
+    required this.fondoIcono,
+    required this.colorIcono,
   });
 
-  final String label;
-  final String hora;
-  final int centavos;
-  final bool esIngreso;
-  final IconData icon;
+  final String titulo;
+  final BigInt centavos;
+  final bool cargando;
+  final Color color;
+  final IconData icono;
+  final Color fondoIcono;
+  final Color colorIcono;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: esIngreso
-                  ? AppColors.accentGreen.withAlpha(20)
-                  : AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: esIngreso
-                    ? AppColors.accentGreen.withAlpha(50)
-                    : AppColors.border,
-              ),
-            ),
-            child: Icon(
-              icon,
-              color: esIngreso ? AppColors.accentGreen : AppColors.textSecondary,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  hora,
-                  style: const TextStyle(
-                      color: AppColors.textMuted, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(color: fondoIcono, shape: BoxShape.circle),
+          child: Icon(icono, color: colorIcono, size: 16),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '${esIngreso ? '+' : '-'}${_pesos(centavos)}',
-                style: TextStyle(
-                  color: esIngreso
-                      ? AppColors.accentGreen
-                      : AppColors.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                esIngreso ? 'Ingreso' : 'Gasto',
-                style: const TextStyle(
-                    color: AppColors.textMuted, fontSize: 11),
-              ),
+              Text(titulo,
+                  style: const TextStyle(
+                      color: AppColors.textMuted, fontSize: 11)),
+              cargando
+                  ? SizedBox(
+                      width: 60,
+                      height: 14,
+                      child: LinearProgressIndicator(
+                        backgroundColor: AppColors.surfaceVariant,
+                        color: color,
+                      ),
+                    )
+                  : Text(
+                      formatPesos(centavos),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

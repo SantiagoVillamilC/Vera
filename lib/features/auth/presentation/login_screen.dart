@@ -1,18 +1,29 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:vera/core/network/api_client.dart';
+import 'package:vera/core/format/celular.dart';
+import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/auth_background.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
-import 'package:vera/core/widgets/pin_pad.dart';
+import 'package:vera/core/widgets/password_field.dart';
 import 'package:vera/core/widgets/vera_animated_logo.dart';
 import 'package:vera/core/widgets/vera_logo.dart';
 import 'package:vera/features/auth/data/auth_repository.dart';
 
 // Step 1: phone number entry
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({
+    super.key,
+    this.repository,
+    this.showcase = const bool.fromEnvironment('SHOWCASE'),
+    this.showcaseCelular = const String.fromEnvironment('SHOWCASE_CELULAR'),
+    this.showcaseContrasena = const String.fromEnvironment('SHOWCASE_CONTRASENA'),
+  });
+
+  final AuthRepository? repository;
+  final bool showcase;
+  final String showcaseCelular;
+  final String showcaseContrasena;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -21,6 +32,16 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _showcaseLoading = false;
+  String? _showcaseError;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.showcase && widget.showcaseCelular.isNotEmpty) {
+      _phoneController.text = widget.showcaseCelular;
+    }
+  }
 
   @override
   void dispose() {
@@ -31,6 +52,28 @@ class _LoginScreenState extends State<LoginScreen> {
   void _continue() {
     if (!_formKey.currentState!.validate()) return;
     context.push('/login/pin', extra: _phoneController.text.trim());
+  }
+
+  Future<void> _showcaseLogin() async {
+    if (_showcaseLoading) return;
+    setState(() {
+      _showcaseLoading = true;
+      _showcaseError = null;
+    });
+    try {
+      final repo = widget.repository ?? AuthRepository();
+      await repo.login(
+        celular: widget.showcaseCelular,
+        contrasena: widget.showcaseContrasena,
+      );
+      if (mounted) context.go('/home');
+    } on Exception catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _showcaseLoading = false;
+        _showcaseError = mensajeDeError(e);
+      });
+    }
   }
 
   @override
@@ -71,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   keyboardType: TextInputType.phone,
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _continue(),
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  inputFormatters: const [CelularColombianoFormatter()],
                   autofocus: true,
                   style: const TextStyle(
                     color: AppColors.textPrimary,
@@ -156,6 +199,32 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
+              if (widget.showcase) ...[
+                const SizedBox(height: 4),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: _showcaseLoading ? null : _showcaseLogin,
+                    icon: _showcaseLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.visibility_outlined, size: 18),
+                    label: const Text('Entrar a la demo'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.gradientStart,
+                    ),
+                  ),
+                ),
+                if (_showcaseError != null)
+                  Center(
+                    child: Text(
+                      _showcaseError!,
+                      style: const TextStyle(color: AppColors.error, fontSize: 13),
+                    ),
+                  ),
+              ],
               const SizedBox(height: 32),
             ],
           ),
@@ -165,78 +234,44 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// Step 2: PIN entry
+// Step 2: password entry
 class PinScreen extends StatefulWidget {
-  const PinScreen({super.key, required this.phone});
+  const PinScreen({super.key, required this.phone, this.repository});
   final String phone;
+  final AuthRepository? repository;
 
   @override
   State<PinScreen> createState() => _PinScreenState();
 }
 
-class _PinScreenState extends State<PinScreen>
-    with SingleTickerProviderStateMixin {
-  static const _pinLength = 6;
-  String _pin = '';
+class _PinScreenState extends State<PinScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _passwordCtrl = TextEditingController();
   bool _loading = false;
-  final _repo = AuthRepository();
-  late AnimationController _shakeController;
-  late Animation<double> _shakeAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _shakeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-    _shakeAnimation = Tween<double>(begin: 0, end: 12).animate(
-      CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
-    );
-  }
+  String? _error;
+  late final AuthRepository _repo = widget.repository ?? AuthRepository();
 
   @override
   void dispose() {
-    _shakeController.dispose();
+    _passwordCtrl.dispose();
     super.dispose();
   }
 
-  void _onDigit(String d) {
-    if (_loading || _pin.length >= _pinLength) return;
-    setState(() => _pin += d);
-    if (_pin.length == _pinLength) _submit();
-  }
-
-  void _onDelete() {
-    if (_loading || _pin.isEmpty) return;
-    setState(() => _pin = _pin.substring(0, _pin.length - 1));
-  }
-
   Future<void> _submit() async {
-    setState(() => _loading = true);
+    if (_loading || !_formKey.currentState!.validate()) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
-      await _repo.login(celular: widget.phone, contrasena: _pin);
+      await _repo.login(celular: widget.phone, contrasena: _passwordCtrl.text);
       if (mounted) context.go('/home');
-    } on ApiException catch (e) {
+    } on Exception catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _pin = '';
+        _error = mensajeDeError(e);
       });
-      _shakeController.forward(from: 0);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _pin = '';
-      });
-      _shakeController.forward(from: 0);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error de conexión. Intenta de nuevo.')),
-      );
     }
   }
 
@@ -248,225 +283,81 @@ class _PinScreenState extends State<PinScreen>
   @override
   Widget build(BuildContext context) {
     return AuthBackground(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Row(
-              children: [
-                const SizedBox(height: 24),
-                IconButton(
-                  onPressed: () => context.pop(),
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: AppColors.textSecondary,
-                    size: 20,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () => context.pop(),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: AppColors.textSecondary,
+                      size: 20,
+                    ),
+                    padding: EdgeInsets.zero,
                   ),
-                  padding: EdgeInsets.zero,
+                  const Spacer(),
+                  const VeraLogo(size: 22),
+                ],
+              ),
+              const SizedBox(height: 48),
+              const Text(
+                'Ingresa tu contraseña',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
                 ),
-                const Spacer(),
-                const VeraLogo(size: 22),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _maskedPhone,
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 16),
+              ),
+              const SizedBox(height: 32),
+              PasswordField(
+                controller: _passwordCtrl,
+                autofocus: true,
+                enabled: !_loading,
+                onSubmitted: (_) => _submit(),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _error!,
+                  style: const TextStyle(color: AppColors.error, fontSize: 14),
+                ),
               ],
-            ),
-          ),
-          const Spacer(flex: 2),
-          const Text(
-            'Ingresa tu PIN',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _maskedPhone,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 16),
-          ),
-          const SizedBox(height: 48),
-          _loading
-              ? const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation(AppColors.gradientStart),
-                )
-              : AnimatedBuilder(
-                  animation: _shakeAnimation,
-                  builder: (_, child) => Transform.translate(
-                    offset: Offset(_shakeAnimation.value * (_shakeController.value < 0.5 ? 1 : -1), 0),
-                    child: child,
-                  ),
-                  child: PinDots(length: _pinLength, filled: _pin.length),
+              const SizedBox(height: 32),
+              GradientButton(
+                label: 'Iniciar sesión',
+                loading: _loading,
+                onPressed: _loading ? null : _submit,
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: TextButton(
+                  onPressed: _loading ? null : () => context.push('/login/recovery'),
+                  style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
+                  child: const Text('¿Olvidaste tu contraseña?', style: TextStyle(fontSize: 14)),
                 ),
-          const Spacer(flex: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: NumPad(
-              onDigit: _onDigit,
-              onDelete: _onDelete,
-              onBiometric: () {},
-            ),
+              ),
+              const SizedBox(height: 32),
+            ],
           ),
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: _loading ? null : () => context.push('/login/recovery'),
-            style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
-            child: const Text('¿Olvidaste tu PIN?', style: TextStyle(fontSize: 14)),
-          ),
-          const Spacer(flex: 1),
-        ],
+        ),
       ),
     );
   }
 }
 
-// Step 3: OTP verification
-class OtpLoginScreen extends StatefulWidget {
-  const OtpLoginScreen({super.key, required this.phone, required this.challengeId});
-  final String phone;
-  final String challengeId;
-
-  @override
-  State<OtpLoginScreen> createState() => _OtpLoginScreenState();
-}
-
-class _OtpLoginScreenState extends State<OtpLoginScreen> {
-  static const _otpLength = 6;
-  String _otp = '';
-  bool _loading = false;
-  int _resendSeconds = 60;
-
-  @override
-  void initState() {
-    super.initState();
-    _startResendTimer();
-  }
-
-  void _startResendTimer() async {
-    while (mounted && _resendSeconds > 0) {
-      await Future.delayed(const Duration(seconds: 1));
-      if (mounted) setState(() => _resendSeconds--);
-    }
-  }
-
-  void _onDigit(String d) {
-    if (_otp.length >= _otpLength) return;
-    setState(() => _otp += d);
-    if (_otp.length == _otpLength) _verify();
-  }
-
-  void _onDelete() {
-    if (_otp.isEmpty) return;
-    setState(() => _otp = _otp.substring(0, _otp.length - 1));
-  }
-
-  void _verify() {
-    setState(() => _loading = true);
-    // TODO: POST /auth/login/verify-otp {challengeId, codigo}
-    // On success: save tokens with flutter_secure_storage, navigate to home
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _loading = false);
-        context.go('/home');
-      }
-    });
-  }
-
-  String get _maskedPhone {
-    if (widget.phone.length < 4) return widget.phone;
-    return '+57 ••• ••• ${widget.phone.substring(widget.phone.length - 4)}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AuthBackground(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: () => context.pop(),
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: AppColors.textSecondary,
-                    size: 20,
-                  ),
-                  padding: EdgeInsets.zero,
-                ),
-                const Spacer(),
-                const VeraLogo(size: 22),
-              ],
-            ),
-          ),
-          const Spacer(flex: 2),
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              gradient: AppGradients.brand,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.gradientMid.withAlpha(100),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 32),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Código de verificación',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 26,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Enviamos un código por WhatsApp a\n$_maskedPhone',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.5),
-          ),
-          const SizedBox(height: 48),
-          _loading
-              ? const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation(AppColors.gradientStart),
-                )
-              : PinDots(length: _otpLength, filled: _otp.length),
-          const Spacer(flex: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: NumPad(
-              onDigit: _onDigit,
-              onDelete: _onDelete,
-            ),
-          ),
-          const SizedBox(height: 20),
-          _resendSeconds > 0
-              ? Text(
-                  'Reenviar código en ${_resendSeconds}s',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
-                )
-              : TextButton(
-                  onPressed: () {
-                    setState(() => _resendSeconds = 60);
-                    _startResendTimer();
-                    // TODO: resend OTP
-                  },
-                  style: TextButton.styleFrom(foregroundColor: AppColors.gradientStart),
-                  child: const Text('Reenviar código', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-          const Spacer(flex: 1),
-        ],
-      ),
-    );
-  }
-}
 
 class _GlassCard extends StatelessWidget {
   const _GlassCard({required this.child});
