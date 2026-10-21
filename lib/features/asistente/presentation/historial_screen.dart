@@ -17,7 +17,7 @@ class HistorialAsistenteScreen extends StatefulWidget {
 class _HistorialAsistenteScreenState extends State<HistorialAsistenteScreen> {
   final _repo = AsistenteRepository();
   final _items = <ConversacionVera>[];
-  int? _cursor;
+  String? _cursor;
   bool _hayMas = false;
   bool _cargando = true;
   Object? _error;

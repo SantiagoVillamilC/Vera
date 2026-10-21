@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/format/pesos.dart';
@@ -357,7 +358,8 @@ class _CodigoSheetState extends State<_CodigoSheet> {
             controller: _ctrl,
             autofocus: true,
             keyboardType: TextInputType.number,
-            maxLength: 10,
+            maxLength: 6,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             style: const TextStyle(
               color: AppColors.textPrimary,
               letterSpacing: 4,
@@ -373,7 +375,7 @@ class _CodigoSheetState extends State<_CodigoSheet> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: _ctrl.text.trim().isEmpty
+              onPressed: _ctrl.text.trim().length != 6
                   ? null
                   : () => Navigator.pop(context, _ctrl.text.trim()),
               style: FilledButton.styleFrom(

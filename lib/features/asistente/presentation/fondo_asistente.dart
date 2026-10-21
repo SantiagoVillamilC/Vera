@@ -3,7 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:vera/core/theme/app_theme.dart';
 
-/// Fondo del chat de Vera: degradado oscuro con luces de la marca que se mueven despacio.
+/// Fondo del chat de Vera: degradado de negro a violeta, con luces violetas de la marca que se
+/// mueven despacio.
 /// Con [intenso] (mientras se graba) las luces brillan más y pulsan más rápido.
 /// Respeta "reducir movimiento": en ese caso queda estático.
 class FondoAsistente extends StatefulWidget {
@@ -71,8 +72,8 @@ class _FondoPainter extends CustomPainter {
         ..shader = const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF120B2E), AppColors.background, Color(0xFF07131F)],
-          stops: [0, 0.55, 1],
+          colors: [Color(0xFF1B1040), Color(0xFF050509), Color(0xFF07050F)],
+          stops: [0, 0.5, 1],
         ).createShader(rect),
     );
 
@@ -104,11 +105,9 @@ class _FondoPainter extends CustomPainter {
       );
     }
 
-    luz(AppColors.gradientStart, 0.85, 0.08, 0.95, 175, 0);
-    luz(AppColors.gradientMid, 0.05, 0.38, 0.8, 140, 2.1);
-    luz(AppColors.accent, 0.95, 0.72, 0.75, 95, 4.2);
-    luz(AppColors.accentPink, 0.1, 0.9, 0.65, 75, 1.2);
-    luz(AppColors.accentGreen, 0.55, 1.05, 0.55, 55, 3.3);
+    luz(AppColors.gradientStart, 0.85, 0.06, 0.9, 200, 0);
+    luz(AppColors.gradientMid, 0.0, 0.3, 0.7, 110, 2.1);
+    luz(AppColors.gradientEnd, 1.0, 0.92, 0.7, 120, 4.2);
   }
 
   @override

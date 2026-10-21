@@ -87,23 +87,39 @@ void main() {
           'creado_en': '2026-10-15T14:15:50-05:00',
         },
       ],
-      'meta': {'limit': 50, 'next_cursor': 7, 'has_more': true},
+      'meta': {'limit': 50, 'next_cursor': 'opaco-abc', 'has_more': true},
     }, MensajeVera.fromJson);
     expect(p.items.single.rol, RolMensaje.usuario);
     expect(p.items.single.canal, CanalMensaje.voz);
-    expect(p.nextCursor, 7);
+    expect(p.nextCursor, 'opaco-abc');
     expect(p.hasMore, isTrue);
   });
 
   test('enviarVoz rechaza audio vacio o mayor a 700 KB antes de llamar', () {
     final repo = AsistenteRepository();
     expect(
-      () => repo.enviarVoz(audioM4a: Uint8List(0)),
+      () => repo.enviarVoz(audioM4a: Uint8List(0), idempotencyKey: 'k'),
       throwsA(isA<AudioFueraDeLimiteException>()),
     );
     expect(
-      () => repo.enviarVoz(audioM4a: Uint8List(LimitesAudio.maxBytes + 1)),
+      () => repo.enviarVoz(
+        audioM4a: Uint8List(LimitesAudio.maxBytes + 1),
+        idempotencyKey: 'k',
+      ),
       throwsA(isA<AudioFueraDeLimiteException>()),
     );
+  });
+
+  test('ConsentimientoAsistente lee version, texto y autorizado', () {
+    final c = ConsentimientoAsistente.fromJson({
+      'tipo': 'asistente_ia',
+      'version_texto': 'v1',
+      'texto': 'Vera usa IA para ayudarte.',
+      'autorizado': false,
+    });
+    expect(c.versionTexto, 'v1');
+    expect(c.autorizado, isFalse);
+    expect(c.autorizadoAhora().autorizado, isTrue);
+    expect(c.autorizadoAhora().versionTexto, 'v1');
   });
 }

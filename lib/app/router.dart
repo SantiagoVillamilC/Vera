@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/features/asistente/presentation/asistente_screen.dart';
@@ -15,6 +16,10 @@ import 'package:vera/features/home/presentation/recargar_screen.dart';
 import 'package:vera/features/inteligencia/presentation/movimientos_enriquecidos_screen.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
+/// Solo desarrollo: `--dart-define=SKIP_LOGIN=true` entra directo a `/home` sin sesión
+/// para revisar pantallas. Se ignora fuera de modo debug.
+const _skipLogin = bool.fromEnvironment('SKIP_LOGIN') && kDebugMode;
+
 bool _isPublicLocation(String path) =>
     path == '/login' ||
     path.startsWith('/login/') ||
@@ -31,10 +36,11 @@ GoRouter buildRouter(
   SessionStore? sessionStore,
   NucleoRepository? nucleoRepository,
 }) => GoRouter(
-  initialLocation: '/login',
+  initialLocation: _skipLogin ? '/home' : '/login',
   refreshListenable: session,
   redirect: (context, state) {
     final path = state.uri.path;
+    if (_skipLogin) return null;
     if (!session.authenticated) {
       return _isPublicLocation(path) ? null : '/login';
     }

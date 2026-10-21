@@ -10,11 +10,15 @@ class ApiException implements Exception {
     required this.message,
     this.details,
     this.statusCode,
+    this.headers,
   });
   final String code;
   final String message;
   final List<Map<String, dynamic>>? details;
   final int? statusCode;
+
+  /// Cabeceras de la respuesta de error, con nombres en minúscula (Retry-After, X-Conversacion-Id).
+  final Map<String, String>? headers;
 
   @override
   String toString() => 'ApiException($code): $message';
@@ -28,9 +32,9 @@ class ApiClient {
     this.onSessionExpired,
     Duration? shortTimeout,
     Duration? moneyTimeout,
-  })  : _clientFactory = clientFactory ?? http.Client.new,
-        _shortTimeout = shortTimeout ?? defaultShortTimeout,
-        _moneyTimeout = moneyTimeout ?? defaultMoneyTimeout;
+  }) : _clientFactory = clientFactory ?? http.Client.new,
+       _shortTimeout = shortTimeout ?? defaultShortTimeout,
+       _moneyTimeout = moneyTimeout ?? defaultMoneyTimeout;
 
   final String baseUrl;
   final http.Client Function() _clientFactory;
@@ -74,10 +78,10 @@ class ApiClient {
   }
 
   Map<String, String> _headers(String? token) => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    if (token != null) 'Authorization': 'Bearer $token',
+  };
 
   Future<Map<String, dynamic>> post(
     String path,
@@ -85,6 +89,7 @@ class ApiClient {
     String? bearerToken,
     bool? auth,
     Duration? timeout,
+    Map<String, String>? headers,
   }) async {
     final response = await _request(
       'POST',
@@ -94,6 +99,7 @@ class ApiClient {
       bearerToken: bearerToken,
       auth: auth,
       timeout: timeout,
+      extraHeaders: headers,
     );
     return _parseMap(response);
   }
@@ -165,10 +171,11 @@ class ApiClient {
     bool? auth,
     Duration? timeout,
     bool allowRefresh = true,
+    Map<String, String>? extraHeaders,
   }) async {
     final authenticated = _isAuthenticated(path, bearerToken, auth);
-    final effectiveTimeout = timeout ??
-        (isMoneyPath(method, path) ? _moneyTimeout : _shortTimeout);
+    final effectiveTimeout =
+        timeout ?? (isMoneyPath(method, path) ? _moneyTimeout : _shortTimeout);
 
     var token = bearerToken;
     if (authenticated && token == null) token = await session?.readAccess();
@@ -179,6 +186,7 @@ class ApiClient {
       body: body,
       token: authenticated ? token : null,
       timeout: effectiveTimeout,
+      extraHeaders: extraHeaders,
     );
     if (response.statusCode != 401 ||
         !authenticated ||
@@ -198,6 +206,7 @@ class ApiClient {
       body: body,
       token: newToken,
       timeout: effectiveTimeout,
+      extraHeaders: extraHeaders,
     );
   }
 
@@ -207,10 +216,11 @@ class ApiClient {
     required String? body,
     required String? token,
     required Duration timeout,
+    Map<String, String>? extraHeaders,
   }) async {
     final client = _clientFactory();
     try {
-      final headers = _headers(token);
+      final headers = {..._headers(token), ...?extraHeaders};
       final future = switch (method) {
         'GET' => client.get(uri, headers: headers),
         'DELETE' => client.delete(uri, headers: headers),
@@ -283,6 +293,7 @@ class ApiClient {
         code: 'InternalError',
         message: 'Respuesta inválida del servidor',
         statusCode: response.statusCode,
+        headers: response.headers,
       );
     }
     final error = body['error'] as Map<String, dynamic>? ?? {};
@@ -291,6 +302,7 @@ class ApiClient {
       message: error['message'] as String? ?? 'Error inesperado',
       details: (error['details'] as List?)?.cast<Map<String, dynamic>>(),
       statusCode: response.statusCode,
+      headers: response.headers,
     );
   }
 

@@ -43,22 +43,28 @@ class AsistenteRepository {
 
   /// POST /v1/vera/mensajes
   /// [conversacionId] null abre una conversación nueva.
+  /// [idempotencyKey] (UUID, ver `nuevaClaveEnvio`) se reutiliza al reintentar el mismo texto.
   Future<RespuestaAsistente> enviarTexto({
     required String texto,
+    required String idempotencyKey,
     String? conversacionId,
   }) async {
-    final raw = await _client.post('/v1/vera/mensajes', {
-      'conversacion_id': conversacionId,
-      'texto': texto,
-    }, timeout: _timeoutIa);
+    final raw = await _client.post(
+      '/v1/vera/mensajes',
+      {'conversacion_id': conversacionId, 'texto': texto},
+      timeout: _timeoutIa,
+      headers: {'Idempotency-Key': idempotencyKey},
+    );
     return RespuestaAsistente.fromJson(raw);
   }
 
   /// POST /v1/vera/mensajes/voz
   /// [audioM4a] son los bytes del clip; se codifican en base64 aquí.
   /// Lanza [AudioFueraDeLimiteException] si el clip no cabe en los límites del contrato.
+  /// [idempotencyKey] se reutiliza solo con el mismo audio y conversación.
   Future<RespuestaAsistente> enviarVoz({
     required Uint8List audioM4a,
+    required String idempotencyKey,
     String? conversacionId,
   }) async {
     if (audioM4a.isEmpty || audioM4a.length > LimitesAudio.maxBytes) {
@@ -68,25 +74,31 @@ class AsistenteRepository {
     if (audio.length > LimitesAudio.maxCaracteresBase64) {
       throw const AudioFueraDeLimiteException();
     }
-    final raw = await _client.post('/v1/vera/mensajes/voz', {
-      'conversacion_id': conversacionId,
-      'audio': audio,
-      'formato': LimitesAudio.formato,
-    }, timeout: _timeoutIa);
+    final raw = await _client.post(
+      '/v1/vera/mensajes/voz',
+      {
+        'conversacion_id': conversacionId,
+        'audio': audio,
+        'formato': LimitesAudio.formato,
+      },
+      timeout: _timeoutIa,
+      headers: {'Idempotency-Key': idempotencyKey},
+    );
     return RespuestaAsistente.fromJson(raw);
   }
 
   // ── Conversaciones ────────────────────────────────────────────
 
   /// GET /v1/vera/conversaciones?limit=&cursor=
-  /// De la más reciente a la más antigua. [cursor] es `next_cursor` de la página anterior.
+  /// De la más reciente a la más antigua. [cursor] es el `next_cursor` opaco de la página anterior:
+  /// la app no lo interpreta.
   Future<PaginaVera<ConversacionVera>> listarConversaciones({
     int limit = 50,
-    int? cursor,
+    String? cursor,
   }) async {
     final raw = await _client.get(
       '/v1/vera/conversaciones',
-      queryParams: {'limit': '$limit', if (cursor != null) 'cursor': '$cursor'},
+      queryParams: {'limit': '$limit', 'cursor': ?cursor},
     );
     return PaginaVera.fromEnvelope(raw, ConversacionVera.fromJson);
   }
@@ -96,11 +108,11 @@ class AsistenteRepository {
   Future<PaginaVera<MensajeVera>> listarMensajes(
     String conversacionId, {
     int limit = 50,
-    int? cursor,
+    String? cursor,
   }) async {
     final raw = await _client.get(
       '/v1/vera/conversaciones/$conversacionId/mensajes',
-      queryParams: {'limit': '$limit', if (cursor != null) 'cursor': '$cursor'},
+      queryParams: {'limit': '$limit', 'cursor': ?cursor},
     );
     return PaginaVera.fromEnvelope(raw, MensajeVera.fromJson);
   }
@@ -112,6 +124,33 @@ class AsistenteRepository {
   /// DELETE /v1/vera/conversaciones. Borra todas y cancela sus acciones pendientes.
   Future<void> borrarConversaciones() async =>
       _client.delete('/v1/vera/conversaciones');
+
+  // ── Consentimiento de IA ──────────────────────────────────────
+
+  /// GET /v1/auth/consents?tipo=asistente_ia
+  /// Texto y versión vigentes, y si el usuario ya autorizó esa versión. Un cambio de versión
+  /// exige una nueva aceptación.
+  Future<ConsentimientoAsistente> consultarConsentimiento() async {
+    final raw = await _client.get(
+      '/v1/auth/consents',
+      queryParams: {'tipo': 'asistente_ia'},
+    );
+    return ConsentimientoAsistente.fromJson(
+      raw['data'] as Map<String, dynamic>? ?? {},
+    );
+  }
+
+  /// POST /v1/auth/consents
+  /// Acepta [versionTexto], que debe ser la vigente que devolvió [consultarConsentimiento].
+  Future<void> otorgarConsentimiento(String versionTexto) async {
+    await _client.post('/v1/auth/consents', {
+      'tipo': 'asistente_ia',
+      'version_texto': versionTexto,
+      'aceptado': true,
+      'accion': 'otorgar',
+      'metodo': 'app',
+    });
+  }
 
   // ── Acciones pendientes ───────────────────────────────────────
 
@@ -164,7 +203,7 @@ class PaginaVera<T> {
   });
 
   final List<T> items;
-  final int? nextCursor;
+  final String? nextCursor;
   final bool hasMore;
 
   factory PaginaVera.fromEnvelope(
@@ -177,10 +216,36 @@ class PaginaVera<T> {
           .cast<Map<String, dynamic>>()
           .map(fromJson)
           .toList(),
-      nextCursor: meta['next_cursor'] as int?,
+      nextCursor: meta['next_cursor'] as String?,
       hasMore: meta['has_more'] as bool? ?? false,
     );
   }
+}
+
+/// Texto legal vigente del asistente y si el usuario ya lo autorizó.
+class ConsentimientoAsistente {
+  const ConsentimientoAsistente({
+    required this.versionTexto,
+    required this.texto,
+    required this.autorizado,
+  });
+
+  final String versionTexto;
+  final String texto;
+  final bool autorizado;
+
+  ConsentimientoAsistente autorizadoAhora() => ConsentimientoAsistente(
+    versionTexto: versionTexto,
+    texto: texto,
+    autorizado: true,
+  );
+
+  factory ConsentimientoAsistente.fromJson(Map<String, dynamic> j) =>
+      ConsentimientoAsistente(
+        versionTexto: j['version_texto'] as String? ?? '',
+        texto: j['texto'] as String? ?? '',
+        autorizado: j['autorizado'] as bool? ?? false,
+      );
 }
 
 enum EstadoAccion {

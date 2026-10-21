@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:vera/core/network/error_messages.dart';
+import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/features/asistente/data/asistente_mensajes.dart';
 import 'package:vera/features/asistente/data/asistente_repository.dart';
 import 'package:vera/features/asistente/data/grabador_voz.dart';
 import 'package:vera/features/asistente/presentation/accion_card.dart';
@@ -18,6 +21,7 @@ class _Burbuja {
     this.esVoz = false,
     this.transcribiendo = false,
     this.esError = false,
+    this.reintentable = false,
     this.accion,
   });
 
@@ -27,20 +31,44 @@ class _Burbuja {
   final bool esVoz;
   bool transcribiendo;
   final bool esError;
+
+  /// Un error tras el cual conviene reintentar el mismo envío (misma clave de idempotencia).
+  final bool reintentable;
   AccionPendiente? accion;
+}
+
+/// Un mensaje o audio en camino. La [clave] y la [conversacionId] se fijan al crearlo: un reintento
+/// debe llevar exactamente el cuerpo original, o el backend responde IdempotencyConflict.
+class _Envio {
+  _Envio({
+    this.texto,
+    this.bytes,
+    required this.burbuja,
+    required this.conversacionId,
+  }) : clave = nuevaClaveEnvio();
+
+  final String? texto;
+  final Uint8List? bytes;
+  final _Burbuja burbuja;
+  final String? conversacionId;
+  final String clave;
 }
 
 class AsistenteScreen extends StatefulWidget {
   /// [conversacionId] reabre una conversación del historial.
-  const AsistenteScreen({super.key, this.conversacionId});
+  const AsistenteScreen({super.key, this.conversacionId, this.repository});
   final String? conversacionId;
+
+  /// Solo para pruebas; por defecto el repositorio real.
+  final AsistenteRepository? repository;
 
   @override
   State<AsistenteScreen> createState() => _AsistenteScreenState();
 }
 
 class _AsistenteScreenState extends State<AsistenteScreen> {
-  final _repo = AsistenteRepository();
+  late final AsistenteRepository _repo =
+      widget.repository ?? AsistenteRepository();
   final _grabador = GrabadorVoz();
   final _ctrl = TextEditingController();
   final _scroll = ScrollController();
@@ -51,6 +79,9 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
   bool _enviando = false;
   bool _grabando = false;
   Duration _tiempoGrabado = Duration.zero;
+  ConsentimientoAsistente? _consent;
+  bool _aceptando = false;
+  _Envio? _pendiente;
   Timer? _cronometro;
   int _seq = 0;
 
@@ -66,6 +97,7 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
     _conversacionId = widget.conversacionId;
     _grabador.onTope = _detenerYEnviarVoz;
     if (_conversacionId != null) _cargarMensajes();
+    _consultarConsentimiento();
   }
 
   @override
@@ -96,7 +128,7 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
       if (mounted) setState(() => _burbujas.addAll(ordenados));
       _irAlFinal();
     } catch (e) {
-      _agregarError(mensajeDeError(e));
+      _agregarError(mensajeDeErrorAsistente(e));
     } finally {
       if (mounted) setState(() => _cargandoHistorial = false);
     }
@@ -114,11 +146,17 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
     });
   }
 
-  void _agregarError(String msg) {
+  void _agregarError(String msg, {bool reintentable = false}) {
     if (!mounted) return;
     setState(
       () => _burbujas.add(
-        _Burbuja(id: _idLocal(), esUsuario: false, texto: msg, esError: true),
+        _Burbuja(
+          id: _idLocal(),
+          esUsuario: false,
+          texto: msg,
+          esError: true,
+          reintentable: reintentable,
+        ),
       ),
     );
     _irAlFinal();
@@ -131,25 +169,98 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
     });
   }
 
-  // ── Envío de texto ──────────────────────────────────────────
+  // ── Consentimiento de IA ────────────────────────────────────
+
+  Future<void> _consultarConsentimiento() async {
+    try {
+      final c = await _repo.consultarConsentimiento();
+      if (mounted) setState(() => _consent = c);
+    } catch (_) {
+      // Sin el dato no se bloquea el chat: el backend responde ConsentRequired si falta.
+    }
+  }
+
+  Future<void> _aceptarConsentimiento() async {
+    final c = _consent;
+    if (c == null || _aceptando) return;
+    setState(() => _aceptando = true);
+    try {
+      await _repo.otorgarConsentimiento(c.versionTexto);
+      if (mounted) setState(() => _consent = c.autorizadoAhora());
+    } catch (e) {
+      _agregarError(mensajeDeErrorAsistente(e));
+    } finally {
+      if (mounted) setState(() => _aceptando = false);
+    }
+  }
+
+  // ── Envío ───────────────────────────────────────────────────
 
   Future<void> _enviarTexto([String? predefinido]) async {
     final texto = (predefinido ?? _ctrl.text).trim();
     if (texto.isEmpty || _enviando) return;
     _ctrl.clear();
+    final burbuja = _Burbuja(id: _idLocal(), esUsuario: true, texto: texto);
+    setState(() => _burbujas.add(burbuja));
+    _irAlFinal();
+    await _ejecutar(
+      _Envio(texto: texto, burbuja: burbuja, conversacionId: _conversacionId),
+    );
+  }
+
+  /// Reintenta el último envío con su misma clave: si el servidor ya lo guardó, devuelve la misma
+  /// respuesta en vez de duplicar el turno.
+  Future<void> _reintentar() async {
+    final envio = _pendiente;
+    if (envio == null || _enviando) return;
+    setState(() {
+      if (_burbujas.isNotEmpty && _burbujas.last.esError) {
+        _burbujas.removeLast();
+      }
+    });
+    await _ejecutar(envio);
+  }
+
+  Future<void> _ejecutar(_Envio envio) async {
+    final burbuja = envio.burbuja;
     setState(() {
       _enviando = true;
-      _burbujas.add(_Burbuja(id: _idLocal(), esUsuario: true, texto: texto));
+      if (envio.bytes != null) burbuja.transcribiendo = true;
     });
-    _irAlFinal();
     try {
-      final r = await _repo.enviarTexto(
-        texto: texto,
-        conversacionId: _conversacionId,
-      );
+      final r = envio.bytes != null
+          ? await _repo.enviarVoz(
+              audioM4a: envio.bytes!,
+              idempotencyKey: envio.clave,
+              conversacionId: envio.conversacionId,
+            )
+          : await _repo.enviarTexto(
+              texto: envio.texto!,
+              idempotencyKey: envio.clave,
+              conversacionId: envio.conversacionId,
+            );
+      _pendiente = null;
+      if (mounted && envio.bytes != null) {
+        setState(() {
+          burbuja
+            ..texto = r.transcripcion ?? ''
+            ..transcribiendo = false;
+        });
+      }
       _agregarRespuesta(r);
+    } on AudioFueraDeLimiteException {
+      _pendiente = null;
+      _quitar(burbuja);
+      _agregarError('El audio es demasiado largo. Máximo 60 segundos.');
     } catch (e) {
-      _agregarError(mensajeDeError(e));
+      final reintentable = esErrorReintentable(e);
+      _pendiente = reintentable ? envio : null;
+      if (mounted) setState(() => burbuja.transcribiendo = false);
+      if (envio.bytes != null && !reintentable) _quitar(burbuja);
+      _agregarError(mensajeDeErrorAsistente(e), reintentable: reintentable);
+      if (e is ApiException && e.code == 'ConsentRequired') {
+        _consultarConsentimiento();
+      }
     } finally {
       if (mounted) setState(() => _enviando = false);
     }
@@ -211,33 +322,11 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
       esVoz: true,
       transcribiendo: true,
     );
-    setState(() {
-      _enviando = true;
-      _burbujas.add(burbuja);
-    });
+    setState(() => _burbujas.add(burbuja));
     _irAlFinal();
-    try {
-      final r = await _repo.enviarVoz(
-        audioM4a: bytes,
-        conversacionId: _conversacionId,
-      );
-      if (mounted) {
-        setState(() {
-          burbuja
-            ..texto = r.transcripcion ?? ''
-            ..transcribiendo = false;
-        });
-      }
-      _agregarRespuesta(r);
-    } on AudioFueraDeLimiteException {
-      _quitar(burbuja);
-      _agregarError('El audio es demasiado largo. Máximo 60 segundos.');
-    } catch (e) {
-      _quitar(burbuja);
-      _agregarError(mensajeDeError(e));
-    } finally {
-      if (mounted) setState(() => _enviando = false);
-    }
+    await _ejecutar(
+      _Envio(bytes: bytes, burbuja: burbuja, conversacionId: _conversacionId),
+    );
   }
 
   void _quitar(_Burbuja b) {
@@ -316,6 +405,7 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
           burbuja: b,
           repo: _repo,
           onAccion: (a) => setState(() => b.accion = a),
+          onReintentar: _reintentar,
         );
       },
     );
@@ -388,7 +478,66 @@ class _AsistenteScreenState extends State<AsistenteScreen> {
         color: AppColors.surface.withAlpha(200),
         border: const Border(top: BorderSide(color: AppColors.borderGlass)),
       ),
-      child: _grabando ? _barraGrabando() : _barraTexto(),
+      child: _consent != null && !_consent!.autorizado
+          ? _panelConsentimiento()
+          : _grabando
+          ? _barraGrabando()
+          : _barraTexto(),
+    );
+  }
+
+  Widget _panelConsentimiento() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Antes de empezar',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 150),
+          child: SingleChildScrollView(
+            child: Text(
+              _consent!.texto,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: _aceptando ? null : _aceptarConsentimiento,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.gradientMid,
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: _aceptando
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Aceptar y continuar'),
+          ),
+        ),
+      ],
     );
   }
 
@@ -514,8 +663,10 @@ class _BurbujaView extends StatelessWidget {
     required this.burbuja,
     required this.repo,
     required this.onAccion,
+    required this.onReintentar,
   });
   final _Burbuja burbuja;
+  final VoidCallback onReintentar;
   final AsistenteRepository repo;
   final ValueChanged<AccionPendiente> onAccion;
 
@@ -585,7 +736,11 @@ class _BurbujaView extends StatelessWidget {
                         ],
                         Flexible(
                           child: Text(
-                            b.texto.isEmpty ? '(sin transcripción)' : b.texto,
+                            b.texto.isEmpty
+                                ? (b.esVoz && b.esUsuario
+                                      ? 'Audio sin enviar'
+                                      : '(sin transcripción)')
+                                : b.texto,
                             style: TextStyle(
                               color: b.esError
                                   ? AppColors.error
@@ -598,6 +753,15 @@ class _BurbujaView extends StatelessWidget {
                       ],
                     ),
             ),
+            if (b.reintentable)
+              TextButton.icon(
+                onPressed: onReintentar,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Reintentar'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.accentPink,
+                ),
+              ),
             if (b.accion != null)
               ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: ancho),

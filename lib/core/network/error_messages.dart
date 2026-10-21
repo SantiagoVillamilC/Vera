@@ -50,8 +50,7 @@ const _porCodigo = <String, String>{
       'La verificación ya no es válida. Vuelve a empezar el proceso.',
   'OtpTooManyAttempts':
       'Superaste el límite de intentos del código. Solicita uno nuevo.',
-  'OtpResendCooldown':
-      'Espera cerca de un minuto antes de pedir otro código.',
+  'OtpResendCooldown': 'Espera cerca de un minuto antes de pedir otro código.',
   'RefreshInvalid': 'Tu sesión venció. Inicia sesión de nuevo.',
   'RefreshReused':
       'Detectamos un uso inusual de tu sesión. Inicia sesión de nuevo por seguridad.',
@@ -62,10 +61,8 @@ const _porCodigo = <String, String>{
       'El enlace para restablecer la contraseña no es válido o ya venció.',
   'SecondFactorRequired':
       'Necesitas completar la verificación adicional para continuar.',
-  'KycRequired':
-      'Debes verificar tu identidad para realizar esta operación.',
-  'ConsentRequired':
-      'Debes aceptar los términos requeridos para continuar.',
+  'KycRequired': 'Debes verificar tu identidad para realizar esta operación.',
+  'ConsentRequired': 'Debes aceptar los términos requeridos para continuar.',
   'DuplicateIdentifier':
       'Ya existe una cuenta con ese celular, correo o documento.',
   'PhoneUnverified': 'Primero debes verificar tu número de celular.',
@@ -112,6 +109,10 @@ const _porCodigo = <String, String>{
   'ActionExpired':
       'La acción pendiente venció. Pídele a Vera que la prepare otra vez.',
   'ActionNotPending': 'Esta acción ya no está pendiente.',
+  'ConversationBusy':
+      'Vera sigue respondiendo tu mensaje anterior. Espera un momento.',
+  'LimitsUnavailable':
+      'No pudimos consultar los límites de tu cuenta. Intenta más tarde.',
   'CopiaSinReconstruir':
       'Los movimientos aún se están procesando. Intenta de nuevo en un momento.',
 };
@@ -138,6 +139,9 @@ const _etiquetas = <String, ({String nombre, bool masculino})>{
   'version_texto': (nombre: 'versión del texto', masculino: false),
   'categoria': (nombre: 'categoría', masculino: false),
   'nombre_comercio': (nombre: 'nombre del comercio', masculino: true),
+  'texto': (nombre: 'mensaje', masculino: true),
+  'audio': (nombre: 'audio', masculino: true),
+  'formato': (nombre: 'formato del audio', masculino: true),
 };
 
 String _mensajeDeCampo(String campo, String regla, String? param) {
@@ -174,6 +178,8 @@ String _mensajeDeCampo(String campo, String regla, String? param) {
           : mensajeValidacionGeneral;
     case 'oneof':
       return '$articulo $nombre no es una opción válida';
+    case 'textoasistente':
+      return 'El mensaje tiene caracteres que Vera no admite';
     case 'categoria_visible':
       return 'Esa categoría no aplica a este movimiento';
     case 'solo_comercio':
