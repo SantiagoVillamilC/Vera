@@ -49,13 +49,30 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
 
   bool get _cambiaNombre => _nombre.text.trim().isNotEmpty;
 
-  bool get _puedeAplicar => _cambiaCategoria || _cambiaNombre;
+  /// La sugerencia solo se puede confirmar si es una categoría que esta hoja
+  /// ofrece para la dirección del movimiento. Un depósito con categoría de
+  /// gasto no se confirma en silencio: el usuario elige una de ingreso.
+  bool get _sugerenciaAplicable {
+    if (!widget.movimiento.categoriaSugerida) return false;
+    return categoriasPara(widget.movimiento.direccion)
+        .any((c) => c.codigo == widget.movimiento.categoria);
+  }
+
+  /// Confirmar una sugerencia envía la misma categoría. El backend la guarda en
+  /// memoria y la fila pasa de origen sugerido a `memoria`.
+  bool get _confirmaSugerencia =>
+      _sugerenciaAplicable &&
+      _categoria != null &&
+      _categoria == widget.movimiento.categoria;
+
+  bool get _puedeAplicar =>
+      _cambiaCategoria || _cambiaNombre || _confirmaSugerencia;
 
   void _aplicar() {
     if (!_puedeAplicar) return;
     Navigator.of(context).pop(
       CorreccionElegida(
-        categoria: _cambiaCategoria ? _categoria : null,
+        categoria: _cambiaCategoria || _confirmaSugerencia ? _categoria : null,
         nombreComercio: _cambiaNombre ? _nombre.text.trim() : null,
       ),
     );
@@ -64,6 +81,7 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
   @override
   Widget build(BuildContext context) {
     final categorias = categoriasPara(widget.movimiento.direccion);
+    final sugiere = _sugerenciaAplicable;
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
@@ -107,13 +125,50 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      'Elige la categoría correcta',
-                      style: TextStyle(
+                    Text(
+                      sugiere
+                          ? 'Vera la sugiere. Confírmala o elige otra.'
+                          : 'Elige la categoría correcta',
+                      style: const TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 13,
                       ),
                     ),
+                    if (sugiere) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withAlpha(20),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: AppColors.accent.withAlpha(90),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.auto_awesome_rounded,
+                              size: 11,
+                              color: AppColors.accent,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Sugerencia: ${widget.movimiento.categoriaNombre}',
+                              style: const TextStyle(
+                                color: AppColors.accent,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -189,7 +244,7 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Text(
-                      'Aplicar',
+                      _confirmaSugerencia ? 'Confirmar categoría' : 'Aplicar',
                       style: TextStyle(
                         color: _puedeAplicar
                             ? Colors.white
