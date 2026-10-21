@@ -52,102 +52,102 @@ class _VeraAnimatedLogoState extends State<VeraAnimatedLogo>
 
     // ── Accordion (runs full loop after entry, min=0.2) ──
     // Back card fans out counterclockwise (left)
-    _backAngle = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween(begin: -0.22, end: -0.68)
-            .chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 40,
-      ),
-      TweenSequenceItem(
-        tween: ConstantTween(-0.68),
-        weight: 8,
-      ),
-      TweenSequenceItem(
-        tween: Tween(begin: -0.68, end: -0.22)
-            .chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 40,
-      ),
-      TweenSequenceItem(
-        tween: ConstantTween(-0.22),
-        weight: 12,
-      ),
-    ]).animate(
-      CurvedAnimation(
-        parent: _ctrl,
-        curve: const Interval(0.18, 1.0),
-      ),
-    );
+    _backAngle = TweenSequence<double>(
+      [
+        TweenSequenceItem(
+          tween: Tween(
+            begin: -0.22,
+            end: -0.68,
+          ).chain(CurveTween(curve: Curves.easeInOut)),
+          weight: 40,
+        ),
+        TweenSequenceItem(tween: ConstantTween(-0.68), weight: 8),
+        TweenSequenceItem(
+          tween: Tween(
+            begin: -0.68,
+            end: -0.22,
+          ).chain(CurveTween(curve: Curves.easeInOut)),
+          weight: 40,
+        ),
+        TweenSequenceItem(tween: ConstantTween(-0.22), weight: 12),
+      ],
+    ).animate(CurvedAnimation(parent: _ctrl, curve: const Interval(0.18, 1.0)));
 
     // Front card fans out clockwise (right)
-    _frontAngle = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween(begin: -0.22, end: 0.24)
-            .chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 40,
-      ),
-      TweenSequenceItem(
-        tween: ConstantTween(0.24),
-        weight: 8,
-      ),
-      TweenSequenceItem(
-        tween: Tween(begin: 0.24, end: -0.22)
-            .chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 40,
-      ),
-      TweenSequenceItem(
-        tween: ConstantTween(-0.22),
-        weight: 12,
-      ),
-    ]).animate(
-      CurvedAnimation(
-        parent: _ctrl,
-        curve: const Interval(0.18, 1.0),
-      ),
-    );
+    _frontAngle = TweenSequence<double>(
+      [
+        TweenSequenceItem(
+          tween: Tween(
+            begin: -0.22,
+            end: 0.24,
+          ).chain(CurveTween(curve: Curves.easeInOut)),
+          weight: 40,
+        ),
+        TweenSequenceItem(tween: ConstantTween(0.24), weight: 8),
+        TweenSequenceItem(
+          tween: Tween(
+            begin: 0.24,
+            end: -0.22,
+          ).chain(CurveTween(curve: Curves.easeInOut)),
+          weight: 40,
+        ),
+        TweenSequenceItem(tween: ConstantTween(-0.22), weight: 12),
+      ],
+    ).animate(CurvedAnimation(parent: _ctrl, curve: const Interval(0.18, 1.0)));
 
     // Back card drifts left as it fans
-    _backOffsetX = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween(begin: 0.0, end: -16.0)
-            .chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 40,
-      ),
-      TweenSequenceItem(tween: ConstantTween(-16.0), weight: 8),
-      TweenSequenceItem(
-        tween: Tween(begin: -16.0, end: 0.0)
-            .chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 40,
-      ),
-      TweenSequenceItem(tween: ConstantTween(0.0), weight: 12),
-    ]).animate(
-      CurvedAnimation(parent: _ctrl, curve: const Interval(0.18, 1.0)),
-    );
+    _backOffsetX = TweenSequence<double>(
+      [
+        TweenSequenceItem(
+          tween: Tween(
+            begin: 0.0,
+            end: -16.0,
+          ).chain(CurveTween(curve: Curves.easeInOut)),
+          weight: 40,
+        ),
+        TweenSequenceItem(tween: ConstantTween(-16.0), weight: 8),
+        TweenSequenceItem(
+          tween: Tween(
+            begin: -16.0,
+            end: 0.0,
+          ).chain(CurveTween(curve: Curves.easeInOut)),
+          weight: 40,
+        ),
+        TweenSequenceItem(tween: ConstantTween(0.0), weight: 12),
+      ],
+    ).animate(CurvedAnimation(parent: _ctrl, curve: const Interval(0.18, 1.0)));
 
     // Front card drifts right as it fans
-    _frontOffsetX = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween(begin: 0.0, end: 16.0)
-            .chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 40,
-      ),
-      TweenSequenceItem(tween: ConstantTween(16.0), weight: 8),
-      TweenSequenceItem(
-        tween: Tween(begin: 16.0, end: 0.0)
-            .chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 40,
-      ),
-      TweenSequenceItem(tween: ConstantTween(0.0), weight: 12),
-    ]).animate(
-      CurvedAnimation(parent: _ctrl, curve: const Interval(0.18, 1.0)),
-    );
+    _frontOffsetX = TweenSequence<double>(
+      [
+        TweenSequenceItem(
+          tween: Tween(
+            begin: 0.0,
+            end: 16.0,
+          ).chain(CurveTween(curve: Curves.easeInOut)),
+          weight: 40,
+        ),
+        TweenSequenceItem(tween: ConstantTween(16.0), weight: 8),
+        TweenSequenceItem(
+          tween: Tween(
+            begin: 16.0,
+            end: 0.0,
+          ).chain(CurveTween(curve: Curves.easeInOut)),
+          weight: 40,
+        ),
+        TweenSequenceItem(tween: ConstantTween(0.0), weight: 12),
+      ],
+    ).animate(CurvedAnimation(parent: _ctrl, curve: const Interval(0.18, 1.0)));
 
     // Subtle float
-    _float = Tween<double>(begin: 0.0, end: -8.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
-    _shadowScale = Tween<double>(begin: 1.0, end: 1.4).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
+    _float = Tween<double>(
+      begin: 0.0,
+      end: -8.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _shadowScale = Tween<double>(
+      begin: 1.0,
+      end: 1.4,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
 
     _ctrl.forward().then((_) {
       _ctrl.repeat(reverse: true);
@@ -334,10 +334,7 @@ class _Card extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.white.withAlpha(28),
-                    Colors.transparent,
-                  ],
+                  colors: [Colors.white.withAlpha(28), Colors.transparent],
                 ),
               ),
             ),
@@ -353,10 +350,7 @@ class _Card extends StatelessWidget {
                   color: Colors.white,
                   shape: BoxShape.circle,
                   boxShadow: [
-                    BoxShadow(
-                      color: Colors.white.withAlpha(80),
-                      blurRadius: 6,
-                    ),
+                    BoxShadow(color: Colors.white.withAlpha(80), blurRadius: 6),
                   ],
                 ),
               ),
@@ -390,11 +384,15 @@ class _VeraCardIconState extends State<VeraCardIcon>
       duration: const Duration(milliseconds: 2400),
     )..repeat(reverse: true);
 
-    _backAngle = Tween<double>(begin: -0.22, end: -0.62)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _backAngle = Tween<double>(
+      begin: -0.22,
+      end: -0.62,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
 
-    _frontAngle = Tween<double>(begin: -0.22, end: 0.18)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _frontAngle = Tween<double>(
+      begin: -0.22,
+      end: 0.18,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override

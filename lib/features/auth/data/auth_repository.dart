@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/app_config.dart';
+import 'package:vera/core/network/biometric_session_store.dart';
 import 'package:vera/core/network/session_store.dart';
 
 class AuthRepository {
@@ -11,16 +12,17 @@ class AuthRepository {
     ApiClient? client,
     SessionStore? session,
     SessionNotifier? sessionNotifier,
-  })  : _session = session ?? defaultSessionStore,
-        // Con el cliente por defecto el repositorio notifica a la sesión global.
-        _sessionNotifier =
-            sessionNotifier ?? (client == null ? appSession : null),
-        _client = client ??
-            ApiClient(
-              baseUrl: AppConfig.baseUrl,
-              session: session ?? defaultSessionStore,
-              onSessionExpired: expireAppSession,
-            );
+  }) : _session = session ?? defaultSessionStore,
+       // Con el cliente por defecto el repositorio notifica a la sesión global.
+       _sessionNotifier =
+           sessionNotifier ?? (client == null ? appSession : null),
+       _client =
+           client ??
+           ApiClient(
+             baseUrl: AppConfig.baseUrl,
+             session: session ?? defaultSessionStore,
+             onSessionExpired: expireAppSession,
+           );
 
   final ApiClient _client;
   final SessionStore _session;
@@ -65,11 +67,13 @@ class AuthRepository {
     // Orden estricto: el router construye el Home al autenticar, así que
     // el perfil ya debe estar guardado para entonces.
     await saveTokens(access: result.accessToken, refresh: result.refreshToken);
-    await _session.saveProfile(SessionProfile(
-      nombreCompleto: result.nombreCompleto,
-      razonSocial: result.razonSocial,
-      tipoCuenta: result.tipoCuenta,
-    ));
+    await _session.saveProfile(
+      SessionProfile(
+        nombreCompleto: result.nombreCompleto,
+        razonSocial: result.razonSocial,
+        tipoCuenta: result.tipoCuenta,
+      ),
+    );
     _sessionNotifier?.setAuthenticated(true);
     return result;
   }
@@ -211,9 +215,84 @@ class AuthRepository {
     }
   }
 
+  // ── Biometría ─────────────────────────────────────────────────
+  BiometricSessionStore? get _biometria {
+    final store = _session;
+    return store is BiometricSessionStore ? store : null;
+  }
+
+  /// El dispositivo ofrece biometría. Sin ella la opción no se muestra.
+  Future<bool> biometriaDisponible() async =>
+      await _biometria?.isAvailable() ?? false;
+
+  Future<bool> biometriaHabilitada() async =>
+      await _biometria?.isEnrolled() ?? false;
+
+  /// Exige biometría para liberar el refresh. False si se cancela o falla.
+  Future<bool> habilitarBiometria() async =>
+      await _biometria?.enable() ?? false;
+
+  /// Libera el refresh con biometría y renueva la sesión en silencio. El
+  /// servidor solo ve el refresh, nunca la biometría.
+  Future<DesbloqueoBiometrico> desbloquearConBiometria() async {
+    final biometria = _biometria;
+    if (biometria == null || !await biometria.unlock()) {
+      return DesbloqueoBiometrico.cancelado;
+    }
+    try {
+      final refresh = await _session.readRefresh();
+      if (refresh == null || refresh.isEmpty) {
+        await _cerrarPorVencimiento();
+        return DesbloqueoBiometrico.sesionVencida;
+      }
+      final data = await _client.post('/v1/auth/refresh', {
+        'refresh_token': refresh,
+      }, auth: false);
+      final access = data['access_token'] as String?;
+      final nuevoRefresh = data['refresh_token'] as String?;
+      if (access == null || nuevoRefresh == null) {
+        await _cerrarPorVencimiento();
+        return DesbloqueoBiometrico.sesionVencida;
+      }
+      await _session.saveTokens(access: access, refresh: nuevoRefresh);
+      _sessionNotifier?.markUnlocked();
+      return DesbloqueoBiometrico.desbloqueado;
+    } on ApiException catch (e) {
+      if (e.statusCode == 401) {
+        await _cerrarPorVencimiento();
+        return DesbloqueoBiometrico.sesionVencida;
+      }
+      biometria.lock();
+      return DesbloqueoBiometrico.error;
+    } on SocketException {
+      biometria.lock();
+      return DesbloqueoBiometrico.sinRed;
+    } on TimeoutException {
+      biometria.lock();
+      return DesbloqueoBiometrico.sinRed;
+    } on http.ClientException {
+      biometria.lock();
+      return DesbloqueoBiometrico.sinRed;
+    }
+  }
+
+  /// Descarta la sesión bloqueada y la biometría: sigue el inicio de sesión
+  /// completo.
+  Future<void> abandonarSesionBloqueada() async {
+    try {
+      await clearTokens();
+    } finally {
+      _sessionNotifier?.setLocked(false);
+    }
+  }
+
+  Future<void> _cerrarPorVencimiento() => abandonarSesionBloqueada();
+
   // ── Recovery ──────────────────────────────────────────────────
   Future<String> recoveryRequest({required String correo}) async {
-    final data = await _client.post('/v1/auth/recovery/request', {'correo': correo});
+    final data = await _client.post('/v1/auth/recovery/request', {
+      'correo': correo,
+    });
     return data['challenge_id'] as String;
   }
 
@@ -233,14 +312,25 @@ class AuthRepository {
   Future<void> recoveryReset({
     required String resetToken,
     required String nuevaContrasena,
-  }) =>
-      _client.post('/v1/auth/recovery/reset', {
-        'reset_token': resetToken,
-        'nueva_contrasena': nuevaContrasena,
-      });
+  }) => _client.post('/v1/auth/recovery/reset', {
+    'reset_token': resetToken,
+    'nueva_contrasena': nuevaContrasena,
+  });
 }
 
 // ── Models ────────────────────────────────────────────────────────
+
+enum DesbloqueoBiometrico {
+  desbloqueado,
+
+  /// Biometría cancelada o fallida: el refresh no se liberó.
+  cancelado,
+
+  /// El refresh venció o superó el tope absoluto: toca el login completo.
+  sesionVencida,
+  sinRed,
+  error,
+}
 
 class LoginResult {
   const LoginResult({
@@ -306,7 +396,8 @@ class VerifyPhoneResult {
   final String estado;
   final List<String> codigosRespaldo;
 
-  factory VerifyPhoneResult.fromJson(Map<String, dynamic> j) => VerifyPhoneResult(
+  factory VerifyPhoneResult.fromJson(Map<String, dynamic> j) =>
+      VerifyPhoneResult(
         id: j['id'] as String? ?? '',
         celular: j['celular'] as String? ?? '',
         estado: j['estado'] as String? ?? '',
@@ -326,8 +417,8 @@ class ConsentimientoInput {
   final bool aceptado;
 
   Map<String, dynamic> toJson() => {
-        'tipo': tipo,
-        'version_texto': versionTexto,
-        'aceptado': aceptado,
-      };
+    'tipo': tipo,
+    'version_texto': versionTexto,
+    'aceptado': aceptado,
+  };
 }

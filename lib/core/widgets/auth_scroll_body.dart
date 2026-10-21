@@ -37,6 +37,8 @@ class EspacioFlexible extends StatelessWidget {
   final double minimo;
 
   @override
-  Widget build(BuildContext context) =>
-      Expanded(flex: flex, child: SizedBox(height: minimo));
+  Widget build(BuildContext context) => Expanded(
+    flex: flex,
+    child: SizedBox(height: minimo),
+  );
 }

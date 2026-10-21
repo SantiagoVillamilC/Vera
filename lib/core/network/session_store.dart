@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:vera/core/network/biometric_session_store.dart';
 
 /// Perfil mínimo de la cuenta que se conserva con la sesión.
 class SessionProfile {
@@ -89,29 +90,29 @@ class FlutterSecureStorageSessionStore implements SessionStore {
 
   @override
   Future<void> saveProfile(SessionProfile profile) => Future.wait([
-        _writeOrDelete(keyNombreCompleto, profile.nombreCompleto),
-        _writeOrDelete(keyRazonSocial, profile.razonSocial),
-        _writeOrDelete(keyTipoCuenta, profile.tipoCuenta),
-      ]);
+    _writeOrDelete(keyNombreCompleto, profile.nombreCompleto),
+    _writeOrDelete(keyRazonSocial, profile.razonSocial),
+    _writeOrDelete(keyTipoCuenta, profile.tipoCuenta),
+  ]);
 
   Future<void> _writeOrDelete(String key, String? value) =>
       value == null || value.isEmpty
-          ? _storage.delete(key: key)
-          : _storage.write(key: key, value: value);
+      ? _storage.delete(key: key)
+      : _storage.write(key: key, value: value);
 
   @override
   Future<void> clear() => Future.wait([
-        _storage.delete(key: keyAccessToken),
-        _storage.delete(key: keyRefreshToken),
-        _storage.delete(key: keyNombreCompleto),
-        _storage.delete(key: keyRazonSocial),
-        _storage.delete(key: keyTipoCuenta),
-        _storage.delete(key: keyDepositoPendiente),
-      ]);
+    _storage.delete(key: keyAccessToken),
+    _storage.delete(key: keyRefreshToken),
+    _storage.delete(key: keyNombreCompleto),
+    _storage.delete(key: keyRazonSocial),
+    _storage.delete(key: keyTipoCuenta),
+    _storage.delete(key: keyDepositoPendiente),
+  ]);
 }
 
 /// Instancia por defecto compartida por los repositorios.
-const SessionStore defaultSessionStore = FlutterSecureStorageSessionStore();
+final BiometricSessionStore defaultSessionStore = BiometricSessionStore();
 
 /// Sesion global de la app: la comparten el router y los repositorios por defecto.
 final SessionNotifier appSession = SessionNotifier();
@@ -122,12 +123,36 @@ void expireAppSession() => appSession.setAuthenticated(false);
 /// Estado de sesion observable para el router.
 class SessionNotifier extends ChangeNotifier {
   bool _authenticated = false;
+  bool _locked = false;
 
   bool get authenticated => _authenticated;
 
-  Future<void> load(SessionStore store) async {
+  /// Hay una sesión guardada pero cerrada con biometría: el router exige
+  /// desbloquear antes de mostrar nada privado.
+  bool get locked => _locked;
+
+  Future<void> load(SessionStore store, {bool locked = false}) async {
+    _locked = locked;
+    if (locked) {
+      setAuthenticated(false);
+      return;
+    }
     final access = await store.readAccess();
     setAuthenticated(access != null && access.isNotEmpty);
+  }
+
+  void setLocked(bool value) {
+    if (_locked == value) return;
+    _locked = value;
+    notifyListeners();
+  }
+
+  /// Un solo aviso al router: sale del bloqueo y entra autenticada.
+  void markUnlocked() {
+    if (!_locked && _authenticated) return;
+    _locked = false;
+    _authenticated = true;
+    notifyListeners();
   }
 
   void setAuthenticated(bool value) {
