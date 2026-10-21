@@ -135,9 +135,16 @@ class AsistenteRepository {
       '/v1/auth/consents',
       queryParams: {'tipo': 'asistente_ia'},
     );
-    return ConsentimientoAsistente.fromJson(
-      raw['data'] as Map<String, dynamic>? ?? {},
-    );
+    final data = raw['data'];
+    // El contrato filtrado devuelve el objeto vigente. Un servidor sin esa forma responde la
+    // lista del historial o nada: sin texto ni versión no hay nada que el usuario pueda autorizar.
+    if (data is! Map<String, dynamic>) {
+      throw const ApiException(
+        code: 'NotImplemented',
+        message: 'El servidor no expone el consentimiento del asistente.',
+      );
+    }
+    return ConsentimientoAsistente.fromJson(data);
   }
 
   /// POST /v1/auth/consents
