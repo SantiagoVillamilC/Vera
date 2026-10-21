@@ -11,9 +11,7 @@ class AuthBackground extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(
-            child: Container(color: AppColors.background),
-          ),
+          Positioned.fill(child: Container(color: AppColors.background)),
           Positioned(
             top: -180,
             right: -120,
@@ -33,10 +31,7 @@ class AuthBackground extends StatelessWidget {
           Positioned(
             bottom: -140,
             right: -60,
-            child: _GlowBlob(
-              color: AppColors.accent.withAlpha(20),
-              size: 320,
-            ),
+            child: _GlowBlob(color: AppColors.accent.withAlpha(20), size: 320),
           ),
           SafeArea(child: child),
         ],

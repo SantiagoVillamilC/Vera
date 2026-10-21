@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:vera/core/theme/app_theme.dart';
 
 class VeraLogo extends StatelessWidget {
-  const VeraLogo({super.key, this.size = 28, this.color = AppColors.textPrimary});
+  const VeraLogo({
+    super.key,
+    this.size = 28,
+    this.color = AppColors.textPrimary,
+  });
 
   final double size;
   final Color color;

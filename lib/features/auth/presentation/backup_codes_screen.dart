@@ -44,7 +44,11 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.accentGreen.withAlpha(80)),
               ),
-              child: const Icon(Icons.shield_outlined, color: AppColors.accentGreen, size: 28),
+              child: const Icon(
+                Icons.shield_outlined,
+                color: AppColors.accentGreen,
+                size: 28,
+              ),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -59,7 +63,11 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> {
             const SizedBox(height: 10),
             const Text(
               'Guarda estos códigos en un lugar seguro. Cada uno solo puede usarse una vez para recuperar tu cuenta si pierdes acceso a tu contraseña.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.55),
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 15,
+                height: 1.55,
+              ),
             ),
             const SizedBox(height: 28),
             _CodesGrid(codes: widget.codes),
@@ -104,7 +112,11 @@ class _SinCodigos extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 44),
+            const Icon(
+              Icons.error_outline_rounded,
+              color: AppColors.error,
+              size: 44,
+            ),
             const SizedBox(height: 20),
             const Text(
               'No pudimos mostrar tus códigos de respaldo',
@@ -117,7 +129,11 @@ class _SinCodigos extends StatelessWidget {
             const SizedBox(height: 10),
             const Text(
               'Los códigos no llegaron completos. Inicia sesión para continuar y revisa tu cuenta.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.55),
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 15,
+                height: 1.55,
+              ),
             ),
             const SizedBox(height: 28),
             GradientButton(
@@ -197,14 +213,20 @@ class _ConfirmCheckbox extends StatelessWidget {
               onChanged: onChanged,
               activeColor: AppColors.accentGreen,
               side: const BorderSide(color: AppColors.border, width: 1.5),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(5),
+              ),
             ),
           ),
           const SizedBox(width: 12),
           const Expanded(
             child: Text(
               'Guardé mis códigos de respaldo en un lugar seguro',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.4),
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+                height: 1.4,
+              ),
             ),
           ),
         ],

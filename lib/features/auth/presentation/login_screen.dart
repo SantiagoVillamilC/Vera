@@ -17,7 +17,9 @@ class LoginScreen extends StatefulWidget {
     this.repository,
     this.showcase = const bool.fromEnvironment('SHOWCASE'),
     this.showcaseCelular = const String.fromEnvironment('SHOWCASE_CELULAR'),
-    this.showcaseContrasena = const String.fromEnvironment('SHOWCASE_CONTRASENA'),
+    this.showcaseContrasena = const String.fromEnvironment(
+      'SHOWCASE_CONTRASENA',
+    ),
   });
 
   final AuthRepository? repository;
@@ -102,10 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 8),
               const Text(
                 'Ingresa con tu número de celular',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 15,
-                ),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
               ),
               const SizedBox(height: 28),
               _GlassCard(
@@ -136,7 +135,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       fontWeight: FontWeight.w400,
                       letterSpacing: 1.5,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 20,
+                    ),
                     prefixIcon: const Padding(
                       padding: EdgeInsets.only(left: 20, right: 12),
                       child: Row(
@@ -155,7 +157,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           SizedBox(width: 10),
                           SizedBox(
                             height: 22,
-                            child: VerticalDivider(color: AppColors.border, width: 1),
+                            child: VerticalDivider(
+                              color: AppColors.border,
+                              width: 1,
+                            ),
                           ),
                         ],
                       ),
@@ -181,7 +186,9 @@ class _LoginScreenState extends State<LoginScreen> {
               Center(
                 child: TextButton(
                   onPressed: () => context.go('/register'),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.textSecondary,
+                  ),
                   child: const Text.rich(
                     TextSpan(
                       text: '¿No tienes cuenta? ',
@@ -221,7 +228,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   Center(
                     child: Text(
                       _showcaseError!,
-                      style: const TextStyle(color: AppColors.error, fontSize: 13),
+                      style: const TextStyle(
+                        color: AppColors.error,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
               ],
@@ -319,7 +329,10 @@ class _PinScreenState extends State<PinScreen> {
               const SizedBox(height: 8),
               Text(
                 _maskedPhone,
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 16),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 16,
+                ),
               ),
               const SizedBox(height: 32),
               PasswordField(
@@ -344,9 +357,16 @@ class _PinScreenState extends State<PinScreen> {
               const SizedBox(height: 16),
               Center(
                 child: TextButton(
-                  onPressed: _loading ? null : () => context.push('/login/recovery'),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
-                  child: const Text('¿Olvidaste tu contraseña?', style: TextStyle(fontSize: 14)),
+                  onPressed: _loading
+                      ? null
+                      : () => context.push('/login/recovery'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.textSecondary,
+                  ),
+                  child: const Text(
+                    '¿Olvidaste tu contraseña?',
+                    style: TextStyle(fontSize: 14),
+                  ),
                 ),
               ),
               const SizedBox(height: 32),
@@ -357,7 +377,6 @@ class _PinScreenState extends State<PinScreen> {
     );
   }
 }
-
 
 class _GlassCard extends StatelessWidget {
   const _GlassCard({required this.child});

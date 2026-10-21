@@ -32,7 +32,7 @@ class PinDots extends StatelessWidget {
                     BoxShadow(
                       color: AppColors.gradientMid.withAlpha(100),
                       blurRadius: 8,
-                    )
+                    ),
                   ]
                 : null,
           ),

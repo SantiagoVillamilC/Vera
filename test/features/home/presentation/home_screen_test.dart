@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/features/home/presentation/home_screen.dart';
 import 'package:vera/features/home/presentation/movimientos_tab.dart';
@@ -85,8 +86,9 @@ String _ubicacion(GoRouter router) =>
     router.routerDelegate.currentConfiguration.last.matchedLocation;
 
 void main() {
-  testWidgets('Recargar navega a /recargar sin SnackBar de Próximamente',
-      (tester) async {
+  testWidgets('Recargar navega a /recargar sin SnackBar de Próximamente', (
+    tester,
+  ) async {
     final router = await _pumpConRouter(tester);
 
     await tester.tap(find.text('Recargar'));
@@ -105,15 +107,17 @@ void main() {
     expect(_ubicacion(router), '/enviar-llave');
   });
 
-  testWidgets('sin depósito pendiente no hay aviso de recarga pendiente',
-      (tester) async {
+  testWidgets('sin depósito pendiente no hay aviso de recarga pendiente', (
+    tester,
+  ) async {
     await _pumpConRouter(tester);
 
     expect(find.text('Tienes una recarga pendiente'), findsNothing);
   });
 
-  testWidgets('con depósito pendiente el aviso lleva a /recargar',
-      (tester) async {
+  testWidgets('con depósito pendiente el aviso lleva a /recargar', (
+    tester,
+  ) async {
     final session = FakeSessionStore()..pendingDeposit = 'dep-1';
     final router = await _pumpConRouter(tester, session: session);
 
@@ -124,8 +128,9 @@ void main() {
     expect(_ubicacion(router), '/recargar');
   });
 
-  testWidgets('el aviso desaparece al volver si el depósito ya no está',
-      (tester) async {
+  testWidgets('el aviso desaparece al volver si el depósito ya no está', (
+    tester,
+  ) async {
     final session = FakeSessionStore()..pendingDeposit = 'dep-1';
     final router = await _pumpConRouter(tester, session: session);
 
@@ -138,8 +143,9 @@ void main() {
     expect(find.text('Tienes una recarga pendiente'), findsNothing);
   });
 
-  testWidgets('a 320x640 con aviso pendiente no hay desborde de RenderFlex',
-      (tester) async {
+  testWidgets('a 320x640 con aviso pendiente no hay desborde de RenderFlex', (
+    tester,
+  ) async {
     await _cargarRoboto();
     await _pumpConRouter(
       tester,
@@ -150,8 +156,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('monta con una sola petición de saldo y una de movimientos',
-      (tester) async {
+  testWidgets('monta con una sola petición de saldo y una de movimientos', (
+    tester,
+  ) async {
     final repo = FakeNucleoRepository();
     await _pump(tester, repo);
 
@@ -160,8 +167,9 @@ void main() {
     expect(repo.movimientosCalls.single.limit, 3);
   });
 
-  testWidgets('un build repetido no relanza la petición de movimientos',
-      (tester) async {
+  testWidgets('un build repetido no relanza la petición de movimientos', (
+    tester,
+  ) async {
     final repo = FakeNucleoRepository();
     await _pump(tester, repo);
 
@@ -175,8 +183,9 @@ void main() {
     expect(repo.saldoCalls, 1);
   });
 
-  testWidgets('un error del preview muestra mensaje y Reintentar, no vacío',
-      (tester) async {
+  testWidgets('un error del preview muestra mensaje y Reintentar, no vacío', (
+    tester,
+  ) async {
     final repo = FakeNucleoRepository()
       ..onMovimientos = (_, _) async => throw const FormatException('malo');
     await _pump(tester, repo);
@@ -186,8 +195,9 @@ void main() {
     expect(find.text('Sin movimientos aún'), findsNothing);
     expect(find.textContaining('FormatException'), findsNothing);
 
-    repo.onMovimientos =
-        (_, _) async => pagina([mov(1, [(MotivoLinea.deposito, 500000)])]);
+    repo.onMovimientos = (_, _) async => pagina([
+      mov(1, [(MotivoLinea.deposito, 500000)]),
+    ]);
     await tester.tap(find.text('Reintentar'));
     await tester.pump();
     await tester.pump();
@@ -197,8 +207,9 @@ void main() {
     expect(find.text('Depósito'), findsOneWidget);
   });
 
-  testWidgets('una lista vacía muestra el vacío sin Reintentar',
-      (tester) async {
+  testWidgets('una lista vacía muestra el vacío sin Reintentar', (
+    tester,
+  ) async {
     final repo = FakeNucleoRepository();
     await _pump(tester, repo);
 
@@ -224,6 +235,160 @@ void main() {
     expect(repo.movimientosCalls, hasLength(2));
   });
 
+  group('bloque de depósito de bajo monto', () {
+    testWidgets('muestra tope mensual y disponible del mes', (tester) async {
+      final repo = FakeNucleoRepository()
+        ..onKyc = () async => KycEstado(
+          producto: 'bajo_monto',
+          estadoKyc: 'basico',
+          topeMensual: BigInt.from(100000000),
+          disponibleMes: BigInt.from(60000000),
+        );
+      await _pump(tester, repo);
+      await tester.pump();
+
+      expect(find.text('Depósito de bajo monto'), findsOneWidget);
+      expect(find.text('Disponible del mes'), findsOneWidget);
+      expect(find.text('Tope mensual'), findsOneWidget);
+      expect(find.text(formatPesos(BigInt.from(60000000))), findsOneWidget);
+      expect(find.text(formatPesos(BigInt.from(100000000))), findsOneWidget);
+    });
+
+    testWidgets(
+      'sin límites del backend avisa que el cupo no está disponible',
+      (tester) async {
+        await _pump(tester, FakeNucleoRepository());
+        await tester.pump();
+
+        expect(find.text('Depósito de bajo monto'), findsOneWidget);
+        expect(
+          find.text('Tu cupo mensual aún no está disponible.'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('otro producto no muestra el bloque', (tester) async {
+      final repo = FakeNucleoRepository()
+        ..onKyc = () async =>
+            const KycEstado(producto: 'pleno', estadoKyc: 'verificado');
+      await _pump(tester, repo);
+      await tester.pump();
+
+      expect(find.byKey(const Key('bloque_bajo_monto')), findsNothing);
+    });
+
+    testWidgets('si kyc/estado falla el Home sigue y el bloque no aparece', (
+      tester,
+    ) async {
+      final repo = FakeNucleoRepository()
+        ..onKyc = () async => throw const SocketException('sin red');
+      await _pump(tester, repo);
+      await tester.pump();
+
+      expect(find.byKey(const Key('bloque_bajo_monto')), findsNothing);
+      expect(find.textContaining(r'$'), findsWidgets);
+    });
+
+    testWidgets('deslizar hacia abajo vuelve a consultar el estado', (
+      tester,
+    ) async {
+      final repo = FakeNucleoRepository();
+      await _pump(tester, repo);
+      await tester.pump();
+
+      await tester.fling(
+        find.byType(SingleChildScrollView),
+        const Offset(0, 400),
+        1000,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(repo.kycCalls, 2);
+    });
+  });
+
+  testWidgets('cuenta sin movimientos muestra \$0 sin error', (tester) async {
+    final repo = FakeNucleoRepository()
+      ..onSaldo = () async => MontoCalculado(
+        montoCentavos: BigInt.zero,
+        moneda: 'COP',
+        calculadoEn: DateTime.utc(2026),
+      );
+    await _pump(tester, repo);
+    await tester.pump();
+
+    expect(find.text(formatPesos(BigInt.zero)), findsOneWidget);
+    expect(find.text('Error al cargar'), findsNothing);
+  });
+
+  testWidgets(
+    'el botón central del micrófono se anuncia como Hablar con Vera',
+    (tester) async {
+      final semantica = tester.ensureSemantics();
+      await _pump(tester, FakeNucleoRepository());
+
+      expect(find.bySemanticsLabel('Hablar con Vera'), findsOneWidget);
+      semantica.dispose();
+    },
+  );
+
+  testWidgets('al volver del chat de Vera se refresca el saldo', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repo = FakeNucleoRepository();
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (_, _) =>
+              HomeScreen(repository: repo, session: FakeSessionStore()),
+        ),
+        GoRoute(
+          path: '/asistente',
+          builder: (context, _) => Scaffold(
+            body: TextButton(
+              onPressed: () => context.pop(),
+              child: const Text('volver'),
+            ),
+          ),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pump();
+    await tester.pump();
+    final antes = repo.saldoCalls;
+
+    await tester.tap(find.byIcon(Icons.mic_rounded).last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('volver'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+
+    expect(repo.saldoCalls, antes + 1);
+  });
+
+  testWidgets('el acceso Historial abre la pestaña de movimientos', (
+    tester,
+  ) async {
+    await _pump(tester, FakeNucleoRepository());
+    expect(find.byType(MovimientosTab), findsNothing);
+
+    await tester.tap(find.text('Historial'));
+    await tester.pump();
+
+    expect(find.byType(MovimientosTab), findsOneWidget);
+  });
+
   testWidgets('Ver todos navega a la pestaña de movimientos', (tester) async {
     final repo = FakeNucleoRepository();
     await _pump(tester, repo);
@@ -235,8 +400,9 @@ void main() {
     expect(find.byType(MovimientosTab), findsOneWidget);
   });
 
-  testWidgets('la compensación muestra filas con signo y ningún -\$0',
-      (tester) async {
+  testWidgets('la compensación muestra filas con signo y ningún -\$0', (
+    tester,
+  ) async {
     final repo = FakeNucleoRepository()
       ..onMovimientos = (_, _) async => pagina([movCompensado(1)]);
     await _pump(tester, repo);
@@ -255,12 +421,10 @@ void main() {
   testWidgets('la fecha del preview usa la hora local', (tester) async {
     final repo = FakeNucleoRepository()
       ..onMovimientos = (_, _) async => pagina([
-            mov(
-              1,
-              [(MotivoLinea.deposito, 100000)],
-              ocurridoEn: DateTime.utc(2025, 3, 10, 2, 30),
-            ),
-          ]);
+        mov(1, [
+          (MotivoLinea.deposito, 100000),
+        ], ocurridoEn: DateTime.utc(2025, 3, 10, 2, 30)),
+      ]);
     await _pump(tester, repo, offset: const Duration(hours: -8));
 
     expect(find.text('9 mar'), findsOneWidget);
@@ -270,16 +434,17 @@ void main() {
   testWidgets('a 320x640 no hay desborde de RenderFlex', (tester) async {
     final repo = FakeNucleoRepository()
       ..onMovimientos = (_, _) async => pagina([
-            movCompensado(1),
-            mov(2, [(MotivoLinea.transferenciaRecibida, 2500000)]),
-          ]);
+        movCompensado(1),
+        mov(2, [(MotivoLinea.transferenciaRecibida, 2500000)]),
+      ]);
     await _pump(tester, repo, size: const Size(320, 640), fuenteReal: true);
 
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('la tarjeta mini muestra el rótulo y el número enmascarado',
-      (tester) async {
+  testWidgets('la tarjeta mini muestra el rótulo y el número enmascarado', (
+    tester,
+  ) async {
     await _pump(tester, FakeNucleoRepository());
 
     expect(find.text('Vera Débito'), findsOneWidget);

@@ -176,7 +176,18 @@ Cerrar sesión: el botón de Perfil llama a `AuthRepository.logout()` (Bearer y 
 
 Las pantallas reciben el repositorio por un parámetro opcional de constructor (por defecto el real) para pruebas con fakes.
 
-Pendientes: N-17 (contexto de empresa en login), textos legales de consentimiento (decisión 2), salida del lado del servidor para N-6 (S8), biometría (SCRUM-81) y el supuesto del lote 0 de la contraseña de 8 a 64 (`openapi.yaml:1091-1097`), por confirmar con Santiago y Valeria.
+Pendientes: N-17 (contexto de empresa en login), textos legales de consentimiento (decisión 2), salida del lado del servidor para N-6 (S8), el supuesto del lote 0 de la contraseña de 8 a 64 (`openapi.yaml:1091-1097`), por confirmar con Santiago y Valeria.
+
+### Desbloqueo biométrico (HU-AUT-04, AUT-A3-01)
+
+Es una cerradura local: el servidor nunca recibe la plantilla ni el resultado. Con la biometría
+habilitada (interruptor en Perfil, solo si el dispositivo la ofrece), el refresh se guarda cifrado
+(AES-GCM) con una clave que solo libera `biometric_storage` (Keystore/Keychain). La clave vive en
+memoria mientras la sesión está desbloqueada, así la rotación del refresh no pide biometría cada vez.
+Al abrir la app, `SessionNotifier.locked` lleva a `/desbloqueo`: biometría válida, refresh liberado y
+`POST /v1/auth/refresh` en silencio. Cancelada o fallida, no se libera nada. Un 401 del refresh
+(vencido o tope absoluto) borra el enrolamiento y exige el login completo. Desactivarla cierra la
+sesión. Código en `lib/core/network/biometric_session_store.dart` y `lib/core/security/`.
 
 ### Registro
 1. Selector de tipo: `_AccountType.persona` | `_AccountType.empresa`
