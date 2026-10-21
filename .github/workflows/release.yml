@@ -1,11 +1,22 @@
-# Publica un GitHub Release con el APK firmado. Se dispara al empujar un tag
-# vX.Y.Z y solo acepta tags cuyo commit ya esté en main. La keystore vive en
+# Publica un GitHub Release con el APK firmado. Dos disparadores, un solo
+# camino de construcción y firma:
+#   - push de un tag vX.Y.Z, para publicar un tag que ya existe.
+#   - workflow_dispatch con la versión como entrada, que crea el tag en el
+#     commit de main desde el que se despacha. Es la vía normal: la versión se
+#     decide a mano y la mecánica queda automatizada.
+# En ambos casos el commit debe estar contenido en main. La keystore vive en
 # los secrets del repositorio; el respaldo está en la VPS (/opt/centinela/secrets/android).
 name: Release APK
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versión a publicar, sin la v (ejemplo 1.0.1)"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -16,7 +27,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Verify tag and run tests
+    name: Verify version and run tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -24,7 +35,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Tag must be reachable from main
+      - name: La versión despachada debe ser semver
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "La versión \"$VERSION\" no tiene la forma X.Y.Z." >&2
+            exit 1
+          fi
+
+      - name: El commit debe estar contenido en main
         run: |
           git fetch origin main
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main
@@ -51,7 +72,7 @@ jobs:
     permissions:
       contents: write
     env:
-      TAG_NAME: ${{ github.ref_name }}
+      TAG_NAME: ${{ inputs.version != '' && format('v{0}', inputs.version) || github.ref_name }}
       API_BASE_URL: https://veraapp.tech
     steps:
       - name: Checkout
@@ -103,11 +124,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$TAG_NAME" \
-            "vera-${TAG_NAME}.apk" "vera-${TAG_NAME}.apk.sha256" \
-            --title "Vera ${TAG_NAME}" \
-            --generate-notes \
-            --verify-tag
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            # El tag no existe todavía: lo crea gh release create en el commit
+            # desde el que se despachó, que el paso anterior ya confirmó que
+            # está contenido en main.
+            gh release create "$TAG_NAME" \
+              "vera-${TAG_NAME}.apk" "vera-${TAG_NAME}.apk.sha256" \
+              --title "Vera ${TAG_NAME}" \
+              --generate-notes \
+              --target "$GITHUB_SHA"
+          else
+            gh release create "$TAG_NAME" \
+              "vera-${TAG_NAME}.apk" "vera-${TAG_NAME}.apk.sha256" \
+              --title "Vera ${TAG_NAME}" \
+              --generate-notes \
+              --verify-tag
+          fi
 
   ios:
     name: Build unsigned IPA and attach to release
@@ -117,7 +149,7 @@ jobs:
     permissions:
       contents: write
     env:
-      TAG_NAME: ${{ github.ref_name }}
+      TAG_NAME: ${{ inputs.version != '' && format('v{0}', inputs.version) || github.ref_name }}
       API_BASE_URL: https://veraapp.tech
     steps:
       - name: Checkout
