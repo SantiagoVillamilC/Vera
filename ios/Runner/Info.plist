@@ -24,6 +24,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Vera usa Face ID para desbloquear tu billetera sin escribir tu contraseña.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Vera usa el micrófono para que puedas hablarle a tu asistente.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

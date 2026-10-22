@@ -1,7 +1,11 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/session_store.dart';
+import 'package:vera/features/asistente/presentation/asistente_screen.dart';
+import 'package:vera/features/asistente/presentation/historial_screen.dart';
 import 'package:vera/features/auth/data/auth_repository.dart';
 import 'package:vera/features/auth/presentation/backup_codes_screen.dart';
+import 'package:vera/features/auth/presentation/desbloqueo_screen.dart';
 import 'package:vera/features/auth/presentation/login_screen.dart';
 import 'package:vera/features/auth/presentation/recovery_screen.dart';
 import 'package:vera/features/auth/presentation/register_screen.dart';
@@ -12,6 +16,10 @@ import 'package:vera/features/home/presentation/home_screen.dart';
 import 'package:vera/features/home/presentation/recargar_screen.dart';
 import 'package:vera/features/inteligencia/presentation/movimientos_enriquecidos_screen.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
+
+/// Solo desarrollo: `--dart-define=SKIP_LOGIN=true` entra directo a `/home` sin sesión
+/// para revisar pantallas. Se ignora fuera de modo debug.
+const _skipLogin = bool.fromEnvironment('SKIP_LOGIN') && kDebugMode;
 
 bool _isPublicLocation(String path) =>
     path == '/login' ||
@@ -29,16 +37,22 @@ GoRouter buildRouter(
   SessionStore? sessionStore,
   NucleoRepository? nucleoRepository,
 }) => GoRouter(
-  initialLocation: '/login',
+  initialLocation: _skipLogin ? '/home' : '/login',
   refreshListenable: session,
   redirect: (context, state) {
     final path = state.uri.path;
+    if (_skipLogin) return null;
+    if (session.locked) return path == '/desbloqueo' ? null : '/desbloqueo';
     if (!session.authenticated) {
       return _isPublicLocation(path) ? null : '/login';
     }
-    return path == '/login' ? '/home' : null;
+    return path == '/login' || path == '/desbloqueo' ? '/home' : null;
   },
   routes: [
+    GoRoute(
+      path: '/desbloqueo',
+      builder: (context, state) => DesbloqueoScreen(repository: authRepository),
+    ),
     GoRoute(
       path: '/login',
       builder: (context, state) => const LoginScreen(),
@@ -87,6 +101,17 @@ GoRouter buildRouter(
         session: sessionStore,
         repository: nucleoRepository,
       ),
+    ),
+    GoRoute(
+      path: '/asistente',
+      builder: (context, state) =>
+          AsistenteScreen(conversacionId: state.extra as String?),
+      routes: [
+        GoRoute(
+          path: 'historial',
+          builder: (context, state) => const HistorialAsistenteScreen(),
+        ),
+      ],
     ),
     GoRoute(
       path: '/enviar',

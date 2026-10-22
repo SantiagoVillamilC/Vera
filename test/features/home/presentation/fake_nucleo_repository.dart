@@ -12,13 +12,25 @@ class FakeNucleoRepository implements NucleoRepository {
   Future<MovimientosPage> Function(int limit, int? cursor) onMovimientos =
       (limit, cursor) async => pagina(const []);
 
+  Future<KycEstado> Function() onKyc = () async => const KycEstado(
+        producto: 'bajo_monto',
+        estadoKyc: 'basico',
+      );
+
   int saldoCalls = 0;
+  int kycCalls = 0;
   final movimientosCalls = <({int limit, int? cursor})>[];
 
   @override
   Future<MontoCalculado> getSaldo() {
     saldoCalls++;
     return onSaldo();
+  }
+
+  @override
+  Future<KycEstado> getKycEstado() {
+    kycCalls++;
+    return onKyc();
   }
 
   @override

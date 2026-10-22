@@ -64,10 +64,21 @@ class _MovimientosEnriquecidosScreenState
       });
     } catch (e) {
       if (!mounted || gen != _generacion) return;
-      setState(() {
-        _error = mensajeDeError(e);
-        _cargando = false;
-      });
+      final mensaje = mensajeDeError(e);
+      if (_movimientos.isEmpty) {
+        setState(() {
+          _error = mensaje;
+          _cargando = false;
+        });
+      } else {
+        // Una recarga fallida no borra lo que el usuario ya está viendo.
+        setState(() => _cargando = false);
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(content: Text('No se pudo actualizar. $mensaje')),
+          );
+      }
     }
   }
 
@@ -91,6 +102,15 @@ class _MovimientosEnriquecidosScreenState
         nombreComercio: elegida.nombreComercio,
       );
       if (!mounted) return;
+      setState(() {
+        _movimientos = [
+          for (final m in _movimientos)
+            if (m.transaccionId == resultado.movimiento.transaccionId)
+              resultado.movimiento
+            else
+              m,
+        ];
+      });
       messenger.showSnackBar(
         SnackBar(content: Text(_textoDeCambios(resultado.filasCambiadas))),
       );
@@ -187,7 +207,7 @@ class _MovimientosEnriquecidosScreenState
                 ),
                 SizedBox(height: 2),
                 Text(
-                  'Vera clasifica, tú corriges',
+                  'Sugerencias que puedes confirmar',
                   style: TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 12,
@@ -222,11 +242,17 @@ class _MovimientosEnriquecidosScreenState
 
   Widget _buildResumen() {
     final sinCategoria = _movimientos.where((m) => m.sinCategoria).length;
+    final sugeridas = _movimientos.where((m) => m.categoriaSugerida).length;
     final texto = _cargando || _error != null
         ? 'Un momento'
         : sinCategoria == 0
             ? 'Todos los movimientos tienen categoría'
             : '$sinCategoria de ${_movimientos.length} sin categoría';
+    final leyenda = sugeridas == 0
+        ? 'Toca una etiqueta para corregir'
+        : sugeridas == 1
+            ? '1 sugerida por Vera, toca para confirmar'
+            : '$sugeridas sugeridas por Vera, toca para confirmar';
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       child: Container(
@@ -245,19 +271,30 @@ class _MovimientosEnriquecidosScreenState
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                texto,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    texto,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    leyenda,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const Text(
-              'Toca una etiqueta',
-              style: TextStyle(color: AppColors.textMuted, fontSize: 11),
             ),
           ],
         ),
@@ -370,9 +407,17 @@ class _TileEnriquecido extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                _EtiquetaDeCategoria(
-                  movimiento: m,
-                  onTap: onCorregir == null ? null : () => onCorregir!(m),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _EtiquetaDeCategoria(
+                      movimiento: m,
+                      onTap: onCorregir == null ? null : () => onCorregir!(m),
+                    ),
+                    if (m.categoriaSugerida) const _SugeridaBadge(),
+                  ],
                 ),
               ],
             ),
@@ -420,12 +465,14 @@ class _EtiquetaDeCategoria extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              sin ? Icons.add_rounded : Icons.sell_outlined,
-              size: 12,
-              color: sin ? AppColors.accent : AppColors.textSecondary,
-            ),
-            const SizedBox(width: 5),
+            if (!sin) ...[
+              const Icon(
+                Icons.sell_outlined,
+                size: 12,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 5),
+            ],
             Text(
               sin ? '+ Categoría' : movimiento.categoriaNombre,
               style: TextStyle(
@@ -440,3 +487,37 @@ class _EtiquetaDeCategoria extends StatelessWidget {
     );
   }
 }
+
+/// Marca de que la categoría la propuso la cascada y falta confirmarla.
+class _SugeridaBadge extends StatelessWidget {
+  const _SugeridaBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('marca-sugerida'),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withAlpha(20),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.accent.withAlpha(90)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.auto_awesome_rounded, size: 10, color: AppColors.accent),
+          SizedBox(width: 4),
+          Text(
+            'Sugerida',
+            style: TextStyle(
+              color: AppColors.accent,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

@@ -46,6 +46,13 @@ class NucleoRepository {
     return MontoCalculado.fromJson(raw['data'] as Map<String, dynamic>? ?? raw);
   }
 
+  /// GET /v1/kyc/estado
+  /// Producto, estado de KYC y, cuando el backend los envía, los límites.
+  Future<KycEstado> getKycEstado() async {
+    final raw = await _client.get('/v1/kyc/estado');
+    return KycEstado.fromJson(raw['data'] as Map<String, dynamic>? ?? raw);
+  }
+
   /// GET /v1/transferencias/maximo
   /// Monto máximo enviable sin quedar sin saldo por el GMF.
   Future<MontoCalculado> getMontoMaximo() async {
@@ -311,6 +318,41 @@ class MontoCalculado {
         calculadoEn: _parseFecha(j['calculado_en'], 'calculado_en'),
       );
 }
+
+/// Estado de KYC del contexto activo. Hoy el backend responde `limites` vacío
+/// (auth no calcula dinero), así que el tope y el disponible del mes son
+/// opcionales: los nombres `tope_mensual` y `disponible_mes` (centavos como
+/// string) son los esperados cuando el backend los exponga.
+class KycEstado {
+  const KycEstado({
+    required this.producto,
+    required this.estadoKyc,
+    this.topeMensual,
+    this.disponibleMes,
+  });
+
+  final String producto;
+  final String estadoKyc;
+  final BigInt? topeMensual;
+  final BigInt? disponibleMes;
+
+  bool get esBajoMonto => producto == 'bajo_monto';
+  bool get tieneLimites => topeMensual != null && disponibleMes != null;
+
+  factory KycEstado.fromJson(Map<String, dynamic> j) {
+    final limites = j['limites'];
+    final mapa = limites is Map<String, dynamic> ? limites : const {};
+    return KycEstado(
+      producto: j['producto'] as String? ?? '',
+      estadoKyc: j['estado_kyc'] as String? ?? '',
+      topeMensual: _montoOpcional(mapa['tope_mensual']),
+      disponibleMes: _montoOpcional(mapa['disponible_mes']),
+    );
+  }
+}
+
+BigInt? _montoOpcional(Object? raw) =>
+    raw is String && _enteroRe.hasMatch(raw) ? BigInt.parse(raw) : null;
 
 /// Motivos posibles de una línea de movimiento.
 enum MotivoLinea {

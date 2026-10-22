@@ -8,23 +8,24 @@ const mensajeSinRed = 'Sin conexión. Revisa tu internet e intenta de nuevo.';
 
 /// Sin dart:io para que compile en web: en web los fallos de red llegan como
 /// http.ClientException.
-bool esErrorDeRed(Object e) => e is TimeoutException || e is http.ClientException;
+bool esErrorDeRed(Object e) =>
+    e is TimeoutException || e is http.ClientException;
 
 enum _Tipo { cargando, vacio, sinRed, error }
 
 class EstadoVista extends StatelessWidget {
   const EstadoVista.cargando({super.key})
-      : _tipo = _Tipo.cargando,
-        mensaje = null,
-        onReintentar = null;
+    : _tipo = _Tipo.cargando,
+      mensaje = null,
+      onReintentar = null;
 
   const EstadoVista.vacio({super.key, this.mensaje = 'Sin datos'})
-      : _tipo = _Tipo.vacio,
-        onReintentar = null;
+    : _tipo = _Tipo.vacio,
+      onReintentar = null;
 
   const EstadoVista.sinRed({super.key, required this.onReintentar})
-      : _tipo = _Tipo.sinRed,
-        mensaje = mensajeSinRed;
+    : _tipo = _Tipo.sinRed,
+      mensaje = mensajeSinRed;
 
   const EstadoVista.error({
     super.key,

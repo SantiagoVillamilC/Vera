@@ -5,7 +5,10 @@ import 'package:vera/core/network/session_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await appSession.load(defaultSessionStore);
+  await appSession.load(
+    defaultSessionStore,
+    locked: await defaultSessionStore.requiresUnlock(),
+  );
   runApp(
     const ProviderScope(
       child: App(),

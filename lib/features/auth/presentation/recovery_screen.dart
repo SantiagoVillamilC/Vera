@@ -37,16 +37,20 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
-      final challengeId = await _repo.recoveryRequest(correo: _correoCtrl.text.trim());
+      final challengeId = await _repo.recoveryRequest(
+        correo: _correoCtrl.text.trim(),
+      );
       if (!mounted) return;
-      context.push('/login/recovery/otp', extra: {
-        'correo': _correoCtrl.text.trim(),
-        'challengeId': challengeId,
-      });
+      context.push(
+        '/login/recovery/otp',
+        extra: {'correo': _correoCtrl.text.trim(), 'challengeId': challengeId},
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
@@ -90,9 +94,15 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.gradientMid.withAlpha(30),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.gradientMid.withAlpha(80)),
+                    border: Border.all(
+                      color: AppColors.gradientMid.withAlpha(80),
+                    ),
                   ),
-                  child: const Icon(Icons.lock_reset_rounded, color: AppColors.gradientStart, size: 28),
+                  child: const Icon(
+                    Icons.lock_reset_rounded,
+                    color: AppColors.gradientStart,
+                    size: 28,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 const Text(
@@ -107,7 +117,11 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
                 const SizedBox(height: 10),
                 const Text(
                   'Ingresa el correo electrónico de tu cuenta. Enviaremos un código de verificación por WhatsApp.',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.55),
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 15,
+                    height: 1.55,
+                  ),
                 ),
                 const SizedBox(height: 32),
                 TextFormField(
@@ -116,14 +130,19 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _sendOtp(),
                   autofocus: true,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 15,
+                  ),
                   decoration: const InputDecoration(
                     hintText: 'tu@correo.com',
                     prefixIcon: Icon(Icons.mail_outline_rounded, size: 20),
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Ingresa tu correo';
-                    if (!RegExp(r'^[\w.+-]+@[\w-]+\.\w+$').hasMatch(v)) return 'Correo inválido';
+                    if (!RegExp(r'^[\w.+-]+@[\w-]+\.\w+$').hasMatch(v)) {
+                      return 'Correo inválido';
+                    }
                     return null;
                   },
                 ),
@@ -219,11 +238,19 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
       context.push('/login/recovery/new-pin', extra: resetToken);
     } on ApiException catch (e) {
       if (!mounted) return;
-      setState(() { _loading = false; _otp = ''; });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
+      setState(() {
+        _loading = false;
+        _otp = '';
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
     } catch (_) {
       if (!mounted) return;
-      setState(() { _loading = false; _otp = ''; });
+      setState(() {
+        _loading = false;
+        _otp = '';
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error de conexión. Intenta de nuevo.')),
       );
@@ -257,8 +284,9 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
           _resendClosed = true;
         }
       });
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
     }
   }
 
@@ -268,12 +296,19 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
         children: [
           TextButton(
             onPressed: () => context.go('/login/recovery'),
-            style: TextButton.styleFrom(foregroundColor: AppColors.gradientStart),
-            child: const Text('Volver a empezar', style: TextStyle(fontWeight: FontWeight.w600)),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.gradientStart,
+            ),
+            child: const Text(
+              'Volver a empezar',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
           TextButton(
             onPressed: () => context.go('/login'),
-            style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+            ),
             child: const Text('Iniciar sesión'),
           ),
         ],
@@ -288,7 +323,10 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
     return TextButton(
       onPressed: _resending ? null : _resend,
       style: TextButton.styleFrom(foregroundColor: AppColors.gradientStart),
-      child: const Text('Reenviar código', style: TextStyle(fontWeight: FontWeight.w600)),
+      child: const Text(
+        'Reenviar código',
+        style: TextStyle(fontWeight: FontWeight.w600),
+      ),
     );
   }
 
@@ -297,12 +335,17 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
     return AuthBackground(
       child: SingleChildScrollView(
         child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: MediaQuery.of(context).size.height),
+          constraints: BoxConstraints(
+            minHeight: MediaQuery.of(context).size.height,
+          ),
           child: IntrinsicHeight(
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
                       IconButton(
@@ -334,7 +377,11 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 32),
+                  child: const Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    color: Colors.white,
+                    size: 32,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 const Text(
@@ -350,12 +397,18 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
                 Text(
                   'Enviamos un código por WhatsApp al celular\nregistrado en ${widget.correo}',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.5),
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 15,
+                    height: 1.5,
+                  ),
                 ),
                 const SizedBox(height: 40),
                 _loading
                     ? const CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation(AppColors.gradientStart),
+                        valueColor: AlwaysStoppedAnimation(
+                          AppColors.gradientStart,
+                        ),
                       )
                     : PinDots(length: _otpLength, filled: _otp.length),
                 const SizedBox(height: 32),
@@ -389,7 +442,10 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
                       const SizedBox(height: 6),
                       const Text(
                         'Uno de los 8 códigos de respaldo que recibiste al registrarte.',
-                        style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -504,7 +560,11 @@ class _NewPinScreenState extends State<NewPinScreen> {
               const SizedBox(height: 8),
               const Text(
                 'Usa entre 8 y 64 caracteres. Puedes incluir letras, números y símbolos.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.5),
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 15,
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: 32),
               PasswordField(
