@@ -45,7 +45,7 @@ dependencies:
   biometric_storage: 5.0.1
   cryptography: 2.9.0
   flutter_tts: 4.2.5
-  app_settings: 9.0.1
+  app_settings: 7.0.0
   local_auth: 3.0.2
 
 dev_dependencies:

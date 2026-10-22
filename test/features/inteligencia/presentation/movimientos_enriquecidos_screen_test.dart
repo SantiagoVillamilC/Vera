@@ -20,33 +20,30 @@ MovimientoEnriquecido _movimiento({
   String contraparte = 'Tienda D1',
   BigInt? monto,
   OrigenCategoria? origen,
-}) =>
-    MovimientoEnriquecido(
-      transaccionId: id,
-      ocurridoEn: DateTime.utc(2026, 10, 12, 19, 30),
-      moneda: 'COP',
-      direccion: direccion,
-      montoCentavos: monto ?? BigInt.from(1250000),
-      contraparte: contraparte,
-      contraparteResuelta: true,
-      descripcion: 'COMPRA POS',
-      categoria: categoria,
-      categoriaNombre: categoriaNombre,
-      origenCategoria: origen ??
-          (categoria == codigoSinCategoria
-              ? OrigenCategoria.sinCategoria
-              : OrigenCategoria.catalogo),
-    );
+}) => MovimientoEnriquecido(
+  transaccionId: id,
+  ocurridoEn: DateTime.utc(2026, 10, 12, 19, 30),
+  moneda: 'COP',
+  direccion: direccion,
+  montoCentavos: monto ?? BigInt.from(1250000),
+  contraparte: contraparte,
+  contraparteResuelta: true,
+  descripcion: 'COMPRA POS',
+  categoria: categoria,
+  categoriaNombre: categoriaNombre,
+  origenCategoria:
+      origen ??
+      (categoria == codigoSinCategoria
+          ? OrigenCategoria.sinCategoria
+          : OrigenCategoria.catalogo),
+);
 
 class _FakeInteligencia implements InteligenciaRepository {
   _FakeInteligencia(this.movimientos);
 
   List<MovimientoEnriquecido> movimientos;
-  final llamadas = <({
-    String transaccionId,
-    String? categoria,
-    String? nombreComercio,
-  })>[];
+  final llamadas =
+      <({String transaccionId, String? categoria, String? nombreComercio})>[];
   int lecturas = 0;
   int filasCambiadas = 2;
   ApiException? errorDeCorreccion;
@@ -62,6 +59,13 @@ class _FakeInteligencia implements InteligenciaRepository {
     }
     return List.of(movimientos);
   }
+
+  @override
+  Future<ResumenDelMes> resumen({String? mes}) async => ResumenDelMes(
+    mes: '2026-10',
+    totalCentavos: BigInt.zero,
+    categorias: const [],
+  );
 
   @override
   Future<CorreccionAplicada> corregir({
@@ -117,8 +121,9 @@ Future<void> _pump(WidgetTester tester, _FakeInteligencia repo) async {
 }
 
 void main() {
-  testWidgets('muestra + Categoría solo donde falta y nunca el id crudo',
-      (tester) async {
+  testWidgets('muestra + Categoría solo donde falta y nunca el id crudo', (
+    tester,
+  ) async {
     final repo = _FakeInteligencia([
       _movimiento(),
       _movimiento(
@@ -139,8 +144,27 @@ void main() {
     expect(find.textContaining(_idTransporte), findsNothing);
   });
 
-  testWidgets('la hoja ofrece las diez de gasto y aplica la corrección',
-      (tester) async {
+  testWidgets('cada fila muestra el origen de la categoría y la hora', (
+    tester,
+  ) async {
+    final repo = _FakeInteligencia([
+      _movimiento(
+        id: _idTransporte,
+        categoria: 'transporte',
+        categoriaNombre: 'Transporte',
+        contraparte: 'Uber',
+      ),
+    ]);
+    await _pump(tester, repo);
+
+    // 19:30 UTC con el desfase de -5 h son las 2:30 pm.
+    expect(find.text('2:30 pm'), findsOneWidget);
+    expect(find.textContaining('Catálogo'), findsOneWidget);
+  });
+
+  testWidgets('la hoja ofrece las diez de gasto y aplica la corrección', (
+    tester,
+  ) async {
     final repo = _FakeInteligencia([_movimiento()]);
     await _pump(tester, repo);
 
@@ -170,8 +194,9 @@ void main() {
     expect(find.text('+ Categoría'), findsNothing);
   });
 
-  testWidgets('en una entrada la hoja ofrece solo las cuatro de ingreso',
-      (tester) async {
+  testWidgets('en una entrada la hoja ofrece solo las cuatro de ingreso', (
+    tester,
+  ) async {
     final repo = _FakeInteligencia([
       _movimiento(
         direccion: DireccionMovimiento.entrada,
@@ -206,7 +231,9 @@ void main() {
     expect(repo.llamadas.single.categoria, isNull);
   });
 
-  testWidgets('un 409 explica el conflicto y ofrece reintentar', (tester) async {
+  testWidgets('un 409 explica el conflicto y ofrece reintentar', (
+    tester,
+  ) async {
     final repo = _FakeInteligencia([_movimiento()])
       ..errorDeCorreccion = const ApiException(
         code: 'CorreccionEnCurso',
@@ -234,8 +261,9 @@ void main() {
     expect(find.text('+ Categoría'), findsNothing);
   });
 
-  testWidgets('una categoría sugerida se marca y se confirma sin cambiarla',
-      (tester) async {
+  testWidgets('una categoría sugerida se marca y se confirma sin cambiarla', (
+    tester,
+  ) async {
     final repo = _FakeInteligencia([
       _movimiento(
         id: _idTransporte,
@@ -253,9 +281,7 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(
-      find.byKey(const ValueKey('categoria-$_idTransporte')),
-    );
+    await tester.tap(find.byKey(const ValueKey('categoria-$_idTransporte')));
     await tester.pumpAndSettle();
 
     expect(
@@ -283,13 +309,10 @@ void main() {
         contraparte: 'Uber',
         origen: OrigenCategoria.tfidf,
       ),
-    ])
-      ..fallaLaRecarga = true;
+    ])..fallaLaRecarga = true;
     await _pump(tester, repo);
 
-    await tester.tap(
-      find.byKey(const ValueKey('categoria-$_idTransporte')),
-    );
+    await tester.tap(find.byKey(const ValueKey('categoria-$_idTransporte')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('boton-aplicar-correccion')));
     await tester.pumpAndSettle();
@@ -304,8 +327,9 @@ void main() {
     expect(find.byKey(const ValueKey('marca-sugerida')), findsNothing);
   });
 
-  testWidgets('una sugerencia de gasto en una entrada no se confirma sola',
-      (tester) async {
+  testWidgets('una sugerencia de gasto en una entrada no se confirma sola', (
+    tester,
+  ) async {
     final repo = _FakeInteligencia([
       _movimiento(
         id: _idTransporte,
@@ -318,9 +342,7 @@ void main() {
     ]);
     await _pump(tester, repo);
 
-    await tester.tap(
-      find.byKey(const ValueKey('categoria-$_idTransporte')),
-    );
+    await tester.tap(find.byKey(const ValueKey('categoria-$_idTransporte')));
     await tester.pumpAndSettle();
 
     // La categoría sugerida no es de ingreso: no se ofrece confirmarla.
@@ -336,8 +358,9 @@ void main() {
     expect(find.text('Aplicar'), findsOneWidget);
   });
 
-  testWidgets('una categoría ya confirmada no se marca como sugerida',
-      (tester) async {
+  testWidgets('una categoría ya confirmada no se marca como sugerida', (
+    tester,
+  ) async {
     final repo = _FakeInteligencia([
       _movimiento(
         id: _idTransporte,
@@ -353,8 +376,9 @@ void main() {
     expect(find.textContaining('sugeridas por Vera'), findsNothing);
   });
 
-  testWidgets('la sección del tab de movimientos navega a /inteligencia',
-      (tester) async {
+  testWidgets('la sección del tab de movimientos navega a /inteligencia', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(800, 1400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);

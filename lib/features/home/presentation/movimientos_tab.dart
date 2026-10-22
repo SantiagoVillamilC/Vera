@@ -4,6 +4,9 @@ import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
+import 'package:vera/core/widgets/cargando_vera.dart';
+import 'package:vera/core/widgets/marca_vera.dart';
+import 'package:vera/core/widgets/tarjeta_vidrio.dart';
 import 'package:vera/features/home/presentation/movimiento_vista.dart';
 import 'package:vera/features/nucleo/data/movimiento_filas.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
@@ -149,9 +152,9 @@ class _MovimientosTabState extends State<MovimientosTab> {
         return;
       }
       final vacia = _filas.isEmpty;
-      final sinRelleno = vacia ||
-          (_scroll.hasClients &&
-              _scroll.position.extentAfter < _umbralScroll);
+      final sinRelleno =
+          vacia ||
+          (_scroll.hasClients && _scroll.position.extentAfter < _umbralScroll);
       if (!sinRelleno) return;
       if (_encadenadas >= _maxEncadenadas) {
         setState(() {});
@@ -168,14 +171,14 @@ class _MovimientosTabState extends State<MovimientosTab> {
   }
 
   List<FilaLocal> get _filas => construirFilas(
-        _todos,
-        offset: widget.offsetLocal,
-        ingreso: switch (_selectedFilter) {
-          1 => true,
-          2 => false,
-          _ => null,
-        },
-      );
+    _todos,
+    offset: widget.offsetLocal,
+    ingreso: switch (_selectedFilter) {
+      1 => true,
+      2 => false,
+      _ => null,
+    },
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -188,7 +191,7 @@ class _MovimientosTabState extends State<MovimientosTab> {
           _buildSummaryCard(),
           _buildFilterChips(),
           _buildAccesoCategorias(context),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           Expanded(child: _buildBody()),
         ],
       ),
@@ -197,91 +200,107 @@ class _MovimientosTabState extends State<MovimientosTab> {
 
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       child: Row(
         children: [
-          const Text(
-            'Movimientos',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.3,
+          const Expanded(
+            child: Text(
+              'Movimientos',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 34,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.8,
+              ),
             ),
           ),
-          const Spacer(),
           if (!_loading)
-            IconButton(
-              onPressed: _cargar,
-              icon: const Icon(Icons.refresh_rounded,
-                  color: AppColors.textSecondary, size: 20),
+            _BotonCircular(
+              key: const Key('recargar_movimientos'),
+              etiqueta: 'Actualizar movimientos',
+              icono: Icons.refresh_rounded,
+              alTocar: _cargar,
             ),
-          GestureDetector(
-            onTap: () => context.push('/estadisticas'),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: AppGradients.brand,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.bar_chart_rounded, color: Colors.white, size: 16),
-                  SizedBox(width: 4),
-                  Text('Stats',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      )),
-                ],
-              ),
-            ),
+          const SizedBox(width: 10),
+          _BotonCircular(
+            key: const Key('abrir_estadisticas'),
+            etiqueta: 'Estadísticas',
+            icono: Icons.bar_chart_rounded,
+            claro: true,
+            alTocar: () => context.push('/estadisticas'),
           ),
-          const SizedBox(width: 8),
         ],
       ),
     );
   }
 
   Widget _buildSummaryCard() {
+    final entro = totalIngresos(_todos);
+    final salio = totalGastos(_todos);
+    final suma = entro + salio;
+    final pesoEntro = suma == BigInt.zero ? 1 : entro.toInt().clamp(1, 1 << 30);
+    final pesoSalio = suma == BigInt.zero ? 1 : salio.toInt().clamp(1, 1 << 30);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      child: TarjetaVidrio(
+        radio: 26,
+        padding: const EdgeInsets.fromLTRB(22, 18, 22, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: _Total(
-                titulo: 'Ingresos',
-                centavos: totalIngresos(_todos),
-                cargando: _loading,
-                color: AppColors.accentGreen,
-                icono: Icons.arrow_upward_rounded,
-                fondoIcono: AppColors.accentGreen.withAlpha(20),
-                colorIcono: AppColors.accentGreen,
-              ),
+            const Text(
+              'Resumen',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 17),
             ),
-            Container(width: 1, height: 32, color: AppColors.border),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 20),
-                child: _Total(
-                  titulo: 'Gastos',
-                  centavos: totalGastos(_todos),
-                  cargando: _loading,
-                  color: AppColors.textPrimary,
-                  icono: Icons.arrow_downward_rounded,
-                  fondoIcono: AppColors.surfaceVariant,
-                  colorIcono: AppColors.textSecondary,
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _Total(
+                    titulo: 'Entró',
+                    centavos: entro,
+                    cargando: _loading,
+                    color: AppColors.accentGreen,
+                    conSigno: true,
+                  ),
                 ),
-              ),
+                Expanded(
+                  child: _Total(
+                    titulo: 'Salió',
+                    centavos: salio,
+                    cargando: _loading,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  flex: pesoEntro,
+                  child: Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: AppColors.accentGreen,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  flex: pesoSalio,
+                  child: Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3B4C66),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -290,40 +309,46 @@ class _MovimientosTabState extends State<MovimientosTab> {
   }
 
   Widget _buildFilterChips() {
+    const labels = ['Todos', 'Ingresos', 'Gastos'];
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Row(
-        children: List.generate(3, (i) {
-          const labels = ['Todos', 'Ingresos', 'Gastos'];
-          final active = _selectedFilter == i;
-          return Padding(
-            padding: EdgeInsets.only(right: i < 2 ? 10 : 0),
-            child: GestureDetector(
-              onTap: () => _elegirFiltro(i),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
-                decoration: BoxDecoration(
-                  gradient: active ? AppGradients.brand : null,
-                  color: active ? null : AppColors.surface,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: active ? Colors.transparent : AppColors.border,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      child: Container(
+        height: 56,
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: Colors.white.withAlpha(14),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: AppColors.borderGlass),
+        ),
+        child: Row(
+          children: List.generate(3, (i) {
+            final activo = _selectedFilter == i;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => _elegirFiltro(i),
+                behavior: HitTestBehavior.opaque,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: activo ? AppColors.botonOscuro : Colors.transparent,
+                    borderRadius: BorderRadius.circular(23),
                   ),
-                ),
-                child: Text(
-                  labels[i],
-                  style: TextStyle(
-                    color: active ? Colors.white : AppColors.textSecondary,
-                    fontSize: 13,
-                    fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                  child: Text(
+                    labels[i],
+                    style: TextStyle(
+                      color: activo
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary,
+                      fontSize: 17,
+                      fontWeight: activo ? FontWeight.w700 : FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
+        ),
       ),
     );
   }
@@ -332,33 +357,56 @@ class _MovimientosTabState extends State<MovimientosTab> {
   /// para no tocar el orden del menú inferior.
   Widget _buildAccesoCategorias(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       child: GestureDetector(
         key: const ValueKey('acceso-categorias'),
         onTap: () => context.push('/inteligencia'),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          decoration: BoxDecoration(
-            gradient: AppGradients.brand,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: const Row(
+        behavior: HitTestBehavior.opaque,
+        child: TarjetaVidrio(
+          radio: 22,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
             children: [
-              Icon(Icons.local_offer_rounded, color: Colors.white, size: 17),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Movimientos con categoría',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
+              Container(
+                width: 46,
+                height: 46,
+                decoration: const BoxDecoration(
+                  gradient: AppGradients.orbe,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: const MarcaVera(tamano: 28),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Movimientos con categoría',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      'Vera clasifica, tú corriges',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: Colors.white, size: 20),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textSecondary,
+                size: 24,
+              ),
             ],
           ),
         ),
@@ -367,7 +415,13 @@ class _MovimientosTabState extends State<MovimientosTab> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const EstadoVista.cargando();
+    if (_loading) {
+      return const SingleChildScrollView(
+        physics: NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
+        child: EsqueletoMovimientos(filas: 6),
+      );
+    }
     if (_error != null) {
       return EstadoVista.error(mensaje: _error!, onReintentar: _cargar);
     }
@@ -384,7 +438,7 @@ class _MovimientosTabState extends State<MovimientosTab> {
     final hayPie = _cargandoMas || _errorMas || _mostrarBoton;
     return ListView.builder(
       controller: _scroll,
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 140),
       itemCount: secciones.length + (hayPie ? 1 : 0),
       itemBuilder: (context, si) {
         if (si == secciones.length) return _buildPie();
@@ -392,41 +446,22 @@ class _MovimientosTabState extends State<MovimientosTab> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (si > 0) const SizedBox(height: 24),
+            if (si > 0) const SizedBox(height: 14),
             Text(
-              seccion.label.toUpperCase(),
+              seccion.label,
               style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 11,
+                color: AppColors.textSecondary,
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
-                letterSpacing: 0.8,
               ),
             ),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
+            const SizedBox(height: 4),
+            for (final f in seccion.filas)
+              MovimientoFilaTile(
+                fila: f.fila,
+                subtitulo: formatHora(f.local),
+                mostrarTipo: true,
               ),
-              child: Column(
-                children: [
-                  for (var i = 0; i < seccion.filas.length; i++) ...[
-                    MovimientoFilaTile(
-                      fila: seccion.filas[i].fila,
-                      subtitulo: formatHora(seccion.filas[i].local),
-                      mostrarTipo: true,
-                    ),
-                    if (i < seccion.filas.length - 1)
-                      const Divider(
-                        color: AppColors.border,
-                        height: 1,
-                        indent: 72,
-                      ),
-                  ],
-                ],
-              ),
-            ),
           ],
         );
       },
@@ -441,8 +476,10 @@ class _MovimientosTabState extends State<MovimientosTab> {
             ? TextButton(
                 key: _errorMas ? null : const ValueKey('boton-cargar-mas'),
                 onPressed: _cargarMas,
-                child: Text(_errorMas ? 'Reintentar' : 'Cargar más',
-                    style: const TextStyle(color: AppColors.gradientStart)),
+                child: Text(
+                  _errorMas ? 'Reintentar' : 'Cargar más',
+                  style: const TextStyle(color: AppColors.gradientStart),
+                ),
               )
             : const SizedBox(
                 width: 20,
@@ -465,60 +502,95 @@ class _Total extends StatelessWidget {
     required this.centavos,
     required this.cargando,
     required this.color,
-    required this.icono,
-    required this.fondoIcono,
-    required this.colorIcono,
+    this.conSigno = false,
   });
 
   final String titulo;
   final BigInt centavos;
   final bool cargando;
   final Color color;
-  final IconData icono;
-  final Color fondoIcono;
-  final Color colorIcono;
+  final bool conSigno;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(color: fondoIcono, shape: BoxShape.circle),
-          child: Icon(icono, color: colorIcono, size: 16),
+        Text(
+          titulo,
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(titulo,
-                  style: const TextStyle(
-                      color: AppColors.textMuted, fontSize: 11)),
-              cargando
-                  ? SizedBox(
-                      width: 60,
-                      height: 14,
-                      child: LinearProgressIndicator(
-                        backgroundColor: AppColors.surfaceVariant,
-                        color: color,
-                      ),
-                    )
-                  : Text(
-                      formatPesos(centavos),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-            ],
+        const SizedBox(height: 2),
+        cargando
+            ? SizedBox(
+                width: 70,
+                height: 16,
+                child: LinearProgressIndicator(
+                  backgroundColor: AppColors.surfaceVariant,
+                  color: color,
+                ),
+              )
+            : FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  conSigno && centavos > BigInt.zero
+                      ? '+${formatPesos(centavos)}'
+                      : formatPesos(centavos),
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ),
+      ],
+    );
+  }
+}
+
+/// Botón redondo del encabezado: oscuro sobre vidrio o claro cuando es la acción principal.
+class _BotonCircular extends StatelessWidget {
+  const _BotonCircular({
+    super.key,
+    required this.etiqueta,
+    required this.icono,
+    required this.alTocar,
+    this.claro = false,
+  });
+
+  final String etiqueta;
+  final IconData icono;
+  final VoidCallback alTocar;
+  final bool claro;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: etiqueta,
+      excludeSemantics: true,
+      onTap: alTocar,
+      child: GestureDetector(
+        onTap: alTocar,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: claro ? AppColors.botonClaro : AppColors.botonOscuro,
+            shape: BoxShape.circle,
+            border: claro ? null : Border.all(color: AppColors.borderGlass),
+          ),
+          child: Icon(
+            icono,
+            size: 22,
+            color: claro ? AppColors.tintaBotonClaro : AppColors.textPrimary,
           ),
         ),
-      ],
+      ),
     );
   }
 }

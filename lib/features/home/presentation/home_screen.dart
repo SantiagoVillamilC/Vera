@@ -3,12 +3,18 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/format/pesos.dart';
-import 'package:vera/core/format/tarjeta_muestra.dart';
+import 'package:vera/core/format/saludo.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
-import 'package:vera/core/widgets/wip_badge.dart';
+import 'package:vera/core/widgets/barra_vera.dart';
+import 'package:vera/core/widgets/cargando_vera.dart';
+
+import 'package:vera/core/widgets/fondo_vera.dart';
+import 'package:vera/core/widgets/marca_vera.dart';
+import 'package:vera/core/widgets/adornos_vera.dart';
+import 'package:vera/core/widgets/tarjeta_vidrio.dart';
 import 'package:vera/features/auth/data/auth_repository.dart';
 import 'package:vera/features/home/presentation/movimiento_vista.dart';
 import 'package:vera/features/home/presentation/movimientos_tab.dart';
@@ -146,6 +152,15 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) await _refrescar();
   }
 
+  /// Elegir una conversación del historial la reabre en el chat de Vera.
+  Future<void> _abrirHistorialVera() async {
+    final id = await context.push<String>('/asistente/historial');
+    if (id != null && mounted) {
+      await context.push('/asistente', extra: id);
+      if (mounted) await _refrescar();
+    }
+  }
+
   void _onNavTap(int i) {
     if (i == 2) {
       _abrirAsistente();
@@ -175,142 +190,20 @@ class _HomeScreenState extends State<HomeScreen> {
       onRefrescar: _refrescar,
       onVerTodos: () => setState(() => _tab = 1),
       onReintentarMovimientos: _recargarPreview,
+      onHistorialVera: _abrirHistorialVera,
     ),
   };
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).padding.bottom;
     return Scaffold(
+      extendBody: true,
       backgroundColor: AppColors.background,
-      body: _body,
-      bottomNavigationBar: _BottomNav(
-        currentIndex: _tab,
-        onTap: _onNavTap,
-        bottomPadding: bottom,
-      ),
-    );
-  }
-}
-
-// ── Bottom nav ─────────────────────────────────────────────────
-
-class _BottomNav extends StatelessWidget {
-  const _BottomNav({
-    required this.currentIndex,
-    required this.onTap,
-    required this.bottomPadding,
-  });
-
-  final int currentIndex;
-  final ValueChanged<int> onTap;
-  final double bottomPadding;
-
-  static const _items = [
-    (Icons.home_rounded, 'Inicio'),
-    (Icons.bar_chart_rounded, 'Movim.'),
-    (Icons.mic_rounded, ''),
-    (Icons.credit_card_rounded, 'Tarjetas'),
-    (Icons.person_rounded, 'Perfil'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 64 + bottomPadding + 16,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 64 + bottomPadding,
-              decoration: const BoxDecoration(
-                color: AppColors.surface,
-                border: Border(top: BorderSide(color: AppColors.border)),
-              ),
-              child: Padding(
-                padding: EdgeInsets.only(bottom: bottomPadding),
-                child: Row(
-                  children: List.generate(5, (i) {
-                    if (i == 2) return const Expanded(child: SizedBox());
-                    final active = currentIndex == i;
-                    final (icon, label) = _items[i];
-                    return Expanded(
-                      child: GestureDetector(
-                        onTap: () => onTap(i),
-                        behavior: HitTestBehavior.opaque,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              icon,
-                              size: 22,
-                              color: active
-                                  ? AppColors.textPrimary
-                                  : AppColors.textMuted,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              label,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: active
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                                color: active
-                                    ? AppColors.textPrimary
-                                    : AppColors.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: bottomPadding + 20,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Semantics(
-                button: true,
-                label: 'Hablar con Vera',
-                excludeSemantics: true,
-                onTap: () => onTap(2),
-                child: GestureDetector(
-                  onTap: () => onTap(2),
-                  child: Container(
-                    width: 58,
-                    height: 58,
-                    decoration: BoxDecoration(
-                      gradient: AppGradients.brand,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.gradientMid.withAlpha(120),
-                          blurRadius: 20,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.mic_rounded,
-                      color: Colors.white,
-                      size: 26,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+      body: FondoVera(child: _body),
+      bottomNavigationBar: BarraVera(
+        indice: _tab,
+        alElegir: _onNavTap,
+        alAbrirVera: _abrirAsistente,
       ),
     );
   }
@@ -333,6 +226,7 @@ class _InicioTab extends StatelessWidget {
     required this.onRefrescar,
     required this.onVerTodos,
     required this.onReintentarMovimientos,
+    required this.onHistorialVera,
   });
 
   final String? nombre;
@@ -348,46 +242,93 @@ class _InicioTab extends StatelessWidget {
   final Future<void> Function() onRefrescar;
   final VoidCallback onVerTodos;
   final VoidCallback onReintentarMovimientos;
+  final VoidCallback onHistorialVera;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _Header(
-          nombre: nombre,
-          saldoVisible: saldoVisible,
-          onToggleSaldo: onToggleSaldo,
-          saldoCentavos: saldoCentavos,
-          errorSaldo: errorSaldo,
-        ),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: onRefrescar,
-            color: AppColors.gradientStart,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (recargaPendiente)
-                    _AvisoRecargaPendiente(onTap: () => onAbrir('/recargar')),
-                  _ActionsCard(onAbrir: onAbrir, onHistorial: onVerTodos),
-                  if (kyc case final kyc? when kyc.esBajoMonto)
-                    _BloqueBajoMonto(kyc: kyc),
-                  const SizedBox(height: 28),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _MovimientosSection(
-                      futuro: movimientos,
-                      offsetLocal: offsetLocal,
-                      onVerTodos: onVerTodos,
-                      onReintentar: onReintentarMovimientos,
-                    ),
-                  ),
-                  const SizedBox(height: 100),
-                ],
+    return SafeArea(
+      bottom: false,
+      child: RefreshIndicator(
+        onRefresh: onRefrescar,
+        color: AppColors.gradientStart,
+        backgroundColor: AppColors.surface,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 140),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Saludo(nombre: nombre),
+              const SizedBox(height: 20),
+              _TarjetaSaldo(
+                saldoVisible: saldoVisible,
+                onToggleSaldo: onToggleSaldo,
+                saldoCentavos: saldoCentavos,
+                errorSaldo: errorSaldo,
+                onAbrir: onAbrir,
+                onHistorial: onVerTodos,
               ),
-            ),
+              if (recargaPendiente) ...[
+                const SizedBox(height: 14),
+                _AvisoRecargaPendiente(onTap: () => onAbrir('/recargar')),
+              ],
+              if (kyc case final kyc? when kyc.esBajoMonto) ...[
+                const SizedBox(height: 14),
+                _BloqueBajoMonto(kyc: kyc),
+              ],
+              const SizedBox(height: 14),
+              _AccesosCard(onAbrir: onAbrir, onHistorialVera: onHistorialVera),
+              const SizedBox(height: 14),
+              _MovimientosSection(
+                futuro: movimientos,
+                offsetLocal: offsetLocal,
+                onVerTodos: onVerTodos,
+                onReintentar: onReintentarMovimientos,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Saludo ─────────────────────────────────────────────────────
+
+class _Saludo extends StatelessWidget {
+  const _Saludo({required this.nombre});
+
+  final String? nombre;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        AvatarVera(iniciales: inicialesDe(nombre), tamano: 52),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                saludoDeLaHora(DateTime.now()),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 15,
+                ),
+              ),
+              Text(
+                nombre ?? saludoGenerico,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -395,136 +336,670 @@ class _InicioTab extends StatelessWidget {
   }
 }
 
-// ── Header (purple top) ────────────────────────────────────────
+// ── Tarjeta de saldo ───────────────────────────────────────────
 
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.nombre,
+class _TarjetaSaldo extends StatelessWidget {
+  const _TarjetaSaldo({
     required this.saldoVisible,
     required this.onToggleSaldo,
     required this.saldoCentavos,
     required this.errorSaldo,
+    required this.onAbrir,
+    required this.onHistorial,
   });
 
-  final String? nombre;
   final bool saldoVisible;
   final VoidCallback onToggleSaldo;
   final BigInt? saldoCentavos;
   final bool errorSaldo;
+  final void Function(String ruta) onAbrir;
+  final VoidCallback onHistorial;
 
-  Widget _buildSaldoWidget() {
+  Widget _saldo() {
     if (errorSaldo) {
       return const Text(
         'Error al cargar',
-        style: TextStyle(color: Colors.white54, fontSize: 20),
+        style: TextStyle(color: Colors.white54, fontSize: 22),
       );
     }
     if (saldoCentavos == null) {
-      return const SizedBox(
-        width: 20,
-        height: 20,
-        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54),
+      return const Align(
+        alignment: Alignment.centerLeft,
+        child: EsqueletoVera(ancho: 210, alto: 44, radio: 14),
       );
     }
-    return Text(
-      saldoVisible ? formatPesos(saldoCentavos!) : '\$ ••••••',
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 42,
-        fontWeight: FontWeight.w800,
-        letterSpacing: -1.5,
-        height: 1,
+    const estilo = TextStyle(
+      color: Colors.white,
+      fontSize: 44,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -1.5,
+      height: 1.05,
+    );
+    if (!saldoVisible) return const Text('\$ ••••••', style: estilo);
+    // Los centavos van aparte y en gris, como en el diseño: ",00" cuando es un monto entero.
+    final texto = formatPesos(saldoCentavos!);
+    final coma = texto.indexOf(',');
+    final enteros = coma == -1 ? texto : texto.substring(0, coma);
+    final centavos = coma == -1 ? ',00' : texto.substring(coma);
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text.rich(
+        TextSpan(
+          style: estilo,
+          children: [
+            TextSpan(text: enteros),
+            TextSpan(
+              text: centavos,
+              style: estilo.copyWith(color: Colors.white.withAlpha(110)),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(24, top + 16, 24, 32),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.gradientStart, AppColors.gradientEnd],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+    return TarjetaVidrio(
+      gradiente: AppGradients.tarjetaSaldo,
+      adorno: AdornoTarjeta.olas,
+      radio: 32,
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'En tu cuenta',
-                      style: TextStyle(color: Colors.white70, fontSize: 13),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      nombre ?? saludoGenerico,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
+              const Text(
+                'Saldo disponible',
+                style: TextStyle(color: Colors.white, fontSize: 17),
               ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(30),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white30),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Mis CVUs',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(width: 6),
-                    WipBadge(),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(child: _buildSaldoWidget()),
+              const SizedBox(width: 10),
               GestureDetector(
+                key: const Key('alternar_saldo'),
                 onTap: onToggleSaldo,
+                behavior: HitTestBehavior.opaque,
                 child: Icon(
                   saldoVisible
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: Colors.white70,
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: Colors.white,
                   size: 22,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          _saldo(),
+          const SizedBox(height: 26),
+          Row(
+            children: [
+              Expanded(
+                flex: 5,
+                child: _BotonAccion(
+                  etiqueta: 'Enviar',
+                  icono: Icons.north_east_rounded,
+                  claro: true,
+                  alTocar: () => onAbrir('/enviar'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 5,
+                child: _BotonAccion(
+                  etiqueta: 'Recargar',
+                  icono: Icons.add_rounded,
+                  alTocar: () => onAbrir('/recargar'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _BotonRedondo(
+                etiqueta: 'Enviar por llave',
+                icono: Icons.vpn_key_outlined,
+                alTocar: () => onAbrir('/enviar-llave'),
+              ),
+              const SizedBox(width: 8),
+              _BotonRedondo(
+                etiqueta: 'Historial',
+                icono: Icons.history_rounded,
+                alTocar: onHistorial,
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _BotonAccion extends StatelessWidget {
+  const _BotonAccion({
+    required this.etiqueta,
+    required this.icono,
+    required this.alTocar,
+    this.claro = false,
+  });
+
+  final String etiqueta;
+  final IconData icono;
+  final VoidCallback alTocar;
+  final bool claro;
+
+  @override
+  Widget build(BuildContext context) {
+    final tinta = claro ? AppColors.tintaBotonClaro : Colors.white;
+    return GestureDetector(
+      onTap: alTocar,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 52,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        decoration: BoxDecoration(
+          color: claro ? AppColors.botonClaro : AppColors.botonOscuro,
+          borderRadius: BorderRadius.circular(26),
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icono, color: tinta, size: 18),
+              const SizedBox(width: 5),
+              Text(
+                etiqueta,
+                maxLines: 1,
+                style: TextStyle(
+                  color: tinta,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BotonRedondo extends StatelessWidget {
+  const _BotonRedondo({
+    required this.etiqueta,
+    required this.icono,
+    required this.alTocar,
+  });
+
+  final String etiqueta;
+  final IconData icono;
+  final VoidCallback alTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: etiqueta,
+      excludeSemantics: true,
+      onTap: alTocar,
+      child: GestureDetector(
+        onTap: alTocar,
+        behavior: HitTestBehavior.opaque,
+        child: Tooltip(
+          message: etiqueta,
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: const BoxDecoration(
+              color: AppColors.botonOscuro,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icono, color: Colors.white, size: 21),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Accesos ────────────────────────────────────────────────────
+
+/// Atajos a lo que la app ya hace: categorías, estadísticas y el historial de Vera.
+/// Entran una tras otra con un pequeño rebote y luego se mantienen en movimiento: flotan, los
+/// puntos orbitan y los discos respiran.
+class _AccesosCard extends StatefulWidget {
+  const _AccesosCard({required this.onAbrir, required this.onHistorialVera});
+
+  final void Function(String ruta) onAbrir;
+  final VoidCallback onHistorialVera;
+
+  @override
+  State<_AccesosCard> createState() => _AccesosCardState();
+}
+
+class _AccesosCardState extends State<_AccesosCard>
+    with TickerProviderStateMixin {
+  late final AnimationController _entrada = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..forward();
+
+  /// Una vuelta completa del movimiento permanente, que se repite un buen rato y luego para.
+  /// Con la opción de accesibilidad de reducir movimiento no arranca.
+  late final AnimationController _reposo = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 3600),
+  );
+
+  static const _vueltas = 60;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reducir = MediaQuery.of(context).disableAnimations;
+    if (reducir) {
+      _reposo.stop();
+    } else if (!_reposo.isAnimating && _reposo.value == 0) {
+      _reposo.repeat(count: _vueltas);
+    }
+  }
+
+  @override
+  void dispose() {
+    _entrada.dispose();
+    _reposo.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _TeselaAcceso(
+            llave: const Key('acceso_categorias'),
+            etiqueta: 'Categorías',
+            descripcion: 'Movimientos con categoría',
+            icono: Icons.sell_outlined,
+            disco: const Color(0xFF243E5E),
+            punto: (Alignment.topRight, const Color(0xFFCDEFE0)),
+            entrada: _entrada,
+            reposo: _reposo,
+            orden: 0,
+            alTocar: () => widget.onAbrir('/inteligencia'),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _TeselaAcceso(
+            llave: const Key('acceso_estadisticas'),
+            etiqueta: 'Estadísticas',
+            descripcion: 'Estadísticas',
+            icono: Icons.bar_chart_rounded,
+            disco: const Color(0xFF2B2455),
+            punto: (Alignment.bottomRight, const Color(0xFFC3C0F0)),
+            entrada: _entrada,
+            reposo: _reposo,
+            orden: 1,
+            alTocar: () => widget.onAbrir('/estadisticas'),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _TeselaAcceso(
+            llave: const Key('acceso_historial_vera'),
+            etiqueta: 'Mis charlas',
+            descripcion: 'Historial de Vera',
+            icono: Icons.forum_outlined,
+            disco: const Color(0xFF4A3322),
+            punto: (Alignment.topLeft, const Color(0xFFCDEFE0)),
+            entrada: _entrada,
+            reposo: _reposo,
+            orden: 2,
+            alTocar: widget.onHistorialVera,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Tesela oscura y muy redondeada: ícono blanco sobre un disco de color, con un punto pastel
+/// a un lado, y el nombre debajo.
+///
+/// Al aparecer sube y se agranda con rebote, y el punto salta con un resorte. Al tocarla se
+/// hunde un poco, el disco brilla y el ícono se menea.
+class _TeselaAcceso extends StatefulWidget {
+  const _TeselaAcceso({
+    required this.llave,
+    required this.etiqueta,
+    required this.descripcion,
+    required this.icono,
+    required this.disco,
+    required this.punto,
+    required this.entrada,
+    required this.reposo,
+    required this.orden,
+    required this.alTocar,
+  });
+
+  final Key llave;
+  final String etiqueta;
+
+  /// Lo que anuncia el lector de pantalla.
+  final String descripcion;
+  final IconData icono;
+  final Color disco;
+  final (Alignment, Color) punto;
+
+  /// Animación de entrada compartida por las tres teselas; [orden] decide cuándo arranca cada una.
+  final Animation<double> entrada;
+
+  /// Movimiento permanente: de 0 a 1 en cada vuelta, fuera de fase entre teselas.
+  final Animation<double> reposo;
+  final int orden;
+  final VoidCallback alTocar;
+
+  @override
+  State<_TeselaAcceso> createState() => _TeselaAccesoState();
+}
+
+class _TeselaAccesoState extends State<_TeselaAcceso>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _meneo = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 520),
+  );
+  bool _presionada = false;
+
+  late final Animation<double> _aparece = CurvedAnimation(
+    parent: widget.entrada,
+    curve: Interval(
+      widget.orden * 0.14,
+      0.55 + widget.orden * 0.14,
+      curve: Curves.easeOutBack,
+    ),
+  );
+  late final Animation<double> _opacidad = CurvedAnimation(
+    parent: widget.entrada,
+    curve: Interval(
+      widget.orden * 0.14,
+      0.4 + widget.orden * 0.14,
+      curve: Curves.easeOut,
+    ),
+  );
+  late final Animation<double> _salto = CurvedAnimation(
+    parent: widget.entrada,
+    curve: Interval(0.4 + widget.orden * 0.14, 1, curve: Curves.elasticOut),
+  );
+
+  @override
+  void dispose() {
+    _meneo.dispose();
+    super.dispose();
+  }
+
+  void _tocar() {
+    _meneo.forward(from: 0);
+    widget.alTocar();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final (lugar, colorPunto) = widget.punto;
+    return AnimatedBuilder(
+      animation: widget.reposo,
+      builder: (context, hijoEstatico) {
+        // Fase propia de cada tesela para que no se muevan al unísono.
+        final fase = 2 * math.pi * (widget.reposo.value + widget.orden / 3);
+        return Transform.translate(
+          offset: Offset(0, 3.5 * math.sin(fase)),
+          child: hijoEstatico,
+        );
+      },
+      child: _tesela(lugar, colorPunto),
+    );
+  }
+
+  Widget _tesela(Alignment lugar, Color colorPunto) {
+    return Semantics(
+      button: true,
+      label: widget.descripcion,
+      excludeSemantics: true,
+      onTap: _tocar,
+      child: FadeTransition(
+        opacity: _opacidad,
+        child: AnimatedBuilder(
+          animation: _aparece,
+          builder: (context, hijo) => Transform.translate(
+            offset: Offset(0, 26 * (1 - _aparece.value)),
+            child: Transform.scale(
+              scale: 0.86 + 0.14 * _aparece.value,
+              child: hijo,
+            ),
+          ),
+          child: GestureDetector(
+            key: widget.llave,
+            onTap: _tocar,
+            onTapDown: (_) => setState(() => _presionada = true),
+            onTapUp: (_) => setState(() => _presionada = false),
+            onTapCancel: () => setState(() => _presionada = false),
+            behavior: HitTestBehavior.opaque,
+            child: AnimatedScale(
+              scale: _presionada ? 0.93 : 1,
+              duration: const Duration(milliseconds: 140),
+              curve: Curves.easeOut,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.fromLTRB(6, 16, 6, 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF18212E),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: _presionada
+                        ? widget.disco.withAlpha(255)
+                        : const Color(0xFF28364A),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.disco.withAlpha(_presionada ? 170 : 0),
+                      blurRadius: 22,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 66,
+                      height: 62,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Align(
+                            child: _Respira(
+                              animacion: widget.reposo,
+                              orden: widget.orden,
+                              child: Container(
+                                width: 54,
+                                height: 54,
+                                decoration: BoxDecoration(
+                                  color: widget.disco,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: AnimatedBuilder(
+                                  animation: _meneo,
+                                  builder: (context, hijo) => Transform.rotate(
+                                    // Un vaivén que se apaga: seno por una curva que cae a cero.
+                                    angle:
+                                        0.5 *
+                                        (1 - _meneo.value) *
+                                        math.sin(_meneo.value * math.pi * 4),
+                                    child: hijo,
+                                  ),
+                                  child: Icon(
+                                    widget.icono,
+                                    color: const Color(0xFFEAF2FF),
+                                    size: 27,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Align(
+                            alignment: lugar,
+                            child: _Orbita(
+                              animacion: widget.reposo,
+                              orden: widget.orden,
+                              child: ScaleTransition(
+                                scale: _salto,
+                                child: Container(
+                                  width: 15,
+                                  height: 15,
+                                  decoration: BoxDecoration(
+                                    color: colorPunto,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          widget.etiqueta,
+                          maxLines: 1,
+                          style: const TextStyle(
+                            color: Color(0xFFEAF2FF),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// El disco del ícono se infla y se encoge suavemente, como si respirara.
+class _Respira extends StatelessWidget {
+  const _Respira({
+    required this.animacion,
+    required this.orden,
+    required this.child,
+  });
+
+  final Animation<double> animacion;
+  final int orden;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animacion,
+      builder: (context, hijo) {
+        final fase = 2 * math.pi * (animacion.value + orden / 3 + 0.25);
+        return Transform.scale(scale: 1 + 0.055 * math.sin(fase), child: hijo);
+      },
+      child: child,
+    );
+  }
+}
+
+/// El punto pastel recorre un círculo pequeño alrededor de su sitio.
+class _Orbita extends StatelessWidget {
+  const _Orbita({
+    required this.animacion,
+    required this.orden,
+    required this.child,
+  });
+
+  final Animation<double> animacion;
+  final int orden;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animacion,
+      builder: (context, hijo) {
+        final fase = 2 * math.pi * (animacion.value + orden / 3);
+        return Transform.translate(
+          offset: Offset(4 * math.cos(fase), 4 * math.sin(fase)),
+          child: hijo,
+        );
+      },
+      child: child,
+    );
+  }
+}
+
+// ── Avisos ─────────────────────────────────────────────────────
+
+class _AvisoRecargaPendiente extends StatelessWidget {
+  const _AvisoRecargaPendiente({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: TarjetaVidrio(
+        radio: 22,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: const BoxDecoration(
+                color: Color(0xFF16304B),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.schedule_rounded,
+                color: AppColors.gradientStart,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Text(
+                'Tienes una recarga pendiente',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  height: 1.25,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Ver estado',
+              style: TextStyle(
+                color: AppColors.gradientStart,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -544,16 +1019,12 @@ class _BloqueBajoMonto extends StatelessWidget {
     final usado = tope != null && disponible != null && tope > BigInt.zero
         ? 1 - (disponible.toDouble() / tope.toDouble()).clamp(0.0, 1.0)
         : null;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Container(
+    return SizedBox(
+      width: double.infinity,
+      child: TarjetaVidrio(
         key: const Key('bloque_bajo_monto'),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
+        radio: 22,
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -561,11 +1032,11 @@ class _BloqueBajoMonto extends StatelessWidget {
               'Depósito de bajo monto',
               style: TextStyle(
                 color: AppColors.textPrimary,
-                fontSize: 14,
+                fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             if (kyc.tieneLimites) ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -582,7 +1053,7 @@ class _BloqueBajoMonto extends StatelessWidget {
                 ],
               ),
               if (usado != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
@@ -596,7 +1067,7 @@ class _BloqueBajoMonto extends StatelessWidget {
             ] else
               const Text(
                 'Tu cupo mensual aún no está disponible.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
               ),
           ],
         ),
@@ -625,292 +1096,18 @@ class _CifraLimite extends StatelessWidget {
       children: [
         Text(
           etiqueta,
-          style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
         ),
         const SizedBox(height: 2),
         Text(
           valor,
           style: const TextStyle(
             color: AppColors.textPrimary,
-            fontSize: 16,
+            fontSize: 18,
             fontWeight: FontWeight.w700,
           ),
         ),
       ],
-    );
-  }
-}
-
-// ── Actions card ───────────────────────────────────────────────
-
-class _AvisoRecargaPendiente extends StatelessWidget {
-  const _AvisoRecargaPendiente({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceVariant,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.gradientStart),
-          ),
-          child: const Row(
-            children: [
-              Icon(
-                Icons.hourglass_top_rounded,
-                color: AppColors.gradientStart,
-                size: 18,
-              ),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Tienes una recarga pendiente',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textSecondary,
-                size: 18,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ActionsCard extends StatelessWidget {
-  const _ActionsCard({required this.onAbrir, required this.onHistorial});
-
-  final void Function(String ruta) onAbrir;
-  final VoidCallback onHistorial;
-
-  /// Historial no es una ruta: abre la pestaña de movimientos.
-  static const _historial = 'historial';
-
-  static const _actions = [
-    (Icons.send_rounded, 'Enviar\ndinero', '/enviar'),
-    (Icons.key_rounded, 'Enviar por llave', '/enviar-llave'),
-    (Icons.add_circle_outline_rounded, 'Recargar', '/recargar'),
-    (Icons.history_rounded, 'Historial', _historial),
-    (Icons.receipt_long_rounded, 'Pagar\nservicios', ''),
-    (Icons.credit_card_rounded, 'Pedir\ntarjeta', ''),
-    (Icons.lock_outline_rounded, 'Mis\nclaves', ''),
-    (Icons.account_balance_wallet_rounded, 'Remune-\nración', ''),
-  ];
-
-  /// 52 del icono, 6 de separación y dos líneas de etiqueta (11 con altura
-  /// 1.3) que crecen con la escala de texto del sistema.
-  static double _alturaCelda(BuildContext context) {
-    final escala = MediaQuery.textScalerOf(context).scale(11) / 11;
-    return math.max(96, 58 + 2 * 11 * 1.3 * escala + 4);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(80),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-            // Altura fija: con childAspectRatio la celda se encoge en pantallas
-            // angostas y la etiqueta de dos líneas desborda.
-            child: GridView(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                mainAxisSpacing: 4,
-                crossAxisSpacing: 4,
-                mainAxisExtent: _alturaCelda(context),
-              ),
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              children: _actions.map((a) {
-                final (icon, label, route) = a;
-                return _ActionCell(
-                  icon: icon,
-                  label: label,
-                  onTap: switch (route) {
-                    '' => null,
-                    _historial => onHistorial,
-                    _ => () => onAbrir(route),
-                  },
-                );
-              }).toList(),
-            ),
-          ),
-          const Divider(color: AppColors.border, height: 1),
-          _CardRow(),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionCell extends StatelessWidget {
-  const _ActionCell({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-
-  /// Sin acción la celda queda marcada (WIP) y no responde al toque.
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final enDesarrollo = onTap == null;
-    final cuerpo = GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Opacity(
-                opacity: enDesarrollo ? 0.6 : 1,
-                child: Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Icon(icon, color: AppColors.gradientStart, size: 24),
-                ),
-              ),
-              if (enDesarrollo)
-                const Positioned(top: -6, right: -10, child: WipBadge()),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 11,
-              height: 1.3,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-    if (!enDesarrollo) return cuerpo;
-    return Semantics(
-      label:
-          '${label.replaceAll('-\n', '').replaceAll('\n', ' ')}, en desarrollo',
-      excludeSemantics: true,
-      child: cuerpo,
-    );
-  }
-}
-
-class _CardRow extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
-      child: Row(
-        children: [
-          Container(
-            width: 72,
-            height: 46,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.gradientStart, AppColors.gradientEnd],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
-                Text(
-                  'VERA',
-                  textScaler: TextScaler.noScaling,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1,
-                  ),
-                ),
-                Text(
-                  'VISA',
-                  textScaler: TextScaler.noScaling,
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 14),
-          // Datos de muestra compartidos con la pestaña Tarjetas.
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tarjetaMuestraRotulo,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                SizedBox(height: 3),
-                Text(
-                  tarjetaMuestraNumero,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -932,106 +1129,107 @@ class _MovimientosSection extends StatelessWidget {
   final VoidCallback onVerTodos;
   final VoidCallback onReintentar;
 
-  BoxDecoration get _tarjeta => BoxDecoration(
-    color: AppColors.surface,
-    borderRadius: BorderRadius.circular(20),
-    border: Border.all(color: AppColors.border),
-  );
-
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Expanded(
-              child: Text(
-                'Últimos Movimientos',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+    return TarjetaVidrio(
+      radio: 30,
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 44,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(40),
+                borderRadius: BorderRadius.circular(3),
               ),
             ),
-            TextButton(
-              onPressed: onVerTodos,
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.gradientStart,
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text(
-                'Ver todos',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        FutureBuilder<MovimientosPage>(
-          future: futuro,
-          builder: (context, snap) {
-            if (snap.connectionState != ConnectionState.done) {
-              return const Padding(
-                padding: EdgeInsets.all(24),
-                child: EstadoVista.cargando(),
-              );
-            }
-            if (snap.hasError) {
-              return Container(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: _tarjeta,
-                child: EstadoVista.error(
-                  mensaje: mensajeDeError(snap.error!),
-                  onReintentar: onReintentar,
-                ),
-              );
-            }
-            final filas = construirFilas(
-              snap.data?.items ?? const [],
-              offset: offsetLocal,
-            );
-            if (filas.isEmpty) {
-              return Container(
-                padding: const EdgeInsets.all(24),
-                decoration: _tarjeta,
-                child: const Center(
-                  child: Text(
-                    'Sin movimientos aún',
-                    style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Expanded(
+                child: Text(
+                  'Movimientos recientes',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
                   ),
                 ),
-              );
-            }
-            final ahora = ahoraLocal(offset: offsetLocal);
-            return Container(
-              decoration: _tarjeta,
-              child: Column(
-                children: [
-                  for (var i = 0; i < filas.length; i++) ...[
-                    MovimientoFilaTile(
-                      fila: filas[i].fila,
-                      subtitulo: formatFechaCorta(filas[i].local, ahora),
-                    ),
-                    if (i < filas.length - 1)
-                      const Divider(
-                        color: AppColors.border,
-                        height: 1,
-                        indent: 72,
-                      ),
-                  ],
-                ],
               ),
-            );
-          },
-        ),
-      ],
+              TextButton(
+                onPressed: onVerTodos,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.gradientStart,
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Ver todos',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          FutureBuilder<MovimientosPage>(
+            future: futuro,
+            builder: (context, snap) {
+              if (snap.connectionState != ConnectionState.done) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: EsqueletoMovimientos(filas: 3),
+                );
+              }
+              if (snap.hasError) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: EstadoVista.error(
+                    mensaje: mensajeDeError(snap.error!),
+                    onReintentar: onReintentar,
+                  ),
+                );
+              }
+              final filas = construirFilas(
+                snap.data?.items ?? const [],
+                offset: offsetLocal,
+              );
+              if (filas.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(
+                    child: Text(
+                      'Sin movimientos aún',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                );
+              }
+              final ahora = ahoraLocal(offset: offsetLocal);
+              return Column(
+                children: [
+                  for (final f in filas)
+                    MovimientoFilaTile(
+                      fila: f.fila,
+                      subtitulo: formatFechaCorta(f.local, ahora),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/widgets/cargando_vera.dart';
 
 const mensajeSinRed = 'Sin conexión. Revisa tu internet e intenta de nuevo.';
 
@@ -59,12 +60,7 @@ class EstadoVista extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (_tipo) {
       case _Tipo.cargando:
-        return const Center(
-          child: CircularProgressIndicator(
-            color: AppColors.gradientStart,
-            strokeWidth: 2,
-          ),
-        );
+        return const CargandoVera();
       case _Tipo.vacio:
         return Center(
           child: Text(

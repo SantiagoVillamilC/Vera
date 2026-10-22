@@ -28,15 +28,15 @@ Future<void> _pump(
 }
 
 List<Movimiento> _depositos(int desde, int cantidad) => [
-      for (var i = desde; i < desde + cantidad; i++)
-        mov(i, [(MotivoLinea.deposito, 100000 + i)]),
-    ];
+  for (var i = desde; i < desde + cantidad; i++)
+    mov(i, [(MotivoLinea.deposito, 100000 + i)]),
+];
 
 /// Los chips de filtro comparten texto con los títulos del resumen.
 Finder _chip(String label) => find.descendant(
-      of: find.byType(AnimatedContainer),
-      matching: find.text(label),
-    );
+  of: find.byType(AnimatedContainer),
+  matching: find.text(label),
+);
 
 Future<void> _alFinal(WidgetTester tester) async {
   await tester.drag(find.byType(ListView), const Offset(0, -5000));
@@ -53,8 +53,9 @@ void main() {
     expect(repo.movimientosCalls.single.limit, 50);
   });
 
-  testWidgets('el scroll al final carga más una sola vez y se detiene',
-      (tester) async {
+  testWidgets('el scroll al final carga más una sola vez y se detiene', (
+    tester,
+  ) async {
     final segunda = Completer<MovimientosPage>();
     final repo = FakeNucleoRepository()
       ..onMovimientos = (limit, cursor) {
@@ -85,8 +86,9 @@ void main() {
     expect(find.text('Cargar más'), findsNothing);
   });
 
-  testWidgets('con filtro activo carga más hasta encontrar filas del tipo',
-      (tester) async {
+  testWidgets('con filtro activo carga más hasta encontrar filas del tipo', (
+    tester,
+  ) async {
     final repo = FakeNucleoRepository()
       ..onMovimientos = (limit, cursor) async {
         if (cursor == null) {
@@ -109,37 +111,39 @@ void main() {
   });
 
   testWidgets(
-      'filtro Ingresos con página 1 de solo envíos carga la página 2 sin '
-      'scroll y nunca muestra el estado vacío', (tester) async {
-    final repo = FakeNucleoRepository()
-      ..onMovimientos = (limit, cursor) async {
-        if (cursor == null) {
-          return pagina(
-            [
-              for (var i = 1; i <= 50; i++)
-                mov(i, [(MotivoLinea.envio, -100000 - i)]),
-            ],
-            nextCursor: 50,
-            hasMore: true,
-          );
-        }
-        return pagina([
-          mov(99, [(MotivoLinea.deposito, 500000)]),
-        ]);
-      };
-    await _pump(tester, repo);
+    'filtro Ingresos con página 1 de solo envíos carga la página 2 sin '
+    'scroll y nunca muestra el estado vacío',
+    (tester) async {
+      final repo = FakeNucleoRepository()
+        ..onMovimientos = (limit, cursor) async {
+          if (cursor == null) {
+            return pagina(
+              [
+                for (var i = 1; i <= 50; i++)
+                  mov(i, [(MotivoLinea.envio, -100000 - i)]),
+              ],
+              nextCursor: 50,
+              hasMore: true,
+            );
+          }
+          return pagina([
+            mov(99, [(MotivoLinea.deposito, 500000)]),
+          ]);
+        };
+      await _pump(tester, repo);
 
-    await tester.tap(_chip('Ingresos'));
-    for (var i = 0; i < 6; i++) {
-      await tester.pump();
+      await tester.tap(_chip('Ingresos'));
+      for (var i = 0; i < 6; i++) {
+        await tester.pump();
+        expect(find.text('Sin movimientos'), findsNothing);
+      }
+
+      expect(repo.movimientosCalls, hasLength(2));
+      expect(repo.movimientosCalls.last.cursor, 50);
+      expect(find.text('Depósito'), findsOneWidget);
       expect(find.text('Sin movimientos'), findsNothing);
-    }
-
-    expect(repo.movimientosCalls, hasLength(2));
-    expect(repo.movimientosCalls.last.cursor, 50);
-    expect(find.text('Depósito'), findsOneWidget);
-    expect(find.text('Sin movimientos'), findsNothing);
-  });
+    },
+  );
 
   testWidgets('sin filtro y con lista corta en superficie alta carga la '
       'página 2 sin scroll', (tester) async {
@@ -186,7 +190,9 @@ void main() {
         enVuelo--;
         final base = (cursor ?? 0) + 1;
         return pagina(
-          [mov(base, [(MotivoLinea.envio, -100000 - base)])],
+          [
+            mov(base, [(MotivoLinea.envio, -100000 - base)]),
+          ],
           nextCursor: base,
           hasMore: true,
         );
@@ -214,13 +220,14 @@ void main() {
     expect(find.byKey(const ValueKey('boton-cargar-mas')), findsOneWidget);
   });
 
-  testWidgets('el filtro Ingresos solo muestra líneas positivas',
-      (tester) async {
+  testWidgets('el filtro Ingresos solo muestra líneas positivas', (
+    tester,
+  ) async {
     final repo = FakeNucleoRepository()
       ..onMovimientos = (_, _) async => pagina([
-            movCompensado(1),
-            mov(2, [(MotivoLinea.envio, -300000)]),
-          ]);
+        movCompensado(1),
+        mov(2, [(MotivoLinea.envio, -300000)]),
+      ]);
     await _pump(tester, repo);
 
     await tester.tap(_chip('Ingresos'));
@@ -231,8 +238,7 @@ void main() {
     expect(find.text('GMF'), findsNothing);
   });
 
-  testWidgets('un error muestra mensaje genérico y Reintentar',
-      (tester) async {
+  testWidgets('un error muestra mensaje genérico y Reintentar', (tester) async {
     final repo = FakeNucleoRepository()
       ..onMovimientos = (_, _) async => throw const FormatException('malo');
     await _pump(tester, repo);
@@ -248,27 +254,42 @@ void main() {
     expect(find.text('Depósito'), findsOneWidget);
   });
 
-  testWidgets('los totales no cuentan la transferencia compensada',
-      (tester) async {
+  testWidgets('los totales no cuentan la transferencia compensada', (
+    tester,
+  ) async {
     final repo = FakeNucleoRepository()
       ..onMovimientos = (_, _) async => pagina([
-            mov(1, [(MotivoLinea.deposito, 50000000)]),
-            mov(2, [(MotivoLinea.envio, -2000000)]),
-            mov(3, [
-              (MotivoLinea.envio, -10000000),
-              (MotivoLinea.devolucion, 10000000),
-            ]),
-          ]);
+        mov(1, [(MotivoLinea.deposito, 50000000)]),
+        mov(2, [(MotivoLinea.envio, -2000000)]),
+        mov(3, [
+          (MotivoLinea.envio, -10000000),
+          (MotivoLinea.devolucion, 10000000),
+        ]),
+      ]);
     await _pump(tester, repo);
 
-    expect(find.text('\$500.000'), findsOneWidget);
+    // Una vez en el resumen y otra en la fila del depósito.
+    expect(find.text('+\$500.000'), findsNWidgets(2));
     expect(find.text('\$20.000'), findsOneWidget);
-    expect(find.text('\$600.000'), findsNothing);
+    expect(find.text('+\$600.000'), findsNothing);
     expect(find.text('\$120.000'), findsNothing);
   });
 
-  testWidgets('la compensación muestra filas con signo y ningún -\$0',
-      (tester) async {
+  testWidgets('cada fila dice si es Ingreso o Gasto', (tester) async {
+    final repo = FakeNucleoRepository()
+      ..onMovimientos = (_, _) async => pagina([
+        mov(1, [(MotivoLinea.deposito, 5000000)]),
+        mov(2, [(MotivoLinea.envio, -2000000)]),
+      ]);
+    await _pump(tester, repo);
+
+    expect(find.text('Ingreso'), findsOneWidget);
+    expect(find.text('Gasto'), findsOneWidget);
+  });
+
+  testWidgets('la compensación muestra filas con signo y ningún -\$0', (
+    tester,
+  ) async {
     final repo = FakeNucleoRepository()
       ..onMovimientos = (_, _) async => pagina([movCompensado(1)]);
     await _pump(tester, repo);
@@ -282,20 +303,19 @@ void main() {
     expect(find.textContaining('-\$0'), findsNothing);
   });
 
-  testWidgets('la hora y el día de agrupación usan la hora local',
-      (tester) async {
+  testWidgets('la hora y el día de agrupación usan la hora local', (
+    tester,
+  ) async {
     final repo = FakeNucleoRepository()
       ..onMovimientos = (_, _) async => pagina([
-            mov(
-              1,
-              [(MotivoLinea.deposito, 100000)],
-              ocurridoEn: DateTime.utc(2025, 3, 10, 2, 30),
-            ),
-          ]);
+        mov(1, [
+          (MotivoLinea.deposito, 100000),
+        ], ocurridoEn: DateTime.utc(2025, 3, 10, 2, 30)),
+      ]);
     await _pump(tester, repo, offset: const Duration(hours: -8));
 
     expect(find.text('6:30 pm'), findsOneWidget);
-    expect(find.text('DOM 9 MAR'), findsOneWidget);
+    expect(find.text('Dom 9 mar'), findsOneWidget);
   });
 
   testWidgets('ya no hay un botón de filtros sin acción', (tester) async {

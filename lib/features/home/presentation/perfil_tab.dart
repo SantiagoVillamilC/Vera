@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:vera/core/format/saludo.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/theme/app_theme.dart';
-import 'package:vera/core/widgets/wip_badge.dart';
+import 'package:vera/core/widgets/marca_vera.dart';
+import 'package:vera/core/widgets/tarjeta_vidrio.dart';
 import 'package:vera/features/asistente/data/asistente_repository.dart';
 import 'package:vera/features/asistente/presentation/confirmar_borrado.dart';
 import 'package:vera/core/network/error_messages.dart';
@@ -43,6 +45,7 @@ class _PerfilTabState extends State<PerfilTab> {
   late final AsistenteRepository _asistente =
       widget.asistente ?? AsistenteRepository();
   String? _nombre;
+  String? _tipoCuenta;
   bool _cerrando = false;
   bool _borrandoHistorial = false;
   ConsentimientoAsistente? _consentVera;
@@ -195,7 +198,12 @@ class _PerfilTabState extends State<PerfilTab> {
     try {
       final perfil = await (widget.session ?? defaultSessionStore)
           .readProfile();
-      if (mounted) setState(() => _nombre = nombreDePerfil(perfil));
+      if (mounted) {
+        setState(() {
+          _nombre = nombreDePerfil(perfil);
+          _tipoCuenta = perfil.tipoCuenta;
+        });
+      }
     } catch (_) {
       // Sin perfil legible se queda "Mi cuenta".
     }
@@ -218,245 +226,60 @@ class _PerfilTabState extends State<PerfilTab> {
     return SafeArea(
       bottom: false,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 140),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Perfil',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Profile card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 64,
-                        height: 64,
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppColors.gradientStart,
-                              AppColors.gradientEnd,
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.person_rounded,
-                            color: Colors.white,
-                            size: 30,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _nombre ?? 'Mi cuenta',
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-            _SectionLabel('CUENTA'),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                children: [
-                  if (_biometriaDisponible) ...[
-                    Material(
-                      type: MaterialType.transparency,
-                      child: SwitchListTile(
-                        key: const Key('biometria_switch'),
-                        value: _biometriaActiva,
-                        onChanged: _cambiandoBiometria
-                            ? null
-                            : _cambiarBiometria,
-                        secondary: const Icon(
-                          Icons.fingerprint_rounded,
-                          color: AppColors.textSecondary,
-                        ),
-                        title: const Text(
-                          'Desbloqueo con huella o rostro',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Divider(
-                      color: AppColors.border,
-                      height: 1,
-                      indent: 60,
-                    ),
-                  ],
-                  if (_consentVera?.autorizado ?? false) ...[
-                    Material(
-                      type: MaterialType.transparency,
-                      child: ListTile(
-                        key: const Key('desactivar_vera'),
-                        enabled: !_revocandoVera,
-                        onTap: _desactivarVera,
-                        leading: const Icon(
-                          Icons.auto_awesome_outlined,
-                          color: AppColors.textSecondary,
-                        ),
-                        title: const Text(
-                          'Desactivar a Vera',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Divider(
-                      color: AppColors.border,
-                      height: 1,
-                      indent: 60,
-                    ),
-                  ],
-                  Material(
-                    type: MaterialType.transparency,
-                    child: ListTile(
-                      key: const Key('borrar_historial_vera'),
-                      enabled: !_borrandoHistorial,
-                      onTap: _borrarHistorialDeVera,
-                      leading: const Icon(
-                        Icons.delete_sweep_outlined,
-                        color: AppColors.textSecondary,
-                      ),
-                      title: const Text(
-                        'Borrar historial de Vera',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+            _Cabecera(nombre: _nombre, tipoCuenta: _tipoCuenta),
+            const SizedBox(height: 22),
+            const _EtiquetaSeccion('CUENTA'),
+            _GrupoPerfil(
+              children: [
+                if (_biometriaDisponible)
+                  _FilaPerfil(
+                    icono: Icons.fingerprint_rounded,
+                    etiqueta: 'Desbloqueo con huella o rostro',
+                    alTocar: _cambiandoBiometria
+                        ? null
+                        : () => _cambiarBiometria(!_biometriaActiva),
+                    derecha: Switch(
+                      key: const Key('biometria_switch'),
+                      value: _biometriaActiva,
+                      onChanged: _cambiandoBiometria ? null : _cambiarBiometria,
+                      activeThumbColor: AppColors.tintaBotonClaro,
+                      activeTrackColor: AppColors.accentGreen,
                     ),
                   ),
-                  const Divider(color: AppColors.border, height: 1, indent: 60),
-                  const _MenuItem(
-                    icon: Icons.security_rounded,
-                    label: 'Seguridad y PIN',
+                if (_consentVera?.autorizado ?? false)
+                  _FilaPerfil(
+                    key: const Key('desactivar_vera'),
+                    icono: Icons.auto_awesome_outlined,
+                    etiqueta: 'Desactivar a Vera',
+                    alTocar: _revocandoVera ? null : _desactivarVera,
                   ),
-                  const Divider(color: AppColors.border, height: 1, indent: 60),
-                  const _MenuItem(
-                    icon: Icons.badge_rounded,
-                    label: 'Mis documentos',
-                  ),
-                  const Divider(color: AppColors.border, height: 1, indent: 60),
-                  const _MenuItem(
-                    icon: Icons.account_balance_rounded,
-                    label: 'Cuentas bancarias',
-                  ),
-                ],
-              ),
+                _FilaPerfil(
+                  key: const Key('borrar_historial_vera'),
+                  icono: Icons.delete_sweep_outlined,
+                  etiqueta: 'Borrar historial de Vera',
+                  alTocar: _borrandoHistorial ? null : _borrarHistorialDeVera,
+                ),
+              ],
             ),
-
-            const SizedBox(height: 20),
-            _SectionLabel('SOPORTE'),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                children: const [
-                  _MenuItem(
-                    icon: Icons.help_outline_rounded,
-                    label: 'Centro de ayuda',
-                  ),
-                  Divider(color: AppColors.border, height: 1, indent: 60),
-                  _MenuItem(
-                    icon: Icons.chat_bubble_outline_rounded,
-                    label: 'Chat con soporte',
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-            _SectionLabel('LEGAL'),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                children: const [
-                  _MenuItem(
-                    icon: Icons.description_outlined,
-                    label: 'Términos y condiciones',
-                  ),
-                  Divider(color: AppColors.border, height: 1, indent: 60),
-                  _MenuItem(
-                    icon: Icons.privacy_tip_outlined,
-                    label: 'Política de privacidad',
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: OutlinedButton.icon(
+            const SizedBox(height: 22),
+            Center(
+              child: TextButton.icon(
                 onPressed: _cerrando ? null : _cerrarSesion,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: const BorderSide(color: AppColors.error),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.gradientStart,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
                   ),
                 ),
-                icon: const Icon(Icons.logout_rounded, size: 18),
+                icon: const Icon(Icons.logout_rounded, size: 22),
                 label: const Text(
                   'Cerrar sesión',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -467,74 +290,153 @@ class _PerfilTabState extends State<PerfilTab> {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-  final String text;
+class _Cabecera extends StatelessWidget {
+  const _Cabecera({required this.nombre, required this.tipoCuenta});
+
+  final String? nombre;
+  final String? tipoCuenta;
+
+  @override
+  Widget build(BuildContext context) {
+    final etiquetaCuenta = tipoCuenta == 'empresa'
+        ? 'Cuenta empresa'
+        : 'Cuenta personal';
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        children: [
+          AvatarVera(iniciales: inicialesDe(nombre), tamano: 104),
+          const SizedBox(height: 14),
+          Text(
+            nombre ?? 'Mi cuenta',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.borderGlass),
+            ),
+            child: Text(
+              etiquetaCuenta,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 15,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EtiquetaSeccion extends StatelessWidget {
+  const _EtiquetaSeccion(this.texto);
+  final String texto;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      padding: const EdgeInsets.only(left: 6, bottom: 10),
       child: Text(
-        text,
+        texto,
         style: const TextStyle(
-          color: AppColors.textMuted,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 1.2,
+          color: AppColors.textSecondary,
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.6,
         ),
       ),
     );
   }
 }
 
-class _MenuItem extends StatelessWidget {
-  const _MenuItem({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
+/// Grupo de filas en una tarjeta de vidrio, con separadores entre ellas.
+class _GrupoPerfil extends StatelessWidget {
+  const _GrupoPerfil({required this.children});
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
+    return TarjetaVidrio(
+      radio: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+      child: Column(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Icon(icon, color: AppColors.textSecondary, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const WipBadge(),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          for (var i = 0; i < children.length; i++) ...[
+            children[i],
+            if (i < children.length - 1)
+              Divider(color: Colors.white.withAlpha(22), height: 1, indent: 44),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+/// Fila de ajustes con una función.
+class _FilaPerfil extends StatelessWidget {
+  const _FilaPerfil({
+    super.key,
+    required this.icono,
+    required this.etiqueta,
+    this.alTocar,
+    this.derecha,
+  });
+
+  final IconData icono;
+  final String etiqueta;
+  final VoidCallback? alTocar;
+
+  /// Reemplaza la flecha del final, por ejemplo con un interruptor o una insignia.
+  final Widget? derecha;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: alTocar,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Row(
+          children: [
+            Icon(icono, color: AppColors.gradientStart, size: 24),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  Text(
+                    etiqueta,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (derecha != null)
+              derecha!
+            else
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textSecondary,
+                size: 24,
+              ),
+          ],
+        ),
       ),
     );
   }

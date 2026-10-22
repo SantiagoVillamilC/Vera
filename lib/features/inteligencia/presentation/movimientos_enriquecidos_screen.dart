@@ -3,6 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/tintes.dart';
+import 'package:vera/core/widgets/fondo_vera.dart';
+import 'package:vera/core/widgets/tarjeta_vidrio.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/features/home/presentation/movimiento_vista.dart';
 import 'package:vera/features/inteligencia/data/inteligencia_repository.dart';
@@ -89,10 +92,7 @@ class _MovimientosEnriquecidosScreenState
     await _aplicar(movimiento.transaccionId, elegida);
   }
 
-  Future<void> _aplicar(
-    String transaccionId,
-    CorreccionElegida elegida,
-  ) async {
+  Future<void> _aplicar(String transaccionId, CorreccionElegida elegida) async {
     setState(() => _aplicando = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -134,34 +134,34 @@ class _MovimientosEnriquecidosScreenState
       );
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(mensajeDeError(e))),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
     } finally {
       if (mounted) setState(() => _aplicando = false);
     }
   }
 
   static String _textoDeCambios(int filas) => switch (filas) {
-        0 => 'Sin cambios',
-        1 => 'Movimiento actualizado',
-        _ => '$filas movimientos actualizados',
-      };
+    0 => 'Sin cambios',
+    1 => 'Movimiento actualizado',
+    _ => '$filas movimientos actualizados',
+  };
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context),
-            _buildResumen(),
-            const SizedBox(height: 12),
-            Expanded(child: _buildBody()),
-          ],
+      body: FondoVera(
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context),
+              _buildResumen(),
+              const SizedBox(height: 8),
+              Expanded(child: _buildBody()),
+            ],
+          ),
         ),
       ),
     );
@@ -169,23 +169,30 @@ class _MovimientosEnriquecidosScreenState
 
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       child: Row(
         children: [
-          GestureDetector(
+          Semantics(
+            button: true,
+            label: 'Volver',
+            excludeSemantics: true,
             onTap: () => context.canPop() ? context.pop() : null,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: AppColors.textSecondary,
-                size: 18,
+            child: GestureDetector(
+              onTap: () => context.canPop() ? context.pop() : null,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: AppColors.botonOscuro,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.borderGlass),
+                ),
+                child: const Icon(
+                  Icons.chevron_left_rounded,
+                  color: AppColors.textPrimary,
+                  size: 28,
+                ),
               ),
             ),
           ),
@@ -194,23 +201,25 @@ class _MovimientosEnriquecidosScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Movimientos con categoría',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Movimientos con categoría',
+                    maxLines: 1,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.4,
+                    ),
                   ),
                 ),
-                SizedBox(height: 2),
                 Text(
-                  'Sugerencias que puedes confirmar',
+                  'Vera clasifica, tú corriges',
                   style: TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontSize: 15,
                   ),
                 ),
               ],
@@ -218,8 +227,8 @@ class _MovimientosEnriquecidosScreenState
           ),
           if (_aplicando)
             const SizedBox(
-              width: 18,
-              height: 18,
+              width: 20,
+              height: 20,
               child: CircularProgressIndicator(
                 color: AppColors.gradientStart,
                 strokeWidth: 2,
@@ -232,7 +241,7 @@ class _MovimientosEnriquecidosScreenState
               icon: const Icon(
                 Icons.refresh_rounded,
                 color: AppColors.textSecondary,
-                size: 20,
+                size: 22,
               ),
             ),
         ],
@@ -241,56 +250,71 @@ class _MovimientosEnriquecidosScreenState
   }
 
   Widget _buildResumen() {
+    final total = _movimientos.length;
     final sinCategoria = _movimientos.where((m) => m.sinCategoria).length;
-    final sugeridas = _movimientos.where((m) => m.categoriaSugerida).length;
-    final texto = _cargando || _error != null
+    final listo = !_cargando && _error == null;
+    final titulo = !listo
         ? 'Un momento'
         : sinCategoria == 0
-            ? 'Todos los movimientos tienen categoría'
-            : '$sinCategoria de ${_movimientos.length} sin categoría';
+        ? 'Todos los movimientos tienen categoría'
+        : '$sinCategoria de $total sin categoría';
+    final sugeridas = _movimientos.where((m) => m.categoriaSugerida).length;
     final leyenda = sugeridas == 0
-        ? 'Toca una etiqueta para corregir'
+        ? 'Toca una etiqueta para ajustarla. Vera aprende de tus cambios.'
         : sugeridas == 1
-            ? '1 sugerida por Vera, toca para confirmar'
-            : '$sugeridas sugeridas por Vera, toca para confirmar';
+        ? '1 sugerida por Vera, toca para confirmar'
+        : '$sugeridas sugeridas por Vera, toca para confirmar';
+    final avance = listo && total > 0 ? (total - sinCategoria) / total : 0.0;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-        ),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      child: TarjetaVidrio(
+        radio: 26,
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
         child: Row(
           children: [
-            const Icon(
-              Icons.auto_awesome_rounded,
-              color: AppColors.accent,
-              size: 16,
+            SizedBox(
+              width: 58,
+              height: 58,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox.expand(
+                    child: CircularProgressIndicator(
+                      value: avance,
+                      strokeWidth: 6,
+                      color: AppColors.gradientStart,
+                      backgroundColor: Colors.white.withAlpha(30),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.check_rounded,
+                    color: AppColors.gradientStart,
+                    size: 26,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    texto,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    titulo,
                     style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
+                      color: AppColors.textPrimary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     leyenda,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                      fontSize: 15,
+                      height: 1.3,
                     ),
                   ),
                 ],
@@ -312,9 +336,10 @@ class _MovimientosEnriquecidosScreenState
     }
     final ahora = ahoraLocal(offset: widget.offsetLocal);
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 120),
       itemCount: _movimientos.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) =>
+          Divider(color: Colors.white.withAlpha(24), height: 1),
       itemBuilder: (context, i) => _TileEnriquecido(
         movimiento: _movimientos[i],
         ahora: ahora,
@@ -345,43 +370,17 @@ class _TileEnriquecido extends StatelessWidget {
     final m = movimiento;
     final local = m.enLocal(offset: offsetLocal);
     final origen = etiquetaDeOrigen(m.origenCategoria);
-    final subtitulo = [
+    final fecha = [
       encabezadoDeFecha(local, ahora),
-      formatHora(local),
       if (origen.isNotEmpty) origen,
     ].join(' · ');
 
-    return Container(
+    return Padding(
       key: ValueKey('enriquecido-${m.transaccionId}'),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: m.esIngreso
-                  ? AppColors.accentGreen.withAlpha(20)
-                  : AppColors.surfaceVariant,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              m.esIngreso
-                  ? Icons.arrow_downward_rounded
-                  : Icons.arrow_upward_rounded,
-              color: m.esIngreso
-                  ? AppColors.accentGreen
-                  : AppColors.textSecondary,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,24 +391,15 @@ class _TileEnriquecido extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitulo,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 11,
-                  ),
-                ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
+                  spacing: 8,
+                  runSpacing: 6,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     _EtiquetaDeCategoria(
@@ -422,16 +412,36 @@ class _TileEnriquecido extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 10),
-          Text(
-            montoConSigno(m.montoConSigno),
-            style: TextStyle(
-              color: m.esIngreso
-                  ? AppColors.accentGreen
-                  : AppColors.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                montoConSigno(m.montoConSigno),
+                style: TextStyle(
+                  color: m.esIngreso
+                      ? AppColors.accentGreen
+                      : AppColors.textPrimary,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                fecha,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 15,
+                ),
+              ),
+              Text(
+                formatHora(local),
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -439,6 +449,7 @@ class _TileEnriquecido extends StatelessWidget {
   }
 }
 
+/// Etiqueta de categoría con su color; sin categoría es un botón punteado «+ Categoría».
 class _EtiquetaDeCategoria extends StatelessWidget {
   const _EtiquetaDeCategoria({required this.movimiento, this.onTap});
 
@@ -448,44 +459,92 @@ class _EtiquetaDeCategoria extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sin = movimiento.sinCategoria;
+    final tinte = sin
+        ? const TinteVera(Color(0x1A6CB6F2), AppColors.accent)
+        : tinteDeCategoria(movimiento.categoriaNombre);
+    final contenido = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!sin) ...[
+          Icon(
+            iconoDeCategoria(movimiento.categoriaNombre),
+            size: 18,
+            color: tinte.tinta,
+          ),
+          const SizedBox(width: 8),
+        ],
+        Flexible(
+          child: Text(
+            sin ? '+ Categoría' : movimiento.categoriaNombre,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: tinte.tinta,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
     return GestureDetector(
       key: ValueKey('categoria-${movimiento.transaccionId}'),
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: sin
-              ? AppColors.gradientStart.withAlpha(46)
-              : AppColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: sin ? AppColors.gradientMid : AppColors.border,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!sin) ...[
-              const Icon(
-                Icons.sell_outlined,
-                size: 12,
-                color: AppColors.textSecondary,
+      behavior: HitTestBehavior.opaque,
+      child: sin
+          ? CustomPaint(
+              painter: _BordePunteado(color: tinte.tinta.withAlpha(170)),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: tinte.fondo,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: contenido,
               ),
-              const SizedBox(width: 5),
-            ],
-            Text(
-              sin ? '+ Categoría' : movimiento.categoriaNombre,
-              style: TextStyle(
-                color: sin ? AppColors.accent : AppColors.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+            )
+          : Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              decoration: BoxDecoration(
+                color: tinte.fondo,
+                borderRadius: BorderRadius.circular(999),
               ),
+              child: contenido,
             ),
-          ],
-        ),
-      ),
     );
   }
+}
+
+class _BordePunteado extends CustomPainter {
+  const _BordePunteado({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final trazo = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6;
+    final borde = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(size.height / 2),
+    );
+    final path = Path()..addRRect(borde);
+    for (final m in path.computeMetrics()) {
+      var d = 0.0;
+      while (d < m.length) {
+        canvas.drawPath(m.extractPath(d, d + 5), trazo);
+        d += 9;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BordePunteado old) => old.color != color;
 }
 
 /// Marca de que la categoría la propuso la cascada y falta confirmarla.
@@ -496,22 +555,26 @@ class _SugeridaBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       key: const ValueKey('marca-sugerida'),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.accent.withAlpha(20),
+        color: AppColors.accentGreen.withAlpha(24),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.accent.withAlpha(90)),
+        border: Border.all(color: AppColors.accentGreen.withAlpha(90)),
       ),
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.auto_awesome_rounded, size: 10, color: AppColors.accent),
-          SizedBox(width: 4),
+          Icon(
+            Icons.auto_awesome_rounded,
+            size: 12,
+            color: AppColors.accentGreen,
+          ),
+          SizedBox(width: 5),
           Text(
             'Sugerida',
             style: TextStyle(
-              color: AppColors.accent,
-              fontSize: 10,
+              color: AppColors.accentGreen,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -520,4 +583,3 @@ class _SugeridaBadge extends StatelessWidget {
     );
   }
 }
-

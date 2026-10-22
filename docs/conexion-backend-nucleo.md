@@ -153,7 +153,7 @@ Para configurar la URL según el entorno (emulador, dispositivo físico, etc.), 
 
 | Funcionalidad | Endpoint | Prioridad |
 |---|---|---|
-| Estadísticas reales | Sin endpoint en el contrato | Media: `EstadisticasScreen` y `TarjetasTab` muestran datos de muestra con aviso "(WIP)" por decisión D6. El Balance de estadísticas y la lista de movimientos son reales |
+| Estadísticas reales | Sin endpoint en el contrato | Media: `EstadisticasScreen` y `TarjetasTab` muestran datos de muestra (decisión D6; ya sin la insignia "(WIP)" en pantalla). El Balance de estadísticas y la lista de movimientos son reales |
 
 ### No verificado todavía
 
