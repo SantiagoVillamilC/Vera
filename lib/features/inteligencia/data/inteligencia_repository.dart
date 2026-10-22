@@ -7,12 +7,13 @@ import 'package:vera/features/inteligencia/data/modelos.dart';
 /// El Bearer y el refresh los maneja el [ApiClient] autenticado.
 class InteligenciaRepository {
   InteligenciaRepository({ApiClient? client, SessionStore? session})
-      : _client = client ??
-            ApiClient(
-              baseUrl: AppConfig.baseUrl,
-              session: session ?? defaultSessionStore,
-              onSessionExpired: expireAppSession,
-            );
+    : _client =
+          client ??
+          ApiClient(
+            baseUrl: AppConfig.baseUrl,
+            session: session ?? defaultSessionStore,
+            onSessionExpired: expireAppSession,
+          );
 
   final ApiClient _client;
 
@@ -30,6 +31,18 @@ class InteligenciaRepository {
       for (final fila in data)
         MovimientoEnriquecido.fromJson(fila as Map<String, dynamic>),
     ];
+  }
+
+  /// GET /v1/inteligencia/resumen
+  /// Gasto de un mes (`YYYY-MM`, America/Bogota) por categoría. Sin [mes], el mes en curso.
+  Future<ResumenDelMes> resumen({String? mes}) async {
+    final raw = await _client.get(
+      '/v1/inteligencia/resumen',
+      queryParams: {'mes': ?mes},
+    );
+    return ResumenDelMes.fromJson(
+      (raw['data'] as Map?)?.cast<String, dynamic>() ?? const {},
+    );
   }
 
   /// POST /v1/inteligencia/movimientos/{transaccion_id}/correcciones

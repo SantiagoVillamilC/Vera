@@ -3,7 +3,10 @@ import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/format/tarjeta_muestra.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/theme/app_theme.dart';
-import 'package:vera/core/widgets/wip_badge.dart';
+import 'package:vera/core/theme/tintes.dart';
+import 'package:vera/core/widgets/adornos_vera.dart';
+import 'package:vera/core/widgets/marca_vera.dart';
+import 'package:vera/core/widgets/tarjeta_vidrio.dart';
 import 'package:vera/features/home/presentation/perfil_tab.dart';
 
 /// Sin endpoint de tarjetas en el contrato: número, vencimiento, tipo, estado
@@ -29,8 +32,8 @@ class _TarjetasTabState extends State<TarjetasTab> {
 
   Future<void> _cargarNombre() async {
     try {
-      final perfil =
-          await (widget.session ?? defaultSessionStore).readProfile();
+      final perfil = await (widget.session ?? defaultSessionStore)
+          .readProfile();
       if (mounted) setState(() => _nombre = nombreDePerfil(perfil));
     } catch (_) {
       // Sin perfil legible se queda el nombre genérico.
@@ -42,114 +45,77 @@ class _TarjetasTabState extends State<TarjetasTab> {
     return SafeArea(
       bottom: false,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 140),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Expanded(
-                  child: Text(
-                    'Mis Tarjetas',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.add_rounded,
-                          color: AppColors.textSecondary, size: 16),
-                      SizedBox(width: 4),
-                      Text(
-                        'Agregar',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Mis tarjetas',
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.8,
                       ),
-                      SizedBox(width: 6),
-                      WipBadge(),
-                    ],
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            const WipAviso(),
             const SizedBox(height: 16),
-            _TarjetaVisual(nombre: (_nombre ?? nombreTarjetaGenerico).toUpperCase()),
-            const SizedBox(height: 12),
+            _TarjetaVisual(
+              nombre: (_nombre ?? nombreTarjetaGenerico).toUpperCase(),
+            ),
+            const SizedBox(height: 14),
             const _PuntosPaginacion(),
-            const SizedBox(height: 24),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const Column(
+            const SizedBox(height: 22),
+            const SizedBox(height: 22),
+            TarjetaVidrio(
+              radio: 24,
+              opaca: true,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Column(
                 children: [
-                  _DetailRow(label: 'Tarjeta', value: tarjetaMuestraRotulo),
-                  _Separador(),
-                  _DetailRow(label: 'Número', value: tarjetaMuestraNumero),
-                  _Separador(),
-                  _DetailRow(
+                  const _DetailRow(
+                    label: 'Tarjeta',
+                    value: tarjetaMuestraRotulo,
+                  ),
+                  const _Separador(),
+                  const _DetailRow(
+                    label: 'Número',
+                    value: tarjetaMuestraNumero,
+                  ),
+                  const _Separador(),
+                  const _DetailRow(
                     label: 'Vencimiento',
                     value: tarjetaMuestraVencimiento,
                   ),
-                  _Separador(),
-                  _DetailRow(label: 'Tipo', value: tarjetaMuestraTipo),
-                  _Separador(),
-                  _DetailRowEstado(label: 'Estado'),
+                  const _Separador(),
+                  const _DetailRow(label: 'Tipo', value: tarjetaMuestraTipo),
+                  const _Separador(),
+                  const _DetailRowEstado(label: 'Estado'),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 26),
             const Text(
-              'Últimos movimientos con tarjeta',
+              'Movimientos con tarjeta',
               style: TextStyle(
                 color: AppColors.textPrimary,
-                fontSize: 16,
+                fontSize: 21,
                 fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
               ),
             ),
-            const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                children: [
-                  for (var i = 0; i < movimientosTarjetaMuestra.length; i++) ...[
-                    _TxItem(datos: movimientosTarjetaMuestra[i]),
-                    if (i < movimientosTarjetaMuestra.length - 1)
-                      const Divider(
-                        color: AppColors.border,
-                        height: 1,
-                        indent: 72,
-                      ),
-                  ],
-                ],
-              ),
-            ),
+            const SizedBox(height: 8),
+            for (final m in movimientosTarjetaMuestra) _TxItem(datos: m),
           ],
         ),
       ),
@@ -164,102 +130,166 @@ class _TarjetaVisual extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Una tarjeta física no crece con la letra del sistema: se queda en su tamaño.
+    return MediaQuery.withClampedTextScaling(
+      minScaleFactor: 1,
+      maxScaleFactor: 1,
+      child: _cuerpo(),
+    );
+  }
+
+  Widget _cuerpo() {
     return Container(
       width: double.infinity,
-      height: 200,
-      padding: const EdgeInsets.all(24),
+      height: 240,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.gradientStart, AppColors.gradientEnd],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.gradientStart.withAlpha(80),
-            blurRadius: 30,
-            offset: const Offset(0, 12),
-          ),
-        ],
+        gradient: AppGradients.tarjetaSaldo,
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: AppColors.borderGlass),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'VERA',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 2,
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(50),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'Débito',
+      child: ConAdorno(
+        tipo: AdornoTarjeta.curvas,
+        radio: 32,
+        expandir: true,
+        padding: const EdgeInsets.fromLTRB(24, 22, 24, 22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const MarcaVera(tamano: 34, chispa: false),
+                const SizedBox(width: 8),
+                const Text(
+                  'vera',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          const FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              tarjetaMuestraNumero,
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 16,
-                letterSpacing: 2,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  nombre,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
+                    fontSize: 26,
+                    fontFamilyFallback: ['Georgia', 'serif'],
                     fontWeight: FontWeight.w600,
-                    letterSpacing: 1.5,
+                    letterSpacing: -0.5,
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'VISA',
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(30),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.borderGlass),
+                  ),
+                  child: const Text(
+                    tarjetaMuestraEstado,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFEFF5F8), Color(0xFFB9CBD6)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Icon(Icons.wifi_rounded, color: Colors.white70, size: 20),
+              ],
+            ),
+            const Spacer(),
+            const FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                tarjetaMuestraNumero,
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  fontStyle: FontStyle.italic,
-                  letterSpacing: 1,
+                  fontSize: 24,
+                  letterSpacing: 2,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'TITULAR',
+                        style: TextStyle(
+                          color: Colors.white60,
+                          fontSize: 11,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      Text(
+                        nombre,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'VENCE',
+                      style: TextStyle(
+                        color: Colors.white60,
+                        fontSize: 11,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const Text(
+                      tarjetaMuestraVencimiento,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 18),
+                const Text(
+                  'VISA',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -274,22 +304,20 @@ class _PuntosPaginacion extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
-          width: 24,
-          height: 6,
+          width: 28,
+          height: 7,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.gradientStart, AppColors.gradientEnd],
-            ),
-            borderRadius: BorderRadius.circular(3),
+            color: AppColors.gradientMid,
+            borderRadius: BorderRadius.circular(4),
           ),
         ),
         const SizedBox(width: 6),
         Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(
+          width: 7,
+          height: 7,
+          decoration: const BoxDecoration(
             color: AppColors.textMuted,
-            borderRadius: BorderRadius.circular(3),
+            shape: BoxShape.circle,
           ),
         ),
       ],
@@ -302,8 +330,8 @@ class _Separador extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Divider(
-      color: AppColors.border,
+    return Divider(
+      color: Colors.white.withAlpha(22),
       height: 1,
       indent: 16,
       endIndent: 16,
@@ -320,12 +348,15 @@ class _DetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       child: Row(
         children: [
           Text(
             label,
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -336,7 +367,7 @@ class _DetailRow extends StatelessWidget {
                 value,
                 style: const TextStyle(
                   color: AppColors.textPrimary,
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -356,13 +387,16 @@ class _DetailRowEstado extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             label,
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+            ),
           ),
           Row(
             children: [
@@ -379,7 +413,7 @@ class _DetailRowEstado extends StatelessWidget {
                 tarjetaMuestraEstado,
                 style: TextStyle(
                   color: AppColors.accentGreen,
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -391,6 +425,12 @@ class _DetailRowEstado extends StatelessWidget {
   }
 }
 
+TinteVera _tinteDeConcepto(String concepto) => switch (concepto) {
+  'Restaurante' => TinteVera.naranja,
+  'Combustible' => TinteVera.ambar,
+  _ => TinteVera.morado,
+};
+
 class _TxItem extends StatelessWidget {
   const _TxItem({required this.datos});
 
@@ -398,19 +438,19 @@ class _TxItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tinte = _tinteDeConcepto(datos.concepto);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(vertical: 9),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 50,
+            height: 50,
             decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
+              color: tinte.fondo,
+              shape: BoxShape.circle,
             ),
-            child: Icon(datos.icono, color: AppColors.textMuted, size: 20),
+            child: Icon(datos.icono, color: tinte.tinta, size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -421,16 +461,16 @@ class _TxItem extends StatelessWidget {
                   datos.concepto,
                   style: const TextStyle(
                     color: AppColors.textPrimary,
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
                   datos.fecha,
                   style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
                   ),
                 ),
               ],
@@ -441,7 +481,7 @@ class _TxItem extends StatelessWidget {
             '-${formatPesosInt(datos.centavos)}',
             style: const TextStyle(
               color: AppColors.textPrimary,
-              fontSize: 15,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
           ),

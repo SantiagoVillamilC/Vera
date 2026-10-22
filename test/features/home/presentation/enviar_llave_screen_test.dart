@@ -15,8 +15,8 @@ const _exito = 'Enviado. Verás el resultado en tu historial.';
 typedef _Llamada = ({String tipo, String llave, String monto, String key});
 
 class _FakeRepo implements NucleoRepository {
-  Future<EnvioPorLlave> Function(_Llamada llamada) onEnviar =
-      (l) async => _envio(EstadoTransferencia.confirmada);
+  Future<EnvioPorLlave> Function(_Llamada llamada) onEnviar = (l) async =>
+      _envio(EstadoTransferencia.confirmada);
 
   final llamadas = <_Llamada>[];
 
@@ -42,15 +42,15 @@ class _FakeRepo implements NucleoRepository {
 }
 
 EnvioPorLlave _envio(EstadoTransferencia estado) => EnvioPorLlave(
-      id: 'e1',
-      tipoLlave: 'celular',
-      llave: '3001234567',
-      montoCentavos: BigInt.from(1000000),
-      moneda: 'COP',
-      estado: estado,
-      creadaEn: DateTime.utc(2026),
-      actualizadaEn: DateTime.utc(2026),
-    );
+  id: 'e1',
+  tipoLlave: 'celular',
+  llave: '3001234567',
+  montoCentavos: BigInt.from(1000000),
+  moneda: 'COP',
+  estado: estado,
+  creadaEn: DateTime.utc(2026),
+  actualizadaEn: DateTime.utc(2026),
+);
 
 ApiException _api(String code, int status) =>
     ApiException(code: code, message: 'x', statusCode: status);
@@ -99,9 +99,6 @@ Future<void> _enviar(WidgetTester tester) async {
   await tester.pump();
 }
 
-Color? _colorDe(WidgetTester tester, String texto) =>
-    tester.widget<Text>(find.text(texto)).style?.color;
-
 bool _hayEntregado(WidgetTester tester) => tester
     .widgetList<Text>(find.byType(Text))
     .any((t) => (t.data ?? '').toLowerCase().contains('entregado'));
@@ -135,8 +132,9 @@ void main() {
         }
       });
 
-      testWidgets('${tipo.codigo}: rechaza las llaves inválidas',
-          (tester) async {
+      testWidgets('${tipo.codigo}: rechaza las llaves inválidas', (
+        tester,
+      ) async {
         await _pump(tester);
         await _elegirTipo(tester, tipo);
         for (final llave in _invalidos[tipo]!) {
@@ -147,16 +145,18 @@ void main() {
       });
     }
 
-    testWidgets('una llave válida de otro tipo no vale al cambiar de tipo',
-        (tester) async {
+    testWidgets('una llave válida de otro tipo no vale al cambiar de tipo', (
+      tester,
+    ) async {
       await _pump(tester);
       await _llenar(tester, llave: '3001234567');
       await _elegirTipo(tester, TipoLlaveBreB.correo);
       expect(_botonHabilitado(tester), isFalse);
     });
 
-    testWidgets('sin monto o con monto cero el botón no se habilita',
-        (tester) async {
+    testWidgets('sin monto o con monto cero el botón no se habilita', (
+      tester,
+    ) async {
       await _pump(tester);
       await _elegirTipo(tester, TipoLlaveBreB.celular);
       await _llenar(tester, llave: '3001234567', pesos: '');
@@ -167,8 +167,9 @@ void main() {
   });
 
   group('celular de 10 dígitos', () {
-    testWidgets('no acepta el prefijo +57 ni 57 ni formato E.164',
-        (tester) async {
+    testWidgets('no acepta el prefijo +57 ni 57 ni formato E.164', (
+      tester,
+    ) async {
       await _pump(tester);
       await _elegirTipo(tester, TipoLlaveBreB.celular);
       for (final llave in ['+573001234567', '573001234567', '+57 3001234567']) {
@@ -177,8 +178,9 @@ void main() {
       }
     });
 
-    testWidgets('envía los 10 dígitos recortados y el monto a centavos',
-        (tester) async {
+    testWidgets('envía los 10 dígitos recortados y el monto a centavos', (
+      tester,
+    ) async {
       final e = await _pump(tester);
       await _elegirTipo(tester, TipoLlaveBreB.celular);
       await _llenar(tester, llave: '  3001234567 ', pesos: '10000');
@@ -200,8 +202,9 @@ void main() {
   });
 
   group('resultado 2xx', () {
-    testWidgets('muestra exactamente el mensaje de éxito y no dice entregado',
-        (tester) async {
+    testWidgets('muestra exactamente el mensaje de éxito y no dice entregado', (
+      tester,
+    ) async {
       await _pump(tester);
       await _elegirTipo(tester, TipoLlaveBreB.celular);
       await _llenar(tester, llave: '3001234567');
@@ -217,8 +220,9 @@ void main() {
       EstadoTransferencia.despachada,
       EstadoTransferencia.confirmada,
     ]) {
-      testWidgets('estado ${estado.name} muestra el mensaje exacto',
-          (tester) async {
+      testWidgets('estado ${estado.name} muestra el mensaje exacto', (
+        tester,
+      ) async {
         final e = await _pump(tester);
         e.repo.onEnviar = (_) async => _envio(estado);
         await _llenar(tester, llave: '3001234567');
@@ -235,49 +239,69 @@ void main() {
       EstadoTransferencia.indeterminada,
       EstadoTransferencia.desconocido,
     ]) {
-      testWidgets('estado ${estado.name} no va en verde y remite al historial',
-          (tester) async {
-        final e = await _pump(tester);
-        e.repo.onEnviar = (_) async => _envio(estado);
-        await _llenar(tester, llave: '3001234567');
-        await _enviar(tester);
+      testWidgets(
+        'estado ${estado.name} no va en verde y remite al historial',
+        (tester) async {
+          final e = await _pump(tester);
+          e.repo.onEnviar = (_) async => _envio(estado);
+          await _llenar(tester, llave: '3001234567');
+          await _enviar(tester);
 
-        final aviso = find.byKey(const Key('resultado'));
-        expect(aviso, findsOneWidget);
-        final texto = tester.widget<Text>(
-          find.descendant(of: aviso, matching: find.byType(Text)),
-        );
-        expect(texto.style?.color, isNot(AppColors.accentGreen));
-        expect(texto.style?.color, AppColors.warning);
-        expect(texto.data, contains('historial'));
-        expect(_hayEntregado(tester), isFalse);
-      });
+          expect(find.byKey(const Key('icono_exito')), findsNothing);
+          final mensaje = tester
+              .widget<Text>(find.byKey(const Key('resultado_mensaje')))
+              .data!;
+          expect(mensaje, contains('historial'));
+          final estadoTexto = tester.widget<Text>(
+            find.byKey(const Key('resultado_estado')),
+          );
+          expect(estadoTexto.style?.color, isNot(AppColors.accentGreen));
+          expect(_hayEntregado(tester), isFalse);
+        },
+      );
     }
 
-    testWidgets('el éxito confirmado va en verde', (tester) async {
-      await _pump(tester);
-      await _llenar(tester, llave: '3001234567');
-      await _enviar(tester);
-      expect(_colorDe(tester, _exito), AppColors.accentGreen);
-    });
+    testWidgets(
+      'el éxito confirmado lleva marca de éxito, estado Exitoso y detalle',
+      (tester) async {
+        await _pump(tester);
+        await _llenar(tester, llave: '3001234567');
+        await _enviar(tester);
+        await tester.pumpAndSettle();
 
-    testWidgets('tras el éxito se limpia el formulario y se renueva la clave',
-        (tester) async {
+        expect(find.text('¡Listo! Ya va en camino'), findsOneWidget);
+        expect(find.byKey(const Key('icono_exito')), findsOneWidget);
+        final estadoTexto = tester.widget<Text>(
+          find.byKey(const Key('resultado_estado')),
+        );
+        expect(estadoTexto.data, 'Exitoso');
+        expect(estadoTexto.style?.color, AppColors.accentGreen);
+        expect(find.text('3001234567'), findsOneWidget);
+        expect(find.text('Celular'), findsOneWidget);
+        expect(find.text('Referencia'), findsOneWidget);
+      },
+    );
+
+    testWidgets('tras el éxito se renueva la clave de idempotencia', (
+      tester,
+    ) async {
       final e = await _pump(tester);
       await _llenar(tester, llave: '3001234567');
       await _enviar(tester);
-      expect(_botonHabilitado(tester), isFalse);
 
-      await _llenar(tester, llave: '3001234567');
-      await _enviar(tester);
-      expect(e.repo.llamadas, hasLength(2));
-      expect(e.repo.llamadas[1].key, isNot(e.repo.llamadas[0].key));
+      final primera = e.repo.llamadas.single.key;
+      final siguiente = e.intent.keyFor(
+        destino: 'celular:3001234567',
+        monto: BigInt.from(1000000),
+      );
+      expect(siguiente, isNot(primera));
     });
   });
 
   group('doble toque', () {
-    testWidgets('dos toques con un envío en vuelo hacen una sola llamada',
-        (tester) async {
+    testWidgets('dos toques con un envío en vuelo hacen una sola llamada', (
+      tester,
+    ) async {
       final completer = Completer<EnvioPorLlave>();
       final e = await _pump(tester);
       e.repo.onEnviar = (_) => completer.future;
@@ -297,8 +321,9 @@ void main() {
   });
 
   group('clave de idempotencia', () {
-    testWidgets('el 503 DirectoryUnavailable reutiliza la clave al reintentar',
-        (tester) async {
+    testWidgets('el 503 DirectoryUnavailable reutiliza la clave al reintentar', (
+      tester,
+    ) async {
       final e = await _pump(tester);
       var falla = true;
       e.repo.onEnviar = (_) async {
@@ -309,7 +334,8 @@ void main() {
       await _enviar(tester);
       expect(
         find.text(
-            'El directorio de destinatarios no está disponible. Intenta más tarde.'),
+          'El directorio de destinatarios no está disponible. Intenta más tarde.',
+        ),
         findsOneWidget,
       );
 
@@ -323,8 +349,9 @@ void main() {
       expect(find.text(_exito), findsOneWidget);
     });
 
-    testWidgets('el timeout deja el botón habilitado y reutiliza la clave',
-        (tester) async {
+    testWidgets('el timeout deja el botón habilitado y reutiliza la clave', (
+      tester,
+    ) async {
       final e = await _pump(tester);
       var falla = true;
       e.repo.onEnviar = (_) async {
@@ -334,8 +361,7 @@ void main() {
       await _llenar(tester, llave: '3001234567');
       await _enviar(tester);
 
-      expect(find.text('Error de conexión. Intenta de nuevo.'),
-          findsOneWidget);
+      expect(find.text('Error de conexión. Intenta de nuevo.'), findsOneWidget);
       expect(_botonHabilitado(tester), isTrue);
 
       falla = false;
@@ -372,32 +398,32 @@ void main() {
       (
         'NotFound',
         404,
-        'No encontramos esa llave. Revisa el dato e intenta de nuevo.'
+        'No encontramos esa llave. Revisa el dato e intenta de nuevo.',
       ),
       (
         'RecipientNotFound',
         404,
-        'No encontramos esa llave. Revisa el dato e intenta de nuevo.'
+        'No encontramos esa llave. Revisa el dato e intenta de nuevo.',
       ),
       (
         'DirectoryUnavailable',
         503,
-        'El directorio de destinatarios no está disponible. Intenta más tarde.'
+        'El directorio de destinatarios no está disponible. Intenta más tarde.',
       ),
       (
         'InsufficientFunds',
         422,
-        'No tienes saldo suficiente para esta operación.'
+        'No tienes saldo suficiente para esta operación.',
       ),
       (
         'OperationLimitExceeded',
         422,
-        'El monto supera el límite permitido por operación.'
+        'El monto supera el límite permitido por operación.',
       ),
       (
         'MonthlyQuotaExceeded',
         422,
-        'Superaste tu límite mensual de operaciones.'
+        'Superaste tu límite mensual de operaciones.',
       ),
     ];
     for (final (codigo, status, mensaje) in casos) {
@@ -421,17 +447,18 @@ void main() {
       expect(find.byKey(const Key('reintentar')), findsNothing);
     });
 
-    testWidgets('un error de validación del servidor se muestra en español',
-        (tester) async {
+    testWidgets('un error de validación del servidor se muestra en español', (
+      tester,
+    ) async {
       final e = await _pump(tester);
       e.repo.onEnviar = (_) async => throw const ApiException(
-            code: 'ValidationError',
-            message: 'x',
-            statusCode: 422,
-            details: [
-              {'field': 'llave', 'rule': 'required'},
-            ],
-          );
+        code: 'ValidationError',
+        message: 'x',
+        statusCode: 422,
+        details: [
+          {'field': 'llave', 'rule': 'required'},
+        ],
+      );
       await _llenar(tester, llave: '3001234567');
       await _enviar(tester);
       expect(find.text('La llave es obligatoria'), findsOneWidget);
@@ -439,8 +466,9 @@ void main() {
   });
 
   group('textos', () {
-    testWidgets('ningún texto afirma que no hay comisión ni usa rayas',
-        (tester) async {
+    testWidgets('ningún texto afirma que no hay comisión ni usa rayas', (
+      tester,
+    ) async {
       final e = await _pump(tester);
       e.repo.onEnviar = (_) async => throw _api('InsufficientFunds', 422);
       await _llenar(tester, llave: 'ana');

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:vera/core/format/fechas.dart';
 import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/tintes.dart';
 import 'package:vera/features/nucleo/data/movimiento_filas.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
@@ -15,21 +16,19 @@ List<FilaLocal> construirFilas(
   Iterable<Movimiento> movimientos, {
   Duration? offset,
   bool? ingreso,
-}) =>
-    [
-      for (final m in movimientos)
-        for (final f in filasDe(m))
-          if (ingreso == null || f.esIngreso == ingreso)
-            (fila: f, local: aLocal(m.ocurridoEn, offset: offset)),
-    ];
+}) => [
+  for (final m in movimientos)
+    for (final f in filasDe(m))
+      if (ingreso == null || f.esIngreso == ingreso)
+        (fila: f, local: aLocal(m.ocurridoEn, offset: offset)),
+];
 
 /// Hora actual en la misma zona que las filas, para decidir Hoy y Ayer.
 DateTime ahoraLocal({Duration? offset}) =>
     aLocal(DateTime.now().toUtc(), offset: offset);
 
-int _dias(DateTime d) => DateTime.utc(d.year, d.month, d.day)
-    .difference(DateTime.utc(1970))
-    .inDays;
+int _dias(DateTime d) =>
+    DateTime.utc(d.year, d.month, d.day).difference(DateTime.utc(1970)).inDays;
 
 const _meses = [
   'ene', 'feb', 'mar', 'abr', 'may', 'jun',
@@ -52,6 +51,10 @@ String formatHora(DateTime local) {
   return '$hora12:$m $periodo';
 }
 
+/// «21 oct 2026 · 3:42 pm», para el detalle de un envío.
+String formatFechaLarga(DateTime local) =>
+    '${local.day} ${_meses[local.month - 1]} ${local.year} · ${formatHora(local)}';
+
 String formatFechaCorta(DateTime local, DateTime ahora) {
   final diff = _dias(ahora) - _dias(local);
   if (diff == 0) {
@@ -64,14 +67,23 @@ String formatFechaCorta(DateTime local, DateTime ahora) {
 }
 
 IconData iconoDeMotivo(MotivoLinea motivo) => switch (motivo) {
-      MotivoLinea.deposito => Icons.arrow_downward_rounded,
-      MotivoLinea.transferenciaRecibida => Icons.arrow_downward_rounded,
-      MotivoLinea.envio => Icons.arrow_upward_rounded,
-      MotivoLinea.gravamen => Icons.account_balance_rounded,
-      MotivoLinea.devolucion => Icons.refresh_rounded,
-      MotivoLinea.devolucionGravamen => Icons.refresh_rounded,
-      MotivoLinea.desconocido => Icons.swap_horiz_rounded,
-    };
+  MotivoLinea.deposito => Icons.south_west_rounded,
+  MotivoLinea.transferenciaRecibida => Icons.south_west_rounded,
+  MotivoLinea.envio => Icons.north_east_rounded,
+  MotivoLinea.gravamen => Icons.account_balance_outlined,
+  MotivoLinea.devolucion => Icons.refresh_rounded,
+  MotivoLinea.devolucionGravamen => Icons.refresh_rounded,
+  MotivoLinea.desconocido => Icons.swap_horiz_rounded,
+};
+
+/// Colores del círculo de cada motivo: ingresos en verde, envíos en azul, cargos en ámbar.
+TinteVera tinteDeMotivo(MotivoLinea motivo) => switch (motivo) {
+  MotivoLinea.deposito || MotivoLinea.transferenciaRecibida => TinteVera.verde,
+  MotivoLinea.envio => TinteVera.azul,
+  MotivoLinea.gravamen => TinteVera.ambar,
+  MotivoLinea.devolucion || MotivoLinea.devolucionGravamen => TinteVera.teal,
+  MotivoLinea.desconocido => TinteVera.gris,
+};
 
 /// Texto del monto con el signo de la línea. Una línea en cero no lleva signo.
 String montoConSigno(BigInt centavos) {
@@ -94,29 +106,22 @@ class MovimientoFilaTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final esIngreso = fila.esIngreso;
+    final tinte = tinteDeMotivo(fila.motivo);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(vertical: 9),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 50,
+            height: 50,
             decoration: BoxDecoration(
-              color: esIngreso
-                  ? AppColors.accentGreen.withAlpha(20)
-                  : AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: esIngreso
-                    ? AppColors.accentGreen.withAlpha(50)
-                    : AppColors.border,
-              ),
+              color: tinte.fondo,
+              shape: BoxShape.circle,
             ),
             child: Icon(
               iconoDeMotivo(fila.motivo),
-              color:
-                  esIngreso ? AppColors.accentGreen : AppColors.textSecondary,
-              size: 20,
+              color: tinte.tinta,
+              size: 22,
             ),
           ),
           const SizedBox(width: 14),
@@ -130,16 +135,16 @@ class MovimientoFilaTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppColors.textPrimary,
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
                   subtitulo,
                   style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
                   ),
                 ),
               ],
@@ -155,7 +160,7 @@ class MovimientoFilaTile extends StatelessWidget {
                   color: esIngreso
                       ? AppColors.accentGreen
                       : AppColors.textPrimary,
-                  fontSize: 15,
+                  fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
               ),

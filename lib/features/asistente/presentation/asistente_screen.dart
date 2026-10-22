@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'dart:typed_data';
 
@@ -7,7 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
+import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/widgets/marca_vera.dart';
 import 'package:vera/features/asistente/data/asistente_mensajes.dart';
 import 'package:vera/features/asistente/data/asistente_repository.dart';
 import 'package:vera/features/asistente/data/grabador_voz.dart';
@@ -80,6 +83,7 @@ class AsistenteScreen extends StatefulWidget {
     this.lector,
     this.preferenciaLectura,
     this.abrirAjustes,
+    this.session,
   });
   final String? conversacionId;
 
@@ -97,6 +101,9 @@ class AsistenteScreen extends StatefulWidget {
 
   /// Solo para pruebas; por defecto abre los ajustes de la app.
   final Future<void> Function()? abrirAjustes;
+
+  /// Solo para pruebas; por defecto la sesión real (el saludo usa el nombre guardado).
+  final SessionStore? session;
 
   @override
   State<AsistenteScreen> createState() => _AsistenteScreenState();
@@ -121,6 +128,10 @@ class _AsistenteScreenState extends State<AsistenteScreen>
   bool _grabando = false;
   bool _leerEnVozAlta = false;
   bool _leyendo = false;
+
+  /// Con el teclado abierto se escribe; por defecto se habla.
+  bool _modoTexto = false;
+  String? _nombre;
   Duration _tiempoGrabado = Duration.zero;
   ConsentimientoAsistente? _consent;
   bool _consultandoConsent = true;
@@ -144,7 +155,23 @@ class _AsistenteScreenState extends State<AsistenteScreen>
     WidgetsBinding.instance.addObserver(this);
     _grabador.onTope = _detenerYEnviarVoz;
     _cargarPreferencia();
+    _cargarNombre();
     _iniciar();
+  }
+
+  /// Primer nombre de la persona (o de la empresa) para el saludo.
+  Future<void> _cargarNombre() async {
+    try {
+      final perfil = await (widget.session ?? defaultSessionStore)
+          .readProfile();
+      final completo = (perfil.nombreCompleto ?? perfil.razonSocial)?.trim();
+      if (completo == null || completo.isEmpty) return;
+      if (mounted) {
+        setState(() => _nombre = completo.split(RegExp(r'\s+')).first);
+      }
+    } catch (_) {
+      // Sin perfil legible el saludo no lleva nombre.
+    }
   }
 
   Future<void> _cargarPreferencia() async {
@@ -313,7 +340,7 @@ class _AsistenteScreenState extends State<AsistenteScreen>
 
   Future<void> _enviarTexto([String? predefinido]) async {
     final texto = (predefinido ?? _ctrl.text).trim();
-    if (texto.isEmpty || _enviando) return;
+    if (texto.isEmpty || _enviando || !_chatDisponible) return;
     _ctrl.clear();
     final burbuja = _Burbuja(id: _idLocal(), esUsuario: true, texto: texto);
     setState(() => _burbujas.add(burbuja));
@@ -383,7 +410,7 @@ class _AsistenteScreenState extends State<AsistenteScreen>
           mensajeDeErrorAsistente(e),
           acciones: [
             (etiqueta: 'Reintentar', alTocar: _alternarGrabacion),
-            (etiqueta: 'Escribir', alTocar: _foco.requestFocus),
+            (etiqueta: 'Escribir', alTocar: _escribir),
           ],
         );
         return;
@@ -470,6 +497,14 @@ class _AsistenteScreenState extends State<AsistenteScreen>
 
   // ── Voz ─────────────────────────────────────────────────────
 
+  /// Abre el teclado y deja el cursor en el campo de texto.
+  void _escribir() {
+    setState(() => _modoTexto = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _foco.requestFocus();
+    });
+  }
+
   Future<void> _alternarGrabacion() async {
     if (_enviando) return;
     if (_grabando) return _detenerYEnviarVoz();
@@ -486,7 +521,7 @@ class _AsistenteScreenState extends State<AsistenteScreen>
               alTocar: () =>
                   (widget.abrirAjustes ?? AppSettings.openAppSettings)(),
             ),
-            (etiqueta: 'Escribir', alTocar: _foco.requestFocus),
+            (etiqueta: 'Escribir', alTocar: _escribir),
           ],
         );
         return;
@@ -576,57 +611,142 @@ class _AsistenteScreenState extends State<AsistenteScreen>
     final chat = _chatDisponible;
     return Scaffold(
       backgroundColor: AppColors.background,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: const Text(
-          'Vera',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        actions: [
-          if (chat) ...[
-            IconButton(
-              tooltip: _leerEnVozAlta
-                  ? 'Dejar de leer las respuestas en voz alta'
-                  : 'Leer las respuestas en voz alta',
-              icon: Icon(
-                _leerEnVozAlta
-                    ? Icons.volume_up_rounded
-                    : Icons.volume_off_rounded,
-              ),
-              onPressed: _alternarLectura,
-            ),
-            IconButton(
-              tooltip: 'Nueva conversación',
-              icon: const Icon(Icons.add_comment_outlined),
-              onPressed: _enviando ? null : _nuevaConversacion,
-            ),
-            IconButton(
-              tooltip: 'Historial',
-              icon: const Icon(Icons.history_rounded),
-              onPressed: _abrirHistorial,
-            ),
-          ],
-        ],
-      ),
       body: Stack(
         children: [
           Positioned.fill(child: FondoAsistente(intenso: _grabando)),
-          chat ? _chat() : _antesDelChat(),
+          SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                _cabecera(chat),
+                Expanded(
+                  child: chat || _errorConsulta != null
+                      ? _chat()
+                      : _antesDelChat(),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _chat() => SafeArea(
-    bottom: false,
-    child: Column(
-      children: [
-        Expanded(child: _lista()),
-        if (_leyendo) _chipLeyendo(),
-        _barraEntrada(),
-      ],
-    ),
+  void _cerrar() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/home');
+    }
+  }
+
+  /// Cerrar, el nombre del asistente y las opciones de la conversación.
+  Widget _cabecera(bool chat) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 12, 0),
+      child: Row(
+        children: [
+          Semantics(
+            button: true,
+            label: 'Cerrar',
+            excludeSemantics: true,
+            onTap: _cerrar,
+            child: GestureDetector(
+              key: const Key('cerrar_vera'),
+              onTap: _cerrar,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(30),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.borderGlass),
+                ),
+                child: const Icon(
+                  Icons.close_rounded,
+                  color: AppColors.textPrimary,
+                  size: 22,
+                ),
+              ),
+            ),
+          ),
+          const Expanded(
+            child: Center(
+              // En pantallas angostas el nombre se encoge antes que desbordar.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _OrbeMini(),
+                    SizedBox(width: 8),
+                    Text(
+                      'Vera',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    _InsigniaBeta(),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (chat) ...[
+            _AccionCabecera(
+              tooltip: _leerEnVozAlta
+                  ? 'Dejar de leer las respuestas en voz alta'
+                  : 'Leer las respuestas en voz alta',
+              icono: _leerEnVozAlta
+                  ? Icons.volume_up_rounded
+                  : Icons.volume_off_rounded,
+              alTocar: _alternarLectura,
+            ),
+            _AccionCabecera(
+              tooltip: 'Nueva conversación',
+              icono: Icons.add_comment_outlined,
+              alTocar: _enviando ? null : _nuevaConversacion,
+            ),
+            _AccionCabecera(
+              tooltip: 'Historial',
+              icono: Icons.history_rounded,
+              alTocar: _abrirHistorial,
+            ),
+          ] else
+            const SizedBox(width: 46),
+        ],
+      ),
+    );
+  }
+
+  Widget _chat() => Column(
+    children: [
+      _hero(),
+      Expanded(child: _lista()),
+      if (_leyendo) _chipLeyendo(),
+      if (!_grabando && !_modoTexto) _sugerenciasFila(),
+      _zonaInferior(),
+    ],
   );
+
+  /// El orbe de Vera con sus aros: grande al saludar y pequeño cuando ya hay conversación.
+  Widget _hero() {
+    final grande = _burbujas.isEmpty;
+    // En pantallas bajas el orbe se encoge para dejar sitio al saludo y a los controles.
+    final alto = grande
+        ? (MediaQuery.of(context).size.height * 0.3).clamp(140.0, 250.0)
+        : 120.0;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      height: alto,
+      alignment: Alignment.center,
+      child: OrbeGrande(tamano: alto * 0.84, activo: _grabando),
+    );
+  }
 
   /// Un toque detiene la lectura en voz alta.
   Widget _chipLeyendo() => Padding(
@@ -686,10 +806,10 @@ class _AsistenteScreenState extends State<AsistenteScreen>
         ),
       );
     }
-    if (_burbujas.isEmpty) return _vacio();
+    if (_burbujas.isEmpty) return _saludo();
     return ListView.builder(
       controller: _scroll,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
       itemCount:
           _burbujas.length +
           (_enviando && !_burbujas.last.transcribiendo ? 1 : 0),
@@ -706,74 +826,224 @@ class _AsistenteScreenState extends State<AsistenteScreen>
     );
   }
 
-  Widget _vacio() {
+  Widget _saludo() {
+    final nombre = _nombre;
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: const BoxDecoration(
-                gradient: AppGradients.brand,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.auto_awesome_rounded,
-                color: Colors.white,
-                size: 30,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              '¿En qué te ayudo?',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Escríbeme o háblame.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
-            ),
-            const SizedBox(height: 20),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
+      child: _Entrada(
+        duracion: const Duration(milliseconds: 750),
+        desplazamiento: 18,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                for (final s in _sugerencias)
-                  ActionChip(
-                    label: Text(s),
-                    onPressed: () => _enviarTexto(s),
-                    backgroundColor: AppColors.surfaceVariant,
-                    labelStyle: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 13,
-                    ),
-                    side: const BorderSide(color: AppColors.border),
+                Text(
+                  nombre == null ? 'Hola.' : 'Hola, $nombre.',
+                  key: const Key('saludo_vera'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                    height: 1.15,
                   ),
+                ),
+                const Text(
+                  '¿En qué te ayudo hoy?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                    height: 1.15,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Háblame o escríbeme.',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 15,
+                  ),
+                ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _barraEntrada() {
-    final bottom = MediaQuery.of(context).padding.bottom;
-    return Container(
-      padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + bottom),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withAlpha(200),
-        border: const Border(top: BorderSide(color: AppColors.borderGlass)),
+  /// Preguntas de ejemplo en una fila que se desliza. Se envían como si se hubieran escrito.
+  Widget _sugerenciasFila() {
+    return SizedBox(
+      height: 54,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        itemCount: _sugerencias.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (_, i) {
+          final texto = _sugerencias[i];
+          // Cada sugerencia entra un poco después que la anterior.
+          return _Entrada(
+            duracion: Duration(milliseconds: 520 + i * 200),
+            desplazamiento: 14,
+            child: ActionChip(
+              label: Text(texto),
+              onPressed: _chatDisponible ? () => _enviarTexto(texto) : null,
+              backgroundColor: Colors.white.withAlpha(28),
+              labelStyle: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              side: const BorderSide(color: AppColors.borderGlass),
+              shape: const StadiumBorder(),
+            ),
+          );
+        },
       ),
-      child: _grabando ? _barraGrabando() : _barraTexto(),
+    );
+  }
+
+  /// Abajo: el micrófono grande (por defecto), la grabación en curso, el teclado o el aviso de
+  /// que no se pudo verificar el consentimiento.
+  Widget _zonaInferior() {
+    final bottom = MediaQuery.of(context).padding.bottom;
+    final Widget contenido;
+    if (_errorConsulta != null) {
+      contenido = _avisoSinVerificar(_errorConsulta!);
+    } else if (_grabando) {
+      contenido = _barraGrabando();
+    } else if (_modoTexto) {
+      contenido = Row(
+        children: [
+          _AccionCabecera(
+            key: const Key('usar_voz'),
+            tooltip: 'Usar la voz',
+            icono: Icons.graphic_eq_rounded,
+            alTocar: () => setState(() => _modoTexto = false),
+          ),
+          const SizedBox(width: 4),
+          Expanded(child: _barraTexto()),
+        ],
+      );
+    } else {
+      contenido = _controlVoz();
+    }
+    return Container(
+      padding: EdgeInsets.fromLTRB(16, 10, 16, 12 + bottom),
+      child: contenido,
+    );
+  }
+
+  /// El micrófono grande con ondas a los lados y el botón del teclado.
+  Widget _controlVoz() {
+    return SizedBox(
+      height: 112,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [_Ondas(), SizedBox(width: 130), _Ondas(invertida: true)],
+          ),
+          Semantics(
+            button: true,
+            label: 'Grabar audio',
+            excludeSemantics: true,
+            onTap: _enviando ? null : _alternarGrabacion,
+            child: GestureDetector(
+              key: const Key('boton_microfono'),
+              onTap: _enviando ? null : _alternarGrabacion,
+              child: _LatidoMicrofono(
+                child: Container(
+                  width: 112,
+                  height: 112,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withAlpha(34),
+                  ),
+                  alignment: Alignment.center,
+                  child: Container(
+                    width: 82,
+                    height: 82,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.botonOscuro,
+                    ),
+                    child: Icon(
+                      Icons.mic_rounded,
+                      size: 34,
+                      color: _enviando
+                          ? AppColors.textMuted
+                          : AppColors.gradientStart,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Semantics(
+              button: true,
+              label: 'Escribir',
+              excludeSemantics: true,
+              onTap: () => setState(() => _modoTexto = true),
+              child: GestureDetector(
+                key: const Key('abrir_teclado'),
+                onTap: () => setState(() => _modoTexto = true),
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withAlpha(30),
+                    border: Border.all(color: AppColors.borderGlass),
+                  ),
+                  child: const Icon(
+                    Icons.keyboard_alt_outlined,
+                    color: AppColors.textPrimary,
+                    size: 22,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// No se pudo confirmar el consentimiento: el chat se ve, pero no se puede escribir ni grabar
+  /// hasta que la consulta salga bien. Así no se envía nada sin autorización verificada.
+  Widget _avisoSinVerificar(Object error) {
+    return Row(
+      children: [
+        const Icon(Icons.cloud_off_rounded, color: AppColors.textSecondary),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            mensajeDeError(error),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+              height: 1.3,
+            ),
+          ),
+        ),
+        TextButton(
+          onPressed: _reintentarConsulta,
+          child: const Text('Reintentar'),
+        ),
+      ],
     );
   }
 
@@ -913,8 +1183,8 @@ class _BurbujaView extends StatelessWidget {
     final color = b.esError
         ? AppColors.error.withAlpha(30)
         : b.esUsuario
-        ? AppColors.gradientMid
-        : AppColors.surfaceVariant.withAlpha(235);
+        ? Colors.white.withAlpha(48)
+        : AppColors.surface;
     final ancho = MediaQuery.of(context).size.width * 0.82;
     return Align(
       alignment: b.esUsuario ? Alignment.centerRight : Alignment.centerLeft,
@@ -943,7 +1213,9 @@ class _BurbujaView extends StatelessWidget {
                   ),
                   border: b.esError
                       ? Border.all(color: AppColors.error.withAlpha(90))
-                      : null,
+                      : (b.esUsuario
+                            ? Border.all(color: AppColors.borderGlass)
+                            : null),
                 ),
                 child: b.transcribiendo
                     ? const Row(
@@ -979,22 +1251,7 @@ class _BurbujaView extends StatelessWidget {
                             ),
                             const SizedBox(width: 6),
                           ],
-                          Flexible(
-                            child: Text(
-                              b.texto.isEmpty
-                                  ? (b.esVoz && b.esUsuario
-                                        ? 'Audio sin enviar'
-                                        : '(sin transcripción)')
-                                  : b.texto,
-                              style: TextStyle(
-                                color: b.esError
-                                    ? AppColors.error
-                                    : AppColors.textPrimary,
-                                fontSize: 15,
-                                height: 1.35,
-                              ),
-                            ),
-                          ),
+                          Flexible(child: _textoDeBurbuja(b)),
                         ],
                       ),
               ),
@@ -1058,6 +1315,40 @@ class _BurbujaView extends StatelessWidget {
   }
 }
 
+/// Texto de la burbuja. En las respuestas de Vera los montos en pesos van en negrita.
+Widget _textoDeBurbuja(_Burbuja b) {
+  final texto = b.texto.isEmpty
+      ? (b.esVoz && b.esUsuario ? 'Audio sin enviar' : '(sin transcripción)')
+      : b.texto;
+  final estilo = TextStyle(
+    color: b.esError ? AppColors.error : AppColors.textPrimary,
+    fontSize: 16,
+    height: 1.4,
+  );
+  if (b.esUsuario || b.esError || !texto.contains(r'$')) {
+    return Text(texto, style: estilo);
+  }
+  final montos = RegExp(r'\$\s?\d[\d.,]*');
+  final partes = <TextSpan>[];
+  var desde = 0;
+  for (final m in montos.allMatches(texto)) {
+    if (m.start > desde) {
+      partes.add(TextSpan(text: texto.substring(desde, m.start)));
+    }
+    partes.add(
+      TextSpan(
+        text: m.group(0),
+        style: const TextStyle(fontWeight: FontWeight.w800),
+      ),
+    );
+    desde = m.end;
+  }
+  if (desde < texto.length) {
+    partes.add(TextSpan(text: texto.substring(desde)));
+  }
+  return Text.rich(TextSpan(style: estilo, children: partes));
+}
+
 class _Escribiendo extends StatelessWidget {
   const _Escribiendo();
 
@@ -1076,6 +1367,236 @@ class _Escribiendo extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Esfera pequeña junto al nombre del asistente.
+class _OrbeMini extends StatelessWidget {
+  const _OrbeMini();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 30,
+      height: 30,
+      decoration: const BoxDecoration(
+        gradient: AppGradients.orbe,
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: const MarcaVera(tamano: 18, chispa: false),
+    );
+  }
+}
+
+class _InsigniaBeta extends StatelessWidget {
+  const _InsigniaBeta();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white.withAlpha(36),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Text(
+        'Beta',
+        style: TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+/// Botón redondo y pequeño de la cabecera.
+class _AccionCabecera extends StatelessWidget {
+  const _AccionCabecera({
+    super.key,
+    required this.tooltip,
+    required this.icono,
+    required this.alTocar,
+  });
+
+  final String tooltip;
+  final IconData icono;
+  final VoidCallback? alTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: alTocar,
+      visualDensity: VisualDensity.compact,
+      icon: Icon(icono, color: AppColors.textPrimary, size: 22),
+    );
+  }
+}
+
+/// Barras de sonido a los lados del micrófono. Suben y bajan como una señal de audio, cada una a
+/// su ritmo. Con reducir movimiento quedan quietas.
+class _Ondas extends StatefulWidget {
+  const _Ondas({this.invertida = false});
+
+  final bool invertida;
+
+  @override
+  State<_Ondas> createState() => _OndasState();
+}
+
+class _OndasState extends State<_Ondas> with SingleTickerProviderStateMixin {
+  late final AnimationController _vuelta = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1300),
+  );
+
+  static const _alturas = [10.0, 22.0, 34.0, 20.0];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.of(context).disableAnimations) {
+      _vuelta.stop();
+    } else if (!_vuelta.isAnimating && _vuelta.value == 0) {
+      _vuelta.repeat(count: 150);
+    }
+  }
+
+  @override
+  void dispose() {
+    _vuelta.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final base = widget.invertida ? _alturas.reversed.toList() : _alturas;
+    return AnimatedBuilder(
+      animation: _vuelta,
+      builder: (context, _) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < base.length; i++)
+              Container(
+                width: 4,
+                height:
+                    base[i] *
+                    (0.55 +
+                        0.45 *
+                            math
+                                .sin(
+                                  2 * math.pi * _vuelta.value * (1 + i % 2) +
+                                      i * 1.3 +
+                                      (widget.invertida ? 2 : 0),
+                                )
+                                .abs()),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(60),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// El micrófono late: un aro se agranda y se desvanece una y otra vez a su alrededor.
+class _LatidoMicrofono extends StatefulWidget {
+  const _LatidoMicrofono({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_LatidoMicrofono> createState() => _LatidoMicrofonoState();
+}
+
+class _LatidoMicrofonoState extends State<_LatidoMicrofono>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _latido = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2200),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.of(context).disableAnimations) {
+      _latido.stop();
+    } else if (!_latido.isAnimating && _latido.value == 0) {
+      _latido.repeat(count: 80);
+    }
+  }
+
+  @override
+  void dispose() {
+    _latido.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _latido,
+      builder: (context, hijo) {
+        final t = Curves.easeOut.transform(_latido.value);
+        return Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 112 + 46 * t,
+              height: 112 + 46 * t,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withAlpha((90 * (1 - t)).round()),
+                  width: 2,
+                ),
+              ),
+            ),
+            hijo!,
+          ],
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+/// Hace que un elemento aparezca una sola vez: se desvanece hacia adentro y sube un poco.
+class _Entrada extends StatelessWidget {
+  const _Entrada({
+    required this.duracion,
+    required this.desplazamiento,
+    required this.child,
+  });
+
+  final Duration duracion;
+  final double desplazamiento;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: duracion,
+      curve: Curves.easeOutCubic,
+      builder: (context, v, hijo) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(0, desplazamiento * (1 - v)),
+          child: hijo,
+        ),
+      ),
+      child: child,
     );
   }
 }

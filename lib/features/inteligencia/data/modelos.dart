@@ -31,16 +31,16 @@ const _origenes = <String, OrigenCategoria>{
 
 /// Etiqueta corta del origen, la que ve el usuario. Vacía cuando no aporta.
 String etiquetaDeOrigen(OrigenCategoria origen) => switch (origen) {
-      OrigenCategoria.memoria => 'Tu corrección',
-      OrigenCategoria.contraparteInterna => 'Contacto',
-      OrigenCategoria.mcc => 'Comercio',
-      OrigenCategoria.catalogo => 'Catálogo',
-      OrigenCategoria.lexico => 'Descripción',
-      OrigenCategoria.tfidf => 'Clasificador',
-      OrigenCategoria.llm => 'Vera',
-      OrigenCategoria.manual => 'Manual',
-      OrigenCategoria.sinCategoria || OrigenCategoria.desconocido => '',
-    };
+  OrigenCategoria.memoria => 'Tu corrección',
+  OrigenCategoria.contraparteInterna => 'Contacto',
+  OrigenCategoria.mcc => 'Comercio',
+  OrigenCategoria.catalogo => 'Catálogo',
+  OrigenCategoria.lexico => 'Descripción',
+  OrigenCategoria.tfidf => 'Clasificador',
+  OrigenCategoria.llm => 'Vera',
+  OrigenCategoria.manual => 'Manual',
+  OrigenCategoria.sinCategoria || OrigenCategoria.desconocido => '',
+};
 
 /// Código de la categoría que representa un movimiento sin clasificar.
 const codigoSinCategoria = 'sin_categoria';
@@ -65,8 +65,7 @@ class MovimientoEnriquecido {
     final crudo = json['monto_centavos']?.toString() ?? '0';
     return MovimientoEnriquecido(
       transaccionId: json['transaccion_id']?.toString() ?? '',
-      ocurridoEn:
-          DateTime.parse(json['ocurrido_en'] as String).toUtc(),
+      ocurridoEn: DateTime.parse(json['ocurrido_en'] as String).toUtc(),
       moneda: json['moneda']?.toString() ?? 'COP',
       direccion: json['direccion'] == 'entrada'
           ? DireccionMovimiento.entrada
@@ -79,7 +78,7 @@ class MovimientoEnriquecido {
       categoriaNombre: json['categoria_nombre']?.toString() ?? 'Sin categoría',
       origenCategoria:
           _origenes[json['origen_categoria']?.toString()] ??
-              OrigenCategoria.desconocido,
+          OrigenCategoria.desconocido,
     );
   }
 
@@ -105,8 +104,7 @@ class MovimientoEnriquecido {
   bool get esIngreso => direccion == DireccionMovimiento.entrada;
 
   /// Monto con el signo de la dirección, para el formateador de pesos.
-  BigInt get montoConSigno =>
-      esIngreso ? montoCentavos : -montoCentavos;
+  BigInt get montoConSigno => esIngreso ? montoCentavos : -montoCentavos;
 
   /// Nombre visible de la fila. Nunca es un identificador de cuenta.
   String get titulo =>
@@ -145,4 +143,50 @@ class CorreccionElegida {
   bool get vacia =>
       (categoria == null || categoria!.isEmpty) &&
       (nombreComercio == null || nombreComercio!.trim().isEmpty);
+}
+
+/// Una categoría de `GET /v1/inteligencia/resumen`: lo gastado en el mes.
+class GastoDeCategoria {
+  const GastoDeCategoria({
+    required this.codigo,
+    required this.nombre,
+    required this.totalCentavos,
+  });
+
+  factory GastoDeCategoria.fromJson(Map<String, dynamic> json) =>
+      GastoDeCategoria(
+        codigo: json['codigo']?.toString() ?? codigoSinCategoria,
+        nombre: json['nombre']?.toString() ?? 'Sin categoría',
+        totalCentavos: BigInt.parse(json['total_centavos']?.toString() ?? '0'),
+      );
+
+  final String codigo;
+  final String nombre;
+  final BigInt totalCentavos;
+}
+
+/// Gasto del mes por categoría, de la más grande a la más chica.
+class ResumenDelMes {
+  const ResumenDelMes({
+    required this.mes,
+    required this.totalCentavos,
+    required this.categorias,
+  });
+
+  factory ResumenDelMes.fromJson(Map<String, dynamic> json) {
+    final categorias = [
+      for (final c in (json['categorias'] as List?) ?? const [])
+        GastoDeCategoria.fromJson(c as Map<String, dynamic>),
+    ]..sort((a, b) => b.totalCentavos.abs().compareTo(a.totalCentavos.abs()));
+    return ResumenDelMes(
+      mes: json['mes']?.toString() ?? '',
+      totalCentavos: BigInt.parse(json['total_centavos']?.toString() ?? '0'),
+      categorias: categorias,
+    );
+  }
+
+  /// Mes calendario `YYYY-MM`.
+  final String mes;
+  final BigInt totalCentavos;
+  final List<GastoDeCategoria> categorias;
 }

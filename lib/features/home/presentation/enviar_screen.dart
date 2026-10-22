@@ -7,7 +7,9 @@ import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
-import 'package:vera/core/widgets/wip_badge.dart';
+import 'package:vera/core/widgets/fondo_vera.dart';
+import 'package:vera/core/widgets/tarjeta_vidrio.dart';
+import 'package:vera/features/home/presentation/resultado_envio_screen.dart';
 import 'package:vera/features/nucleo/data/idempotency_intent.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 import 'package:vera/features/nucleo/data/transferencia_mensajes.dart';
@@ -35,6 +37,10 @@ class _EnviarScreenState extends State<EnviarScreen> {
   /// Centavos exactos devueltos por el endpoint de máximo. Se descarta en
   /// cuanto el usuario edita el monto a mano.
   BigInt? _montoExacto;
+
+  /// Resultado de un envío ya aceptado por el servidor. Se muestra cuando la hoja de
+  /// confirmación termina de cerrarse.
+  ({Transferencia transferencia, String destino, String? nombre})? _enviado;
 
   @override
   void dispose() {
@@ -83,10 +89,9 @@ class _EnviarScreenState extends State<EnviarScreen> {
   }
 
   /// Devuelve el mensaje de error o null si el servidor respondió 2xx.
-  Future<String?> _enviar(String destino, BigInt monto) async {
+  Future<String?> _enviar(String destino, BigInt monto, String? nombre) async {
     if (_enviando.value) return null;
     _enviando.value = true;
-    final messenger = ScaffoldMessenger.of(context);
     try {
       final key = _intent.keyFor(destino: destino, monto: monto);
       final result = await _repo.transferir(
@@ -95,14 +100,7 @@ class _EnviarScreenState extends State<EnviarScreen> {
         idempotencyKey: key,
       );
       _intent.registrarExito();
-      final resultado = resultadoDeEstado(result.estado);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(resultado.mensaje),
-          backgroundColor:
-              resultado.exito ? AppColors.accentGreen : AppColors.warning,
-        ),
-      );
+      _enviado = (transferencia: result, destino: destino, nombre: nombre);
       return null;
     } catch (e) {
       _intent.registrarError(e);
@@ -112,11 +110,11 @@ class _EnviarScreenState extends State<EnviarScreen> {
     }
   }
 
-  void _onRevisar() {
+  Future<void> _onRevisar() async {
     final destino = _destino;
     final monto = _montoCentavos;
     if (!_canSend || destino == null || monto == null) return;
-    showModalBottomSheet<void>(
+    await showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.surface,
       isScrollControlled: true,
@@ -128,271 +126,296 @@ class _EnviarScreenState extends State<EnviarScreen> {
         destino: destino,
         monto: monto,
         enviando: _enviando,
-        onConfirm: () => _enviar(destino, monto),
+        onConfirm: (nombre) => _enviar(destino, monto, nombre),
       ),
+    );
+    final enviado = _enviado;
+    if (enviado == null || !mounted) return;
+    _enviado = null;
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(builder: (_) => _resultadoDe(enviado)),
+    );
+  }
+
+  Widget _resultadoDe(
+    ({Transferencia transferencia, String destino, String? nombre}) e,
+  ) {
+    final t = e.transferencia;
+    final resultado = resultadoDeEstado(t.estado);
+    return ResultadoEnvioScreen(
+      titulo: resultado.exito ? '¡Listo!' : 'Revisa tu envío',
+      mensaje: resultado.mensaje,
+      exito: resultado.exito,
+      montoCentavos: t.montoCentavos,
+      estado: t.estado,
+      filas: [
+        (etiqueta: 'Para', valor: e.nombre ?? e.destino),
+        (etiqueta: 'Celular', valor: celularEnmascarado(e.destino)),
+        (etiqueta: 'Fecha', valor: fechaDeComprobante(t.creadaEn)),
+        (etiqueta: 'Referencia', valor: t.id),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
+    return FondoVera(
+      child: Scaffold(
         backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.textSecondary, size: 20),
-          onPressed: () => context.pop(),
-        ),
-        title: const Text(
-          'Enviar dinero',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: AppColors.textPrimary,
+              size: 20,
+            ),
+            onPressed: () => context.pop(),
           ),
-        ),
-        centerTitle: true,
-        actions: [
-          Tooltip(
-            message: '(WIP)',
-            child: Padding(
-              padding: const EdgeInsets.only(right: 12),
-              // En línea y no superpuesta: sobre el borde derecho la insignia
-              // se recortaba y tapaba la campana.
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.notifications_outlined,
-                      color: AppColors.textSecondary, size: 22),
-                  SizedBox(width: 6),
-                  WipBadge(),
-                ],
-              ),
+          title: const Text(
+            'Enviar dinero',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
+          centerTitle: true,
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 8),
 
-            // ── Recipient card ──────────────────────────────────
-            _SectionCard(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              // ── Recipient card ──────────────────────────────────
+              _SectionCard(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Para',
+                            style: TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: _recipientCtrl,
+                            keyboardType: TextInputType.phone,
+                            onChanged: (_) => setState(() {}),
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(
+                                maxLongitudDestino,
+                              ),
+                            ],
+                            style: const TextStyle(
+                              color: AppColors.gradientStart,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              filled: false,
+                              isDense: true,
+                              contentPadding: EdgeInsets.zero,
+                              hintText: 'Celular',
+                              hintStyle: TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: const Icon(
+                        Icons.contacts_rounded,
+                        color: AppColors.textSecondary,
+                        size: 20,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              // ── Amount card ─────────────────────────────────────
+              _SectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'Para',
+                          'Monto',
                           style: TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(height: 6),
-                        TextField(
-                          controller: _recipientCtrl,
-                          keyboardType: TextInputType.phone,
-                          onChanged: (_) => setState(() {}),
-                          inputFormatters: [
-                            LengthLimitingTextInputFormatter(
-                                maxLongitudDestino),
-                          ],
-                          style: const TextStyle(
-                            color: AppColors.gradientStart,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
                           ),
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            filled: false,
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
-                            hintText: 'Celular',
-                            hintStyle: TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w400,
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceVariant,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: const Text(
+                            'COP',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: const Icon(Icons.contacts_rounded,
-                        color: AppColors.textSecondary, size: 20),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // ── Amount card ─────────────────────────────────────
-            _SectionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Monto',
-                        style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceVariant,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: const Text(
-                          'COP',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _amountCtrl,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onChanged: (_) => setState(() => _montoExacto = null),
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 40,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -1,
-                    ),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      filled: false,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                      hintText: '\$0',
-                      hintStyle: TextStyle(
-                        color: AppColors.textMuted,
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _amountCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (_) => setState(() => _montoExacto = null),
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
                         fontSize: 40,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -1,
                       ),
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton(
-                      onPressed: _cargandoMaximo ? null : _enviarMaximo,
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(0, 32),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                        hintText: '\$0',
+                        hintStyle: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 40,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1,
+                        ),
                       ),
-                      child: const Text(
-                        'Enviar el máximo',
-                        style: TextStyle(color: AppColors.gradientStart),
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: _cargandoMaximo ? null : _enviarMaximo,
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(0, 32),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text(
+                          'Enviar el máximo',
+                          style: TextStyle(color: AppColors.gradientStart),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Divider(color: AppColors.border, height: 1),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _noteCtrl,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                    ),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      filled: false,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                      hintText: 'Nota (opcional)',
-                      hintStyle: TextStyle(
-                        color: AppColors.textMuted,
+                    const SizedBox(height: 12),
+                    const Divider(color: AppColors.border, height: 1),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _noteCtrl,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
                         fontSize: 14,
                       ),
-                      prefixIcon: Padding(
-                        padding: EdgeInsets.only(right: 8),
-                        child: Icon(Icons.edit_note_rounded,
-                            color: AppColors.textMuted, size: 18),
-                      ),
-                      prefixIconConstraints: BoxConstraints(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 48),
-
-            // ── Review button ───────────────────────────────────
-            GestureDetector(
-              onTap: _canSend ? _onRevisar : null,
-              child: Container(
-                width: double.infinity,
-                height: 56,
-                decoration: BoxDecoration(
-                  gradient: _canSend
-                      ? AppGradients.brand
-                      : const LinearGradient(
-                          colors: [AppColors.surfaceVariant, AppColors.surfaceVariant]),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.send_rounded, color: Colors.white, size: 18),
-                    SizedBox(width: 10),
-                    Text(
-                      'Revisar envío',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                        hintText: 'Nota (opcional)',
+                        hintStyle: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 14,
+                        ),
+                        prefixIcon: Padding(
+                          padding: EdgeInsets.only(right: 8),
+                          child: Icon(
+                            Icons.edit_note_rounded,
+                            color: AppColors.textMuted,
+                            size: 18,
+                          ),
+                        ),
+                        prefixIconConstraints: BoxConstraints(),
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
 
-            const SizedBox(height: 40),
-          ],
+              const SizedBox(height: 48),
+
+              // ── Review button ───────────────────────────────────
+              GestureDetector(
+                onTap: _canSend ? _onRevisar : null,
+                child: Container(
+                  width: double.infinity,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: _canSend
+                        ? AppGradients.brand
+                        : const LinearGradient(
+                            colors: [
+                              AppColors.surfaceVariant,
+                              AppColors.surfaceVariant,
+                            ],
+                          ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                      SizedBox(width: 10),
+                      Text(
+                        'Revisar envío',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
@@ -414,7 +437,7 @@ class _ConfirmSheet extends StatefulWidget {
   final String destino;
   final BigInt monto;
   final ValueListenable<bool> enviando;
-  final Future<String?> Function() onConfirm;
+  final Future<String?> Function(String? nombre) onConfirm;
 
   @override
   State<_ConfirmSheet> createState() => _ConfirmSheetState();
@@ -459,7 +482,7 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
 
   Future<void> _confirmar() async {
     setState(() => _errorEnvio = null);
-    final error = await widget.onConfirm();
+    final error = await widget.onConfirm(_nombre);
     if (!mounted) return;
     if (error == null) {
       Navigator.of(context).pop();
@@ -472,7 +495,11 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          24, 16, 24, MediaQuery.of(context).padding.bottom + 24),
+        24,
+        16,
+        24,
+        MediaQuery.of(context).padding.bottom + 24,
+      ),
       child: ValueListenableBuilder<bool>(
         valueListenable: widget.enviando,
         builder: (context, enviando, _) => Column(
@@ -550,10 +577,7 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
       case _Consulta.ok:
         return Text(
           _nombre!,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 15,
-          ),
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
         );
       case _Consulta.noEncontrado:
         return Text(
@@ -592,11 +616,14 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
               foregroundColor: AppColors.textSecondary,
               side: const BorderSide(color: AppColors.border),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
+                borderRadius: BorderRadius.circular(14),
+              ),
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
-            child: const Text('Cancelar',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
           ),
         ),
         const SizedBox(width: 12),
@@ -649,15 +676,13 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+      child: TarjetaVidrio(
+        padding: const EdgeInsets.all(18),
+        radio: 20,
+        child: child,
       ),
-      child: child,
     );
   }
 }

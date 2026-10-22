@@ -9,8 +9,6 @@ import 'cargar_roboto.dart';
 import 'fake_nucleo_repository.dart';
 import 'fake_session_store.dart';
 
-const _avisoMuestra = 'Datos de muestra (WIP)';
-
 Future<void> _pump(
   WidgetTester tester, {
   FakeSessionStore? session,
@@ -26,14 +24,12 @@ Future<void> _pump(
     MaterialApp(
       theme: fuenteReal ? ThemeData(fontFamily: 'Roboto') : null,
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          textScaler: TextScaler.linear(escala),
-        ),
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(escala)),
         child: child!,
       ),
-      home: Scaffold(
-        body: TarjetasTab(session: session ?? FakeSessionStore()),
-      ),
+      home: Scaffold(body: TarjetasTab(session: session ?? FakeSessionStore())),
     ),
   );
   await tester.pump();
@@ -41,8 +37,9 @@ Future<void> _pump(
 }
 
 void main() {
-  testWidgets('la tarjeta muestra el nombre del perfil y no ELISA',
-      (tester) async {
+  testWidgets('la tarjeta muestra el nombre del perfil y no ELISA', (
+    tester,
+  ) async {
     final session = FakeSessionStore(
       profile: const SessionProfile(nombreCompleto: 'Ana Prueba'),
     );
@@ -78,20 +75,25 @@ void main() {
     expect(nombreTarjetaGenerico, 'TU NOMBRE');
   });
 
-  testWidgets('muestra número, vencimiento, tipo y estado de muestra',
-      (tester) async {
+  testWidgets('muestra número, vencimiento, tipo y estado de muestra', (
+    tester,
+  ) async {
     await _pump(tester);
 
+    // La tarjeta y la tabla de detalle muestran los mismos datos.
     expect(find.text(tarjetaMuestraNumero), findsNWidgets(2));
-    expect(find.text(tarjetaMuestraVencimiento), findsOneWidget);
+    expect(find.text(tarjetaMuestraVencimiento), findsNWidgets(2));
     expect(find.text(tarjetaMuestraTipo), findsOneWidget);
     expect(find.text(tarjetaMuestraRotulo), findsOneWidget);
-    expect(find.text('Activa'), findsOneWidget);
+    expect(find.text('Activa'), findsNWidgets(2));
+    expect(find.text('VISA'), findsOneWidget);
+    expect(find.text('TITULAR'), findsOneWidget);
     expect(find.textContaining('●'), findsNothing);
   });
 
-  testWidgets('los movimientos con tarjeta son genéricos y sin marcas',
-      (tester) async {
+  testWidgets('los movimientos con tarjeta son genéricos y sin marcas', (
+    tester,
+  ) async {
     await _pump(tester);
 
     expect(find.text('Restaurante'), findsOneWidget);
@@ -114,16 +116,18 @@ void main() {
     }
   });
 
-  testWidgets('muestra el aviso Datos de muestra (WIP)', (tester) async {
+  testWidgets('muestra el título y ningún aviso de próximamente', (
+    tester,
+  ) async {
     await _pump(tester);
 
-    expect(find.text(_avisoMuestra), findsOneWidget);
-    expect(find.text('Mis Tarjetas'), findsOneWidget);
+    expect(find.text('Mis tarjetas'), findsOneWidget);
     expect(find.textContaining('Próximamente'), findsNothing);
   });
 
-  testWidgets('el Home y la pestaña muestran el mismo número y nombre',
-      (tester) async {
+  testWidgets('la pestaña Tarjetas del Home muestra la tarjeta de muestra', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(800, 1600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -137,17 +141,17 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
+    // El Home ya no muestra la tarjeta de muestra: no hay backend de tarjetas.
+    expect(find.text(tarjetaMuestraNumero), findsNothing);
+    expect(find.text(tarjetaMuestraRotulo), findsNothing);
 
-    expect(find.text(tarjetaMuestraNumero), findsOneWidget);
-    expect(find.text(tarjetaMuestraRotulo), findsOneWidget);
-    expect(find.textContaining('Próximamente'), findsNothing);
-
-    await tester.tap(find.text('Tarjetas'));
+    await tester.tap(find.byKey(const Key('nav_tarjetas')));
     await tester.pump();
     await tester.pump();
 
     expect(find.text(tarjetaMuestraNumero), findsNWidgets(2));
     expect(find.text(tarjetaMuestraRotulo), findsOneWidget);
+    expect(find.text('Mis tarjetas'), findsOneWidget);
   });
 
   testWidgets('a 320x640 no hay desborde de RenderFlex', (tester) async {
@@ -165,8 +169,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a 320x640 con textScaleFactor 1.3 no hay desborde',
-      (tester) async {
+  testWidgets('a 320x640 con textScaleFactor 1.3 no hay desborde', (
+    tester,
+  ) async {
     await _pump(
       tester,
       session: FakeSessionStore(

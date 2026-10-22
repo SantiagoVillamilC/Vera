@@ -7,7 +7,7 @@
 | Framework | Flutter 3.47.2 / Dart SDK ^3.12 |
 | Estado | `setState` en widgets. `flutter_riverpod` 2.x + `riverpod_annotation` solo para el tema |
 | Navegación | `go_router` 14.x con `MaterialApp.router` |
-| Tipografía | `google_fonts` 6.x — Playfair Display (logo) |
+| Tipografía | Fuente del sistema; `google_fonts` 6.x solo para Playfair Display (logo) |
 | Tema | Material 3, **dark-only** (`ThemeMode.dark` forzado) |
 | Org | `com.xisfo` |
 
@@ -70,8 +70,8 @@ lib/
             ├── enviar_screen.dart         # envío de dinero
             ├── enviar_llave_screen.dart   # envío por llave Bre-B
             ├── recargar_screen.dart       # recarga con url_pago y sondeo
-            ├── estadisticas_screen.dart   # Balance y movimientos reales, resto de muestra (WIP)
-            └── tarjetas_tab.dart          # Datos de muestra (WIP)
+            ├── estadisticas_screen.dart   # Balance y movimientos reales, resto de muestra
+            └── tarjetas_tab.dart          # Datos de muestra
 ```
 
 ### Convención para nuevas features
@@ -84,45 +84,48 @@ lib/
 
 ## Sistema de diseño
 
-Todos los tokens están en `lib/core/theme/app_theme.dart`.
+Rediseño VeraDark: fondo azul acerado que cae a casi negro, superficies de vidrio, acento azul y
+verde menta para lo que entra. Los tokens están en `lib/core/theme/app_theme.dart` y los colores de
+categoría en `lib/core/theme/tintes.dart`.
 
 ### AppColors — colores de marca
 
 ```dart
-AppColors.background      // #07080F — fondo principal
-AppColors.surface         // #0F1020 — superficie de cards
-AppColors.surfaceVariant  // #161829 — inputs, chips
-AppColors.gradientStart   // #7B5EA7 — violeta claro (inicio del gradiente)
-AppColors.gradientMid     // #6C4FD9 — violeta medio
-AppColors.gradientEnd     // #4B3BC4 — violeta oscuro
-AppColors.accent          // #00D4FF — cyan
-AppColors.accentGreen     // #00E5A0 — verde éxito
-AppColors.error           // #FF5B79 — rojo
+AppColors.background      // #0A111C — fondo base
+AppColors.surface         // #131D2C — superficies opacas (hojas, listas)
+AppColors.surfaceVariant  // #1A2639 — inputs, chips
+AppColors.gradientStart   // #6CB6F2 — azul claro (enlaces, acentos)
+AppColors.gradientMid     // #2F78C9 — azul medio
+AppColors.gradientEnd     // #214E8C — azul profundo
+AppColors.accentGreen     // #55D693 — ingresos y éxito
 AppColors.textPrimary     // #FFFFFF
-AppColors.textSecondary   // #8B8FAD
-AppColors.textMuted       // #454761
-AppColors.border          // #1E2038
-AppColors.borderGlass     // rgba blanco al 15%
+AppColors.textSecondary   // #9AA9BD
+AppColors.textMuted       // #5E6E85
+AppColors.botonClaro      // #E8F0F8 — botón principal claro (tinta: tintaBotonClaro)
+AppColors.botonOscuro     // #0C1624 — botones oscuros sobre vidrio
+AppColors.barra           // #0E1826 — barra de navegación
 ```
 
 ### AppGradients
 
 ```dart
-AppGradients.brand         // gradiente horizontal #7B5EA7 → #4B3BC4
-AppGradients.brandVertical // gradiente vertical
-AppGradients.card          // gradiente oscuro para cards
+AppGradients.fondo         // fondo de las pestañas del Home
+AppGradients.fondoAzul     // fondo de Estadísticas
+AppGradients.tarjetaSaldo  // tarjeta de saldo y tarjeta Vera
+AppGradients.orbe          // orbe del botón central de Vera
+AppGradients.brand         // azul medio a profundo
 ```
 
 ### Widgets del sistema de diseño
 
 | Widget | Uso |
 |---|---|
-| `AuthBackground` | Envuelve pantallas de auth; fondo con blobs de luz |
-| `GradientButton` | CTA principal con gradiente y glow. Acepta `loading`, `icon`, `onPressed: null` para estado disabled |
-| `PinDots` | Indicadores para PIN/OTP (`length`, `filled`) |
-| `NumPad` | Teclado numérico circular con `onDigit`, `onDelete`, `onBiometric` |
-| `VeraAnimatedLogo` | Logo completo con 3 tarjetas en acordeón + texto Playfair Display |
-| `VeraCardIcon` | Icono compacto animado para sub-pantallas |
+| `FondoVera` | Fondo degradado de las pantallas principales |
+| `TarjetaVidrio` | Superficie translúcida con filo claro; `opaca` para listas largas, `gradiente` para la tarjeta de saldo |
+| `BarraVera` | Barra flotante con cuatro destinos y el orbe de Vera. El activo es una píldora clara con su nombre; no crece con la letra del sistema |
+| `OrbeVera` / `MarcaVera` / `AvatarVera` | Orbe del asistente, ilustración de las tarjetas con el punto (estática) y avatar con iniciales |
+| `TinteVera` | Par fondo y tinta de los iconos y etiquetas de categoría (`tinteDeCategoria`, `iconoDeCategoria`) |
+| `AuthBackground`, `GradientButton`, `PinDots`, `NumPad`, `CodigoOtp`, `VeraAnimatedLogo`, `VeraCardIcon` | Pantallas de autenticación y verificación |
 
 ## Providers Riverpod (solo el tema)
 

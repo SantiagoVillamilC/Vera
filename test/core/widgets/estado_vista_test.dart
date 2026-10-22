@@ -33,7 +33,7 @@ void main() {
   group('EstadoVista', () {
     testWidgets('cargando muestra el indicador', (tester) async {
       await tester.pumpWidget(_host(const EstadoVista.cargando()));
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byKey(const Key('cargando_vera')), findsOneWidget);
     });
 
     testWidgets('vacio muestra el mensaje configurable', (tester) async {
@@ -43,8 +43,9 @@ void main() {
       expect(find.text('Sin movimientos'), findsOneWidget);
     });
 
-    testWidgets('sin red muestra el texto y Reintentar invoca el callback',
-        (tester) async {
+    testWidgets('sin red muestra el texto y Reintentar invoca el callback', (
+      tester,
+    ) async {
       var llamadas = 0;
       await tester.pumpWidget(
         _host(EstadoVista.sinRed(onReintentar: () => llamadas++)),
@@ -54,8 +55,9 @@ void main() {
       expect(llamadas, 1);
     });
 
-    testWidgets('error muestra el mensaje y Reintentar invoca el callback',
-        (tester) async {
+    testWidgets('error muestra el mensaje y Reintentar invoca el callback', (
+      tester,
+    ) async {
       var llamadas = 0;
       await tester.pumpWidget(
         _host(
@@ -70,21 +72,20 @@ void main() {
       expect(llamadas, 1);
     });
 
-    testWidgets('deError con error de red muestra el texto de sin conexión',
-        (tester) async {
+    testWidgets('deError con error de red muestra el texto de sin conexión', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _host(
-          EstadoVista.deError(
-            TimeoutException('lento'),
-            onReintentar: () {},
-          ),
+          EstadoVista.deError(TimeoutException('lento'), onReintentar: () {}),
         ),
       );
       expect(find.text(_textoSinRed), findsOneWidget);
     });
 
-    testWidgets('deError con otro error muestra el mensaje recibido',
-        (tester) async {
+    testWidgets('deError con otro error muestra el mensaje recibido', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _host(
           EstadoVista.deError(

@@ -79,7 +79,15 @@ Map<String, Object?> _ok(String texto) => {
   'meta': null,
 };
 
+/// Por defecto se habla: para escribir hay que abrir el teclado.
+Future<void> abrirTeclado(WidgetTester t) async {
+  if (find.byType(TextField).evaluate().isNotEmpty) return;
+  await t.tap(find.byKey(const Key('abrir_teclado')));
+  await t.pump();
+}
+
 Future<void> enviarTexto(WidgetTester t, String m) async {
+  await abrirTeclado(t);
   await t.enterText(find.byType(TextField), m);
   await t.pump();
   await t.testTextInput.receiveAction(TextInputAction.done);
@@ -132,7 +140,7 @@ void main() {
       expect(post.url.path, '/v1/auth/consents');
       expect(jsonDecode(post.body)['tipo'], 'asistente_ia');
       expect(jsonDecode(post.body)['version_texto'], 'v1');
-      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byKey(const Key('boton_microfono')), findsOneWidget);
       expect(find.text('Activa a Vera'), findsNothing);
     },
   );
@@ -243,18 +251,20 @@ void main() {
       await t.pump();
       await t.pump();
 
-      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byKey(const Key('boton_microfono')), findsOneWidget);
     },
   );
 
   testWidgets(
-    'si falla la consulta del consentimiento no abre el chat y ofrece reintentar',
+    'si falla la consulta del consentimiento el chat se ve pero no deja enviar y ofrece reintentar',
     (t) async {
       t.view.physicalSize = const Size(800, 1600);
       t.view.devicePixelRatio = 1;
       addTearDown(t.view.reset);
+      final vistos = <http.Request>[];
       var consultas = 0;
       final mock = MockClient((r) async {
+        vistos.add(r);
         consultas++;
         if (consultas == 1) throw http.ClientException('sin red');
         return _json({
@@ -276,14 +286,23 @@ void main() {
       await t.pump();
       await t.pump();
 
+      // El chat se ve, con su saludo y sugerencias, pero sin campo para escribir.
+      expect(find.text('¿En qué te ayudo hoy?'), findsOneWidget);
       expect(find.byType(TextField), findsNothing);
+      expect(find.text(mensajeSinRed), findsOneWidget);
       expect(find.text('Reintentar'), findsOneWidget);
+
+      // Una sugerencia no envía nada sin consentimiento verificado.
+      await t.tap(find.text('¿Cuánto tengo disponible?'));
+      await t.pump();
+      expect(vistos.where((r) => r.method == 'POST'), isEmpty);
 
       await t.tap(find.text('Reintentar'));
       await t.pump();
       await t.pump();
 
-      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byKey(const Key('boton_microfono')), findsOneWidget);
+      expect(find.text(mensajeSinRed), findsNothing);
     },
   );
 
@@ -370,6 +389,7 @@ void main() {
         (_) => _json(_ok('Tu saldo es \$1.250.000'), 200),
       ],
     );
+    await abrirTeclado(t);
     await t.enterText(find.byType(TextField), 'cuanto tengo');
     await t.pump();
     await t.testTextInput.receiveAction(TextInputAction.done);
@@ -419,6 +439,7 @@ void main() {
         ],
       );
       Future<void> enviar(String m) async {
+        await abrirTeclado(t);
         await t.enterText(find.byType(TextField), m);
         await t.pump();
         await t.testTextInput.receiveAction(TextInputAction.done);

@@ -4,6 +4,7 @@ import 'package:vera/features/home/presentation/estadisticas_screen.dart';
 import 'package:vera/features/home/presentation/perfil_tab.dart';
 import 'package:vera/features/home/presentation/tarjetas_tab.dart';
 
+import 'fake_inteligencia.dart';
 import 'fake_nucleo_repository.dart';
 import 'fake_session_store.dart';
 
@@ -16,24 +17,28 @@ Future<void> _pump(WidgetTester tester, Widget child) async {
 }
 
 void main() {
-  testWidgets('estadísticas se dibuja con datos de muestra y sin Próximamente',
-      (tester) async {
-    await _pump(
-      tester,
-      EstadisticasScreen(repository: FakeNucleoRepository()),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Estadísticas'), findsOneWidget);
-    expect(find.text('Datos de muestra (WIP)'), findsOneWidget);
-    expect(find.textContaining('Próximamente'), findsNothing);
-    expect(find.textContaining('Nómina'), findsNothing);
-  });
+  testWidgets(
+    'estadísticas se dibuja con datos de muestra y sin Próximamente',
+    (tester) async {
+      await _pump(
+        tester,
+        EstadisticasScreen(
+          repository: FakeNucleoRepository(),
+          inteligencia: FakeInteligenciaRepository(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Estadísticas'), findsOneWidget);
+      expect(find.textContaining('Próximamente'), findsNothing);
+      expect(find.textContaining('Nómina'), findsNothing);
+    },
+  );
 
-  testWidgets('tarjetas se dibuja con datos de muestra y sin Próximamente',
-      (tester) async {
+  testWidgets('tarjetas se dibuja con datos de muestra y sin Próximamente', (
+    tester,
+  ) async {
     await _pump(tester, TarjetasTab(session: FakeSessionStore()));
-    expect(find.text('Mis Tarjetas'), findsOneWidget);
-    expect(find.text('Datos de muestra (WIP)'), findsOneWidget);
+    expect(find.text('Mis tarjetas'), findsOneWidget);
     expect(find.textContaining('Próximamente'), findsNothing);
     expect(find.textContaining('4417'), findsWidgets);
     expect(find.textContaining('Rappi'), findsNothing);

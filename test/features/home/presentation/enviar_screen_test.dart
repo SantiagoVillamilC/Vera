@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/features/home/presentation/enviar_screen.dart';
@@ -10,15 +11,15 @@ import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 import 'package:vera/features/nucleo/data/transferencia_mensajes.dart';
 
 class _FakeRepo implements NucleoRepository {
-  Future<Destinatario> Function(String celular) onDestinatario =
-      (_) async => const Destinatario(nombre: 'Jorge R.');
+  Future<Destinatario> Function(String celular) onDestinatario = (_) async =>
+      const Destinatario(nombre: 'Jorge R.');
   Future<MontoCalculado> Function() onMaximo = () async => MontoCalculado(
-        montoCentavos: BigInt.from(1234567),
-        moneda: 'COP',
-        calculadoEn: DateTime(2026),
-      );
-  Future<Transferencia> Function() onTransferir =
-      () async => _transferencia(EstadoTransferencia.confirmada);
+    montoCentavos: BigInt.from(1234567),
+    moneda: 'COP',
+    calculadoEn: DateTime(2026),
+  );
+  Future<Transferencia> Function() onTransferir = () async =>
+      _transferencia(EstadoTransferencia.confirmada);
 
   final destinatarioCalls = <String>[];
   final transferirCalls = <({String destino, String monto, String key})>[];
@@ -47,14 +48,14 @@ class _FakeRepo implements NucleoRepository {
 }
 
 Transferencia _transferencia(EstadoTransferencia estado) => Transferencia(
-      id: 't1',
-      destino: '+573001234567',
-      montoCentavos: BigInt.from(100),
-      moneda: 'COP',
-      estado: estado,
-      creadaEn: DateTime(2026),
-      actualizadaEn: DateTime(2026),
-    );
+  id: 't1',
+  destino: '+573001234567',
+  montoCentavos: BigInt.from(100),
+  moneda: 'COP',
+  estado: estado,
+  creadaEn: DateTime(2026),
+  actualizadaEn: DateTime(2026),
+);
 
 ApiException _api(String code, int status) =>
     ApiException(code: code, message: 'x', statusCode: status);
@@ -98,8 +99,8 @@ Future<void> _confirmar(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Color? _fondoSnack(WidgetTester tester) =>
-    tester.widget<SnackBar>(find.byType(SnackBar)).backgroundColor;
+Color? _colorEstado(WidgetTester tester) =>
+    tester.widget<Text>(find.byKey(const Key('resultado_estado'))).style?.color;
 
 void main() {
   testWidgets('el campo es Celular y ya no habla de nombre', (tester) async {
@@ -110,18 +111,20 @@ void main() {
     expect(find.text('Sin comisión · Llega inmediato'), findsNothing);
   });
 
-  testWidgets('un celular de 10 dígitos llega como +57 al destinatario y al envío',
-      (tester) async {
-    final repo = _FakeRepo();
-    await _pump(tester, repo);
-    await _llenar(tester);
-    await _revisar(tester);
-    await _confirmar(tester);
+  testWidgets(
+    'un celular de 10 dígitos llega como +57 al destinatario y al envío',
+    (tester) async {
+      final repo = _FakeRepo();
+      await _pump(tester, repo);
+      await _llenar(tester);
+      await _revisar(tester);
+      await _confirmar(tester);
 
-    expect(repo.destinatarioCalls, ['+573001234567']);
-    expect(repo.transferirCalls.single.destino, '+573001234567');
-    expect(repo.transferirCalls.single.monto, '500000');
-  });
+      expect(repo.destinatarioCalls, ['+573001234567']);
+      expect(repo.transferirCalls.single.destino, '+573001234567');
+      expect(repo.transferirCalls.single.monto, '500000');
+    },
+  );
 
   testWidgets('el campo de celular limita a 320 caracteres', (tester) async {
     await _pump(tester, _FakeRepo());
@@ -131,8 +134,9 @@ void main() {
     expect(field.controller!.text.length, 320);
   });
 
-  testWidgets('enviar el máximo manda los centavos exactos sin redondear',
-      (tester) async {
+  testWidgets('enviar el máximo manda los centavos exactos sin redondear', (
+    tester,
+  ) async {
     final repo = _FakeRepo();
     await _pump(tester, repo);
     await tester.enterText(find.byType(TextField).at(0), '3001234567');
@@ -145,8 +149,9 @@ void main() {
     expect(repo.transferirCalls.single.monto, '1234567');
   });
 
-  testWidgets('si el usuario edita después del máximo, se usan pesos por 100',
-      (tester) async {
+  testWidgets('si el usuario edita después del máximo, se usan pesos por 100', (
+    tester,
+  ) async {
     final repo = _FakeRepo();
     await _pump(tester, repo);
     await tester.enterText(find.byType(TextField).at(0), '3001234567');
@@ -159,54 +164,66 @@ void main() {
     expect(repo.transferirCalls.single.monto, '250000');
   });
 
-  testWidgets('un error al pedir el máximo muestra el mensaje y no llena el monto',
-      (tester) async {
-    final repo = _FakeRepo()..onMaximo = () async => throw _api('InternalError', 500);
-    await _pump(tester, repo);
-    await tester.tap(find.text('Enviar el máximo'));
-    await tester.pumpAndSettle();
-    expect(find.text('Tuvimos un problema de nuestro lado. Intenta más tarde.'),
-        findsOneWidget);
-    final field = tester.widget<TextField>(find.byType(TextField).at(1));
-    expect(field.controller!.text, isEmpty);
-  });
+  testWidgets(
+    'un error al pedir el máximo muestra el mensaje y no llena el monto',
+    (tester) async {
+      final repo = _FakeRepo()
+        ..onMaximo = () async => throw _api('InternalError', 500);
+      await _pump(tester, repo);
+      await tester.tap(find.text('Enviar el máximo'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Tuvimos un problema de nuestro lado. Intenta más tarde.'),
+        findsOneWidget,
+      );
+      final field = tester.widget<TextField>(find.byType(TextField).at(1));
+      expect(field.controller!.text, isEmpty);
+    },
+  );
 
-  testWidgets('la hoja deshabilita Confirmar hasta que el destinatario responde 200',
-      (tester) async {
-    final repo = _FakeRepo();
-    final c = Completer<Destinatario>();
-    repo.onDestinatario = (_) => c.future;
-    await _pump(tester, repo);
-    await _llenar(tester);
-    await tester.tap(find.text('Revisar envío'));
-    await tester.pump();
-    await tester.pump();
+  testWidgets(
+    'la hoja deshabilita Confirmar hasta que el destinatario responde 200',
+    (tester) async {
+      final repo = _FakeRepo();
+      final c = Completer<Destinatario>();
+      repo.onDestinatario = (_) => c.future;
+      await _pump(tester, repo);
+      await _llenar(tester);
+      await tester.tap(find.text('Revisar envío'));
+      await tester.pump();
+      await tester.pump();
 
-    expect(_confirmarHabilitado(tester), isFalse);
-    c.complete(const Destinatario(nombre: 'Maria L***'));
-    await tester.pumpAndSettle();
+      expect(_confirmarHabilitado(tester), isFalse);
+      c.complete(const Destinatario(nombre: 'Maria L***'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Maria L***'), findsOneWidget);
-    expect(find.text('\$5.000'), findsWidgets);
-    expect(_confirmarHabilitado(tester), isTrue);
-  });
+      expect(find.text('Maria L***'), findsOneWidget);
+      expect(find.text('\$5.000'), findsWidgets);
+      expect(_confirmarHabilitado(tester), isTrue);
+    },
+  );
 
-  testWidgets('un 404 muestra el mensaje en español y no permite confirmar',
-      (tester) async {
+  testWidgets('un 404 muestra el mensaje en español y no permite confirmar', (
+    tester,
+  ) async {
     final repo = _FakeRepo()
       ..onDestinatario = (_) async => throw _api('RecipientNotFound', 404);
     await _pump(tester, repo);
     await _llenar(tester);
     await _revisar(tester);
 
-    expect(find.text('No encontramos al destinatario. Revisa los datos.'),
-        findsOneWidget);
+    expect(
+      find.text('No encontramos al destinatario. Revisa los datos.'),
+      findsOneWidget,
+    );
     expect(_confirmarHabilitado(tester), isFalse);
     await _confirmar(tester);
     expect(repo.transferirCalls, isEmpty);
   });
 
-  testWidgets('un error de red en la consulta ofrece reintentar', (tester) async {
+  testWidgets('un error de red en la consulta ofrece reintentar', (
+    tester,
+  ) async {
     final repo = _FakeRepo();
     var intento = 0;
     repo.onDestinatario = (_) async {
@@ -225,62 +242,69 @@ void main() {
     expect(_confirmarHabilitado(tester), isTrue);
   });
 
-  testWidgets('un timeout deja Confirmar habilitado y el reintento usa la misma clave',
-      (tester) async {
-    final repo = _FakeRepo();
-    var intento = 0;
-    repo.onTransferir = () async {
-      intento++;
-      if (intento == 1) throw TimeoutException('lento');
-      return _transferencia(EstadoTransferencia.confirmada);
-    };
-    await _pump(tester, repo);
-    await _llenar(tester);
-    await _revisar(tester);
-    await _confirmar(tester);
+  testWidgets(
+    'un timeout deja Confirmar habilitado y el reintento usa la misma clave',
+    (tester) async {
+      final repo = _FakeRepo();
+      var intento = 0;
+      repo.onTransferir = () async {
+        intento++;
+        if (intento == 1) throw TimeoutException('lento');
+        return _transferencia(EstadoTransferencia.confirmada);
+      };
+      await _pump(tester, repo);
+      await _llenar(tester);
+      await _revisar(tester);
+      await _confirmar(tester);
 
-    expect(find.text('Error de conexión. Intenta de nuevo.'), findsOneWidget);
-    expect(_confirmarHabilitado(tester), isTrue);
+      expect(find.text('Error de conexión. Intenta de nuevo.'), findsOneWidget);
+      expect(_confirmarHabilitado(tester), isTrue);
 
-    await _confirmar(tester);
-    expect(repo.transferirCalls, hasLength(2));
-    expect(repo.transferirCalls[1].key, repo.transferirCalls[0].key);
-  });
+      await _confirmar(tester);
+      expect(repo.transferirCalls, hasLength(2));
+      expect(repo.transferirCalls[1].key, repo.transferirCalls[0].key);
+    },
+  );
 
-  testWidgets('el reintento reutiliza la clave aunque se cierre y reabra la hoja',
-      (tester) async {
-    final repo = _FakeRepo();
-    var intento = 0;
-    repo.onTransferir = () async {
-      intento++;
-      if (intento == 1) throw TimeoutException('lento');
-      return _transferencia(EstadoTransferencia.confirmada);
-    };
-    await _pump(tester, repo);
-    await _llenar(tester);
-    await _revisar(tester);
-    await _confirmar(tester);
+  testWidgets(
+    'el reintento reutiliza la clave aunque se cierre y reabra la hoja',
+    (tester) async {
+      final repo = _FakeRepo();
+      var intento = 0;
+      repo.onTransferir = () async {
+        intento++;
+        if (intento == 1) throw TimeoutException('lento');
+        return _transferencia(EstadoTransferencia.confirmada);
+      };
+      await _pump(tester, repo);
+      await _llenar(tester);
+      await _revisar(tester);
+      await _confirmar(tester);
 
-    await tester.tap(find.text('Cancelar'));
-    await tester.pumpAndSettle();
-    await _revisar(tester);
-    await _confirmar(tester);
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+      await _revisar(tester);
+      await _confirmar(tester);
 
-    expect(repo.transferirCalls, hasLength(2));
-    expect(repo.transferirCalls[1].key, repo.transferirCalls[0].key);
-  });
+      expect(repo.transferirCalls, hasLength(2));
+      expect(repo.transferirCalls[1].key, repo.transferirCalls[0].key);
+    },
+  );
 
   testWidgets('tras un envío exitoso la clave se renueva', (tester) async {
     final repo = _FakeRepo();
-    await _pump(tester, repo);
+    final intent = IdempotencyIntent();
+    await _pump(tester, repo, intent);
     await _llenar(tester);
     await _revisar(tester);
     await _confirmar(tester);
-    await _revisar(tester);
-    await _confirmar(tester);
 
-    expect(repo.transferirCalls, hasLength(2));
-    expect(repo.transferirCalls[1].key, isNot(repo.transferirCalls[0].key));
+    final primera = repo.transferirCalls.single.key;
+    final siguiente = intent.keyFor(
+      destino: '+573001234567',
+      monto: BigInt.from(500000),
+    );
+    expect(siguiente, isNot(primera));
   });
 
   testWidgets('tras un 422 la clave se renueva', (tester) async {
@@ -296,14 +320,17 @@ void main() {
     await _revisar(tester);
     await _confirmar(tester);
 
-    expect(find.text('No tienes saldo suficiente para esta operación.'),
-        findsOneWidget);
+    expect(
+      find.text('No tienes saldo suficiente para esta operación.'),
+      findsOneWidget,
+    );
     await _confirmar(tester);
     expect(repo.transferirCalls[1].key, isNot(repo.transferirCalls[0].key));
   });
 
-  testWidgets('un 5xx conserva la clave y muestra el mensaje de reintento',
-      (tester) async {
+  testWidgets('un 5xx conserva la clave y muestra el mensaje de reintento', (
+    tester,
+  ) async {
     final repo = _FakeRepo();
     var intento = 0;
     repo.onTransferir = () async {
@@ -321,22 +348,69 @@ void main() {
     expect(repo.transferirCalls[1].key, repo.transferirCalls[0].key);
   });
 
-  testWidgets('solo confirmada usa SnackBar verde', (tester) async {
+  testWidgets('confirmada muestra el resultado con marca de éxito y detalle', (
+    tester,
+  ) async {
     final repo = _FakeRepo();
     await _pump(tester, repo);
     await _llenar(tester);
     await _revisar(tester);
     await _confirmar(tester);
 
-    expect(find.text(resultadoDeEstado(EstadoTransferencia.confirmada).mensaje),
-        findsOneWidget);
-    expect(_fondoSnack(tester), AppColors.accentGreen);
+    expect(find.text('¡Listo!'), findsOneWidget);
+    expect(
+      find.text(resultadoDeEstado(EstadoTransferencia.confirmada).mensaje),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('icono_exito')), findsOneWidget);
+    expect(find.text('Exitoso'), findsOneWidget);
+    expect(_colorEstado(tester), AppColors.accentGreen);
+    // El nombre sale del destinatario consultado y el celular va enmascarado.
+    expect(find.text('Jorge R.'), findsOneWidget);
+    expect(find.text('+57 300 ••• 4567'), findsOneWidget);
+    expect(find.text('Referencia'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('resultado_monto'))).data,
+      '\$1',
+    );
+    expect(find.byType(SnackBar), findsNothing);
   });
 
-  for (final estado in EstadoTransferencia.values
-      .where((e) => e != EstadoTransferencia.confirmada)) {
-    testWidgets('el estado ${estado.name} no usa verde y muestra el mensaje',
-        (tester) async {
+  testWidgets('Volver al inicio lleva al Home', (tester) async {
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repo = _FakeRepo();
+    final router = GoRouter(
+      initialLocation: '/enviar',
+      routes: [
+        GoRoute(path: '/home', builder: (_, _) => const Text('inicio-destino')),
+        GoRoute(
+          path: '/enviar',
+          builder: (_, _) => EnviarScreen(repository: repo),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await _llenar(tester);
+    await _revisar(tester);
+    await _confirmar(tester);
+    expect(find.text('¡Listo!'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('volver_inicio')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('inicio-destino'), findsOneWidget);
+    expect(find.text('¡Listo!'), findsNothing);
+  });
+
+  for (final estado in EstadoTransferencia.values.where(
+    (e) => e != EstadoTransferencia.confirmada,
+  )) {
+    testWidgets('el estado ${estado.name} no usa marca de éxito ni verde', (
+      tester,
+    ) async {
       final repo = _FakeRepo()
         ..onTransferir = () async => _transferencia(estado);
       await _pump(tester, repo);
@@ -345,12 +419,14 @@ void main() {
       await _confirmar(tester);
 
       expect(find.text(resultadoDeEstado(estado).mensaje), findsOneWidget);
-      expect(_fondoSnack(tester), isNot(AppColors.accentGreen));
+      expect(find.byKey(const Key('icono_exito')), findsNothing);
+      expect(_colorEstado(tester), isNot(AppColors.accentGreen));
     });
   }
 
-  testWidgets('un doble toque durante el vuelo hace una sola llamada',
-      (tester) async {
+  testWidgets('un doble toque durante el vuelo hace una sola llamada', (
+    tester,
+  ) async {
     final repo = _FakeRepo();
     final c = Completer<Transferencia>();
     repo.onTransferir = () => c.future;

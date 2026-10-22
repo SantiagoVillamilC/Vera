@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:vera/core/format/fechas.dart';
 import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
@@ -9,7 +11,11 @@ import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/platform/url_opener.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
+import 'package:vera/core/widgets/fondo_vera.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
+import 'package:vera/core/widgets/tarjeta_vidrio.dart';
+import 'package:vera/features/home/presentation/movimiento_vista.dart'
+    show formatHora;
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
 const mensajeRecargaConfirmada =
@@ -295,37 +301,67 @@ class _RecargarScreenState extends State<RecargarScreen>
     if (url == null) return;
     await Clipboard.setData(ClipboardData(text: url));
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Enlace copiado')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Enlace copiado')));
   }
 
   // ── Vista ──────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
+    final enSeguimiento = _fase == _Fase.seguimiento;
+    // El degradado va detrás de todo para que la barra superior no se vea como una franja.
+    return FondoVera(
+      child: Scaffold(
         backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.textSecondary, size: 20),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: const Text(
-          'Recargar saldo',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leadingWidth: 72,
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 20),
+            child: Center(
+              child: Semantics(
+                button: true,
+                label: 'Volver',
+                excludeSemantics: true,
+                onTap: () => Navigator.of(context).maybePop(),
+                child: GestureDetector(
+                  key: const Key('volver'),
+                  onTap: () => Navigator.of(context).maybePop(),
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: AppColors.botonOscuro,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.borderGlass),
+                    ),
+                    child: const Icon(
+                      Icons.chevron_left_rounded,
+                      color: AppColors.textPrimary,
+                      size: 26,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
+          title: Text(
+            enSeguimiento ? 'Tu recarga' : 'Recargar saldo',
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          centerTitle: true,
         ),
-        centerTitle: true,
-      ),
-      body: switch (_fase) {
-        _Fase.retomando => const EstadoVista.cargando(),
-        _Fase.errorAlRetomar => EstadoVista.deError(
+        body: switch (_fase) {
+          _Fase.retomando => const EstadoVista.cargando(),
+          _Fase.errorAlRetomar => EstadoVista.deError(
             _errorAlRetomar ?? '',
             mensaje: _errorAlRetomar == null
                 ? mensajeErrorGenerico
@@ -335,9 +371,10 @@ class _RecargarScreenState extends State<RecargarScreen>
               _consultar();
             },
           ),
-        _Fase.formulario => _formulario(),
-        _Fase.seguimiento => _seguimiento(),
-      },
+          _Fase.formulario => _formulario(),
+          _Fase.seguimiento => _seguimiento(),
+        },
+      ),
     );
   }
 
@@ -387,8 +424,10 @@ class _RecargarScreenState extends State<RecargarScreen>
           ),
           if (_error != null) ...[
             const SizedBox(height: 16),
-            Text(_error!,
-                style: const TextStyle(color: AppColors.error, fontSize: 14)),
+            Text(
+              _error!,
+              style: const TextStyle(color: AppColors.error, fontSize: 14),
+            ),
           ],
           const SizedBox(height: 32),
           GradientButton(
@@ -406,97 +445,118 @@ class _RecargarScreenState extends State<RecargarScreen>
   Widget _seguimiento() {
     final d = _deposito;
     final estado = d?.estado ?? EstadoDeposito.pendiente;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _Tarjeta(
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _iconoDeEstado(estado),
-                const SizedBox(height: 12),
-                Text(
-                  _titulo(estado),
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                  ),
+                Center(child: _AroDeEstado(estado: estado)),
+                const SizedBox(height: 18),
+                Center(
+                  child: _ChipDeEstado(texto: _titulo(estado), estado: estado),
                 ),
-                const SizedBox(height: 8),
+                if (d != null) ...[
+                  const SizedBox(height: 14),
+                  Center(
+                    child: Text(
+                      formatPesos(d.montoCentavos),
+                      key: const Key('monto-recarga'),
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 44,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -1.5,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 6),
                 Text(
                   _mensaje(estado),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                      color: AppColors.textSecondary, fontSize: 15),
+                    color: AppColors.textSecondary,
+                    fontSize: 16,
+                    height: 1.35,
+                  ),
                 ),
-                if (d != null) ...[
-                  const SizedBox(height: 16),
-                  Text(formatPesos(d.montoCentavos),
-                      style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800)),
-                  if (d.referencia.isNotEmpty)
-                    Text('Referencia ${d.referencia}',
-                        style: const TextStyle(
-                            color: AppColors.textMuted, fontSize: 12)),
+                if (_respaldo != _Respaldo.ninguno) ...[
+                  const SizedBox(height: 18),
+                  _respaldoEnlace(),
                 ],
+                if (_error != null) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    _error!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: AppColors.error,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 22),
+                _LineaDeTiempo(
+                  estado: estado,
+                  creada: d?.creadaEn,
+                  referencia: d?.referencia ?? '',
+                ),
               ],
             ),
           ),
-          if (_respaldo != _Respaldo.ninguno) ...[
-            const SizedBox(height: 16),
-            _respaldoEnlace(),
-          ],
-          if (_error != null) ...[
-            const SizedBox(height: 16),
-            Text(_error!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.error, fontSize: 14)),
-          ],
-          const SizedBox(height: 24),
-          ..._acciones(),
-        ],
-      ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+          child: Column(children: _acciones()),
+        ),
+      ],
     );
   }
 
   List<Widget> _acciones() {
     if (_esTerminal) {
       return [
-        GradientButton(
-          key: const Key('nueva-recarga'),
-          label: 'Nueva recarga',
-          onPressed: _volverAlFormulario,
+        _BotonPrincipal(
+          llave: const Key('nueva-recarga'),
+          etiqueta: 'Nueva recarga',
+          alTocar: _volverAlFormulario,
         ),
       ];
     }
+    final hayEnlace = _urlPago != null && _respaldo != _Respaldo.inseguro;
     return [
-      if (_sondeoAgotado)
-        GradientButton(
-          key: const Key('consultar-de-nuevo'),
-          label: 'Consultar de nuevo',
-          icon: Icons.refresh_rounded,
-          onPressed: _consultarDeNuevo,
-        )
-      else
-        const Center(
-          child: SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(
-                strokeWidth: 2, color: AppColors.gradientStart),
+      Row(
+        children: [
+          if (hayEnlace) ...[
+            Expanded(
+              child: _BotonSecundario(
+                llave: const Key('copiar-enlace'),
+                etiqueta: 'Copiar enlace',
+                icono: Icons.copy_rounded,
+                alTocar: _copiarEnlace,
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
+          Expanded(
+            child: _BotonSecundario(
+              llave: const Key('consultar-de-nuevo'),
+              etiqueta: 'Consultar de nuevo',
+              icono: Icons.refresh_rounded,
+              alTocar: _sondeoAgotado ? _consultarDeNuevo : _consultar,
+            ),
           ),
-        ),
-      if (_urlPago != null && _respaldo != _Respaldo.inseguro) ...[
-        const SizedBox(height: 12),
-        TextButton(
-          key: const Key('abrir-pago'),
-          onPressed: () => _abrirPago(_urlPago!),
-          child: const Text('Abrir el pago de nuevo',
-              style: TextStyle(color: AppColors.gradientStart)),
+        ],
+      ),
+      if (hayEnlace) ...[
+        const SizedBox(height: 10),
+        _BotonPrincipal(
+          llave: const Key('abrir-pago'),
+          etiqueta: 'Abrir el pago de nuevo',
+          alTocar: () => _abrirPago(_urlPago!),
         ),
       ],
     ];
@@ -509,7 +569,7 @@ class _RecargarScreenState extends State<RecargarScreen>
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.warning),
       ),
       child: Column(
@@ -521,16 +581,9 @@ class _RecargarScreenState extends State<RecargarScreen>
           ),
           if (!inseguro && _urlPago != null) ...[
             const SizedBox(height: 8),
-            SelectableText(_urlPago!,
-                style: const TextStyle(
-                    color: AppColors.accent, fontSize: 13)),
-            TextButton.icon(
-              key: const Key('copiar-enlace'),
-              onPressed: _copiarEnlace,
-              icon: const Icon(Icons.copy_rounded,
-                  size: 18, color: AppColors.gradientStart),
-              label: const Text('Copiar enlace',
-                  style: TextStyle(color: AppColors.gradientStart)),
+            SelectableText(
+              _urlPago!,
+              style: const TextStyle(color: AppColors.accent, fontSize: 13),
             ),
           ],
         ],
@@ -538,33 +591,20 @@ class _RecargarScreenState extends State<RecargarScreen>
     );
   }
 
-  Widget _iconoDeEstado(EstadoDeposito estado) {
-    final (icono, color) = switch (estado) {
-      EstadoDeposito.confirmada => (
-          Icons.check_circle_rounded,
-          AppColors.accentGreen
-        ),
-      EstadoDeposito.rechazada => (Icons.cancel_rounded, AppColors.error),
-      EstadoDeposito.expirada => (Icons.timer_off_rounded, AppColors.warning),
-      _ => (Icons.hourglass_top_rounded, AppColors.gradientStart),
-    };
-    return Icon(icono, color: color, size: 48);
-  }
-
   String _titulo(EstadoDeposito estado) => switch (estado) {
-        EstadoDeposito.confirmada => 'Recarga confirmada',
-        EstadoDeposito.rechazada => 'Recarga rechazada',
-        EstadoDeposito.expirada => 'Recarga expirada',
-        _ => 'Recarga pendiente',
-      };
+    EstadoDeposito.confirmada => 'Recarga confirmada',
+    EstadoDeposito.rechazada => 'Recarga rechazada',
+    EstadoDeposito.expirada => 'Recarga expirada',
+    _ => 'Recarga pendiente',
+  };
 
   String _mensaje(EstadoDeposito estado) => switch (estado) {
-        EstadoDeposito.confirmada => mensajeRecargaConfirmada,
-        EstadoDeposito.rechazada => mensajeRecargaRechazada,
-        EstadoDeposito.expirada => mensajeRecargaExpirada,
-        EstadoDeposito.pendiente => mensajeRecargaPendiente,
-        EstadoDeposito.desconocido => mensajeRecargaVerificando,
-      };
+    EstadoDeposito.confirmada => mensajeRecargaConfirmada,
+    EstadoDeposito.rechazada => mensajeRecargaRechazada,
+    EstadoDeposito.expirada => mensajeRecargaExpirada,
+    EstadoDeposito.pendiente => mensajeRecargaPendiente,
+    EstadoDeposito.desconocido => mensajeRecargaVerificando,
+  };
 }
 
 class _Tarjeta extends StatelessWidget {
@@ -582,6 +622,411 @@ class _Tarjeta extends StatelessWidget {
         border: Border.all(color: AppColors.border),
       ),
       child: child,
+    );
+  }
+}
+
+/// Colores y marca de cada estado de la recarga.
+(IconData, Color) _marcaDeEstado(EstadoDeposito estado) => switch (estado) {
+  EstadoDeposito.confirmada => (Icons.check_rounded, AppColors.accentGreen),
+  EstadoDeposito.rechazada => (Icons.close_rounded, AppColors.error),
+  EstadoDeposito.expirada => (Icons.timer_off_rounded, AppColors.warning),
+  _ => (Icons.hourglass_top_rounded, AppColors.gradientStart),
+};
+
+/// Círculo claro con la marca del estado y un aro de avance alrededor.
+class _AroDeEstado extends StatelessWidget {
+  const _AroDeEstado({required this.estado});
+
+  final EstadoDeposito estado;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icono, color) = _marcaDeEstado(estado);
+    final terminal = estado.esTerminal;
+    return SizedBox(
+      key: const Key('aro-estado'),
+      width: 190,
+      height: 190,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 190,
+            height: 190,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withAlpha(30)),
+            ),
+          ),
+          CustomPaint(
+            size: const Size.square(170),
+            painter: _ArcoPainter(color: color, barrido: terminal ? 1.0 : 0.82),
+          ),
+          Container(
+            width: 150,
+            height: 150,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Color(0xFFDDEAF7),
+            ),
+            child: Icon(
+              icono,
+              size: 56,
+              color: terminal ? color : const Color(0xFFB9CBE0),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ArcoPainter extends CustomPainter {
+  const _ArcoPainter({required this.color, required this.barrido});
+
+  final Color color;
+
+  /// Fracción de la vuelta que se dibuja, de 0 a 1.
+  final double barrido;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      2 * math.pi * barrido,
+      false,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 5
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ArcoPainter old) =>
+      old.color != color || old.barrido != barrido;
+}
+
+class _ChipDeEstado extends StatelessWidget {
+  const _ChipDeEstado({required this.texto, required this.estado});
+
+  final String texto;
+  final EstadoDeposito estado;
+
+  @override
+  Widget build(BuildContext context) {
+    final (_, color) = _marcaDeEstado(estado);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF16304B),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            texto,
+            style: const TextStyle(
+              color: Color(0xFFCFE3F8),
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _PasoEstado { hecho, enCurso, pendiente, fallo, aviso }
+
+/// Los tres pasos de una recarga: creada, pago en el banco y dinero en el saldo.
+class _LineaDeTiempo extends StatelessWidget {
+  const _LineaDeTiempo({
+    required this.estado,
+    required this.creada,
+    required this.referencia,
+  });
+
+  final EstadoDeposito estado;
+  final DateTime? creada;
+  final String referencia;
+
+  String _hora(DateTime d) {
+    final l = aLocal(d.toUtc());
+    return 'Hoy, ${formatHora(l)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pasoBanco = switch (estado) {
+      EstadoDeposito.confirmada => _PasoEstado.hecho,
+      EstadoDeposito.rechazada => _PasoEstado.fallo,
+      EstadoDeposito.expirada => _PasoEstado.aviso,
+      _ => _PasoEstado.enCurso,
+    };
+    final subBanco = switch (estado) {
+      EstadoDeposito.confirmada => 'Pago recibido',
+      EstadoDeposito.rechazada => 'Pago rechazado',
+      EstadoDeposito.expirada => 'Pago expirado',
+      _ => 'En curso',
+    };
+    final pasoSaldo = estado == EstadoDeposito.confirmada
+        ? _PasoEstado.hecho
+        : _PasoEstado.pendiente;
+    final subSaldo = estado == EstadoDeposito.confirmada
+        ? 'Acreditado en tu saldo'
+        : (referencia.isNotEmpty ? 'Referencia $referencia' : 'Pendiente');
+    return TarjetaVidrio(
+      key: const Key('linea-de-tiempo'),
+      opaca: true,
+      radio: 26,
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+      child: Column(
+        children: [
+          _Paso(
+            titulo: 'Recarga creada',
+            detalle: creada == null ? 'Listo' : _hora(creada!),
+            estado: _PasoEstado.hecho,
+            conLinea: true,
+          ),
+          _Paso(
+            titulo: 'Pago en tu banco',
+            detalle: subBanco,
+            estado: pasoBanco,
+            conLinea: true,
+          ),
+          _Paso(
+            titulo: 'Dinero en tu saldo',
+            detalle: subSaldo,
+            estado: pasoSaldo,
+            conLinea: false,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Paso extends StatelessWidget {
+  const _Paso({
+    required this.titulo,
+    required this.detalle,
+    required this.estado,
+    required this.conLinea,
+  });
+
+  final String titulo;
+  final String detalle;
+  final _PasoEstado estado;
+  final bool conLinea;
+
+  @override
+  Widget build(BuildContext context) {
+    final pendiente = estado == _PasoEstado.pendiente;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 34,
+            child: Column(
+              children: [
+                _Marcador(estado: estado),
+                if (conLinea)
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      margin: const EdgeInsets.symmetric(vertical: 2),
+                      color: const Color(0xFF3B6EA8),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: conLinea ? 18 : 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    titulo,
+                    style: TextStyle(
+                      color: pendiente
+                          ? AppColors.textSecondary
+                          : AppColors.textPrimary,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    detalle,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Marcador extends StatelessWidget {
+  const _Marcador({required this.estado});
+
+  final _PasoEstado estado;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (estado) {
+      case _PasoEstado.hecho:
+        return _circulo(const Color(0xFF3E8F5C), Icons.check_rounded);
+      case _PasoEstado.fallo:
+        return _circulo(AppColors.error, Icons.close_rounded);
+      case _PasoEstado.aviso:
+        return _circulo(AppColors.warning, Icons.timer_off_rounded);
+      case _PasoEstado.pendiente:
+        return Container(
+          width: 34,
+          height: 34,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: Color(0xFF26354A),
+          ),
+        );
+      case _PasoEstado.enCurso:
+        return Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.gradientStart, width: 2.5),
+          ),
+          alignment: Alignment.center,
+          child: Container(
+            width: 14,
+            height: 14,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.gradientStart,
+            ),
+          ),
+        );
+    }
+  }
+
+  Widget _circulo(Color color, IconData icono) => Container(
+    width: 34,
+    height: 34,
+    decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+    child: Icon(icono, color: Colors.white, size: 20),
+  );
+}
+
+class _BotonSecundario extends StatelessWidget {
+  const _BotonSecundario({
+    required this.llave,
+    required this.etiqueta,
+    required this.icono,
+    required this.alTocar,
+  });
+
+  final Key llave;
+  final String etiqueta;
+  final IconData icono;
+  final VoidCallback alTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      key: llave,
+      onTap: alTocar,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: AppColors.botonOscuro,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: AppColors.borderGlass),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icono, color: AppColors.gradientStart, size: 19),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                etiqueta,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  height: 1.15,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BotonPrincipal extends StatelessWidget {
+  const _BotonPrincipal({
+    required this.llave,
+    required this.etiqueta,
+    required this.alTocar,
+  });
+
+  final Key llave;
+  final String etiqueta;
+  final VoidCallback alTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      key: llave,
+      onTap: alTocar,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 58,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.botonClaro,
+          borderRadius: BorderRadius.circular(29),
+        ),
+        child: Text(
+          etiqueta,
+          style: const TextStyle(
+            color: AppColors.tintaBotonClaro,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
     );
   }
 }

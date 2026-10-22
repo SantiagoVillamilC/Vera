@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
+import 'package:vera/core/widgets/fondo_vera.dart';
 import 'package:vera/features/asistente/data/asistente_repository.dart';
 import 'package:vera/features/asistente/presentation/confirmar_borrado.dart';
 
@@ -140,23 +141,26 @@ class _HistorialAsistenteScreenState extends State<HistorialAsistenteScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text(
-          'Historial',
-          style: TextStyle(fontWeight: FontWeight.w600),
+    return FondoVera(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          title: const Text(
+            'Historial',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          actions: [
+            if (_items.isNotEmpty)
+              IconButton(
+                tooltip: 'Borrar todo',
+                icon: const Icon(Icons.delete_sweep_outlined),
+                onPressed: _borrarTodas,
+              ),
+          ],
         ),
-        actions: [
-          if (_items.isNotEmpty)
-            IconButton(
-              tooltip: 'Borrar todo',
-              icon: const Icon(Icons.delete_sweep_outlined),
-              onPressed: _borrarTodas,
-            ),
-        ],
+        body: _cuerpo(),
       ),
-      body: _cuerpo(),
     );
   }
 
@@ -204,10 +208,10 @@ class _HistorialAsistenteScreenState extends State<HistorialAsistenteScreen> {
             ),
             child: ListTile(
               onTap: () => context.pop(c.id),
-              tileColor: AppColors.surface,
+              tileColor: Colors.white.withAlpha(14),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: AppColors.border),
+                side: const BorderSide(color: AppColors.borderGlass),
               ),
               title: Text(
                 c.titulo.isEmpty ? 'Conversación' : c.titulo,

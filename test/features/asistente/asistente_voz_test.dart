@@ -278,7 +278,7 @@ void main() {
         await t.pump();
 
         expect(m.grabador.pedidos, 0);
-        expect(find.byType(TextField), findsOneWidget);
+        expect(find.byKey(const Key('boton_microfono')), findsOneWidget);
       },
     );
 
@@ -302,7 +302,7 @@ void main() {
           findsOneWidget,
         );
         expect(find.text('Escribir'), findsOneWidget);
-        expect(find.byType(TextField), findsOneWidget);
+        expect(find.byKey(const Key('boton_microfono')), findsOneWidget);
         expect(m.grabador.iniciadas, 0);
 
         await t.tap(find.text('Abrir ajustes'));

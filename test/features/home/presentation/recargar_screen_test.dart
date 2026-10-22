@@ -14,10 +14,10 @@ const _intervalo = Duration(seconds: 10);
 const _tope = Duration(seconds: 60);
 
 class _FakeRepo implements NucleoRepository {
-  Future<DepositoConPago> Function(BigInt monto) onRecargar =
-      (_) async => _conPago('https://pago.test/d1');
-  Future<Deposito> Function(String id) onGet =
-      (_) async => _deposito(EstadoDeposito.pendiente);
+  Future<DepositoConPago> Function(BigInt monto) onRecargar = (_) async =>
+      _conPago('https://pago.test/d1');
+  Future<Deposito> Function(String id) onGet = (_) async =>
+      _deposito(EstadoDeposito.pendiente);
 
   final recargarCalls = <BigInt>[];
   final getCalls = <String>[];
@@ -50,29 +50,26 @@ class _FakeOpener implements UrlOpener {
 }
 
 DepositoConPago _conPago(String url, {String id = 'd1'}) => DepositoConPago(
-      id: id,
-      referencia: 'REF-1',
-      montoCentavos: BigInt.from(5000000),
-      moneda: 'COP',
-      estado: EstadoDeposito.pendiente,
-      creadaEn: DateTime.utc(2026),
-      urlPago: url,
-    );
+  id: id,
+  referencia: 'REF-1',
+  montoCentavos: BigInt.from(5000000),
+  moneda: 'COP',
+  estado: EstadoDeposito.pendiente,
+  creadaEn: DateTime.utc(2026),
+  urlPago: url,
+);
 
 Deposito _deposito(EstadoDeposito estado, {String id = 'd1'}) => Deposito(
-      id: id,
-      referencia: 'REF-1',
-      montoCentavos: BigInt.from(5000000),
-      moneda: 'COP',
-      estado: estado,
-      creadaEn: DateTime.utc(2026),
-    );
+  id: id,
+  referencia: 'REF-1',
+  montoCentavos: BigInt.from(5000000),
+  moneda: 'COP',
+  estado: estado,
+  creadaEn: DateTime.utc(2026),
+);
 
-ApiException _noEncontrado() => const ApiException(
-      code: 'DepositNotFound',
-      message: 'x',
-      statusCode: 404,
-    );
+ApiException _noEncontrado() =>
+    const ApiException(code: 'DepositNotFound', message: 'x', statusCode: 404);
 
 class _Entorno {
   final repo = _FakeRepo();
@@ -116,7 +113,9 @@ Future<void> _recargar(WidgetTester tester, {String pesos = '50000'}) async {
 
 void main() {
   group('crear recarga', () {
-    testWidgets('crea el depósito y abre url_pago una sola vez', (tester) async {
+    testWidgets('crea el depósito y abre url_pago una sola vez', (
+      tester,
+    ) async {
       final e = await _pump(tester);
       await _recargar(tester);
 
@@ -128,9 +127,12 @@ void main() {
 
     testWidgets('un doble toque hace una sola llamada', (tester) async {
       final completer = Completer<DepositoConPago>();
-      final e = await _pump(tester, preparar: (e) {
-        e.repo.onRecargar = (_) => completer.future;
-      });
+      final e = await _pump(
+        tester,
+        preparar: (e) {
+          e.repo.onRecargar = (_) => completer.future;
+        },
+      );
       await tester.enterText(find.byKey(const Key('monto')), '50000');
       await tester.pump();
       await tester.tap(find.byKey(const Key('recargar')));
@@ -156,11 +158,15 @@ void main() {
       expect(e.repo.recargarCalls, isEmpty);
     });
 
-    testWidgets('una url que no es http ni https se rechaza y no se abre',
-        (tester) async {
-      final e = await _pump(tester, preparar: (e) {
-        e.repo.onRecargar = (_) async => _conPago('javascript:alert(1)');
-      });
+    testWidgets('una url que no es http ni https se rechaza y no se abre', (
+      tester,
+    ) async {
+      final e = await _pump(
+        tester,
+        preparar: (e) {
+          e.repo.onRecargar = (_) async => _conPago('javascript:alert(1)');
+        },
+      );
       await _recargar(tester);
 
       expect(e.opener.abiertas, isEmpty);
@@ -169,50 +175,65 @@ void main() {
       expect(find.byKey(const Key('copiar-enlace')), findsNothing);
     });
 
-    testWidgets('si abrir devuelve false muestra el enlace y permite copiarlo',
-        (tester) async {
-      final copiado = <String>[];
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            copiado.add((call.arguments as Map)['text'] as String);
-          }
-          return null;
-        },
-      );
-      addTearDown(() => tester.binding.defaultBinaryMessenger
-          .setMockMethodCallHandler(SystemChannels.platform, null));
-      final e = await _pump(tester, preparar: (e) => e.opener.resultado = false);
-      await _recargar(tester);
+    testWidgets(
+      'si abrir devuelve false muestra el enlace y permite copiarlo',
+      (tester) async {
+        final copiado = <String>[];
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          (call) async {
+            if (call.method == 'Clipboard.setData') {
+              copiado.add((call.arguments as Map)['text'] as String);
+            }
+            return null;
+          },
+        );
+        addTearDown(
+          () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            SystemChannels.platform,
+            null,
+          ),
+        );
+        final e = await _pump(
+          tester,
+          preparar: (e) => e.opener.resultado = false,
+        );
+        await _recargar(tester);
 
-      expect(e.opener.abiertas, hasLength(1));
-      expect(find.byKey(const Key('respaldo-enlace')), findsOneWidget);
-      expect(find.text('https://pago.test/d1'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('copiar-enlace')));
-      await tester.pump();
-      expect(copiado, ['https://pago.test/d1']);
-    });
+        expect(e.opener.abiertas, hasLength(1));
+        expect(find.byKey(const Key('respaldo-enlace')), findsOneWidget);
+        expect(find.text('https://pago.test/d1'), findsOneWidget);
+        await tester.tap(find.byKey(const Key('copiar-enlace')));
+        await tester.pump();
+        expect(copiado, ['https://pago.test/d1']);
+      },
+    );
 
     testWidgets('un error del servidor se muestra en español', (tester) async {
-      final e = await _pump(tester, preparar: (e) {
-        e.repo.onRecargar = (_) async => throw const ApiException(
-              code: 'OperationLimitExceeded',
-              message: 'x',
-              statusCode: 422,
-            );
-      });
+      final e = await _pump(
+        tester,
+        preparar: (e) {
+          e.repo.onRecargar = (_) async => throw const ApiException(
+            code: 'OperationLimitExceeded',
+            message: 'x',
+            statusCode: 422,
+          );
+        },
+      );
       await _recargar(tester);
 
-      expect(find.text('El monto supera el límite permitido por operación.'),
-          findsOneWidget);
+      expect(
+        find.text('El monto supera el límite permitido por operación.'),
+        findsOneWidget,
+      );
       expect(e.opener.abiertas, isEmpty);
     });
   });
 
   group('sondeo', () {
-    testWidgets('consulta cada intervalo y se detiene en estado terminal',
-        (tester) async {
+    testWidgets('consulta cada intervalo y se detiene en estado terminal', (
+      tester,
+    ) async {
       final e = await _pump(tester);
       await _recargar(tester);
       expect(e.repo.getCalls, isEmpty);
@@ -274,30 +295,64 @@ void main() {
       expect(e.repo.getCalls, ['d1']);
     });
 
-    testWidgets('tras el tope aparece Consultar de nuevo y el sondeo se detiene',
-        (tester) async {
+    testWidgets('Consultar de nuevo está siempre y consulta al instante', (
+      tester,
+    ) async {
       final e = await _pump(tester);
       await _recargar(tester);
-      expect(find.byKey(const Key('consultar-de-nuevo')), findsNothing);
+      expect(find.byKey(const Key('consultar-de-nuevo')), findsOneWidget);
 
-      await tester.pump(_tope);
-      await tester.pump();
-      expect(find.text('Consultar de nuevo'), findsOneWidget);
-      final llamadas = e.repo.getCalls.length;
-      await tester.pump(_intervalo * 3);
-      expect(e.repo.getCalls, hasLength(llamadas));
-
+      final antes = e.repo.getCalls.length;
       await tester.tap(find.byKey(const Key('consultar-de-nuevo')));
       await tester.pump();
       await tester.pump();
-      expect(e.repo.getCalls, hasLength(llamadas + 1));
-      expect(find.byKey(const Key('consultar-de-nuevo')), findsNothing);
+
+      expect(e.repo.getCalls, hasLength(antes + 1));
+    });
+
+    testWidgets(
+      'tras el tope el sondeo se detiene y Consultar de nuevo lo reanuda',
+      (tester) async {
+        final e = await _pump(tester);
+        await _recargar(tester);
+
+        await tester.pump(_tope);
+        await tester.pump();
+        final llamadas = e.repo.getCalls.length;
+        await tester.pump(_intervalo * 3);
+        expect(e.repo.getCalls, hasLength(llamadas));
+
+        await tester.tap(find.byKey(const Key('consultar-de-nuevo')));
+        await tester.pump();
+        await tester.pump();
+        expect(e.repo.getCalls, hasLength(llamadas + 1));
+
+        await tester.pump(_intervalo);
+        expect(e.repo.getCalls.length, greaterThan(llamadas + 1));
+      },
+    );
+
+    testWidgets('muestra la línea de tiempo y el monto de la recarga', (
+      tester,
+    ) async {
+      await _pump(tester);
+      await _recargar(tester);
+
+      expect(find.byKey(const Key('linea-de-tiempo')), findsOneWidget);
+      expect(find.text('Recarga creada'), findsOneWidget);
+      expect(find.text('Pago en tu banco'), findsOneWidget);
+      expect(find.text('Dinero en tu saldo'), findsOneWidget);
+      expect(find.text('En curso'), findsOneWidget);
+      expect(find.byKey(const Key('monto-recarga')), findsOneWidget);
+      expect(find.text('Tu recarga'), findsOneWidget);
+      expect(find.text('Recarga pendiente'), findsOneWidget);
     });
   });
 
   group('retomar', () {
-    testWidgets('con un depósito pendiente guardado consulta su estado',
-        (tester) async {
+    testWidgets('con un depósito pendiente guardado consulta su estado', (
+      tester,
+    ) async {
       final e = await _pump(tester, pendiente: 'd9');
 
       expect(e.repo.getCalls, ['d9']);
@@ -306,17 +361,23 @@ void main() {
       expect(e.repo.recargarCalls, isEmpty);
     });
 
-    testWidgets('un 404 DepositNotFound borra el pendiente y vuelve al formulario',
-        (tester) async {
-      final e = await _pump(tester, pendiente: 'viejo', preparar: (e) {
-        e.repo.onGet = (_) async => throw _noEncontrado();
-      });
+    testWidgets(
+      'un 404 DepositNotFound borra el pendiente y vuelve al formulario',
+      (tester) async {
+        final e = await _pump(
+          tester,
+          pendiente: 'viejo',
+          preparar: (e) {
+            e.repo.onGet = (_) async => throw _noEncontrado();
+          },
+        );
 
-      expect(e.session.pendingDeposit, isNull);
-      expect(find.byKey(const Key('monto')), findsOneWidget);
-      await tester.pump(_intervalo * 3);
-      expect(e.repo.getCalls, ['viejo']);
-    });
+        expect(e.session.pendingDeposit, isNull);
+        expect(find.byKey(const Key('monto')), findsOneWidget);
+        await tester.pump(_intervalo * 3);
+        expect(e.repo.getCalls, ['viejo']);
+      },
+    );
 
     for (final (titulo, error) in <(String, ApiException)>[
       (
@@ -336,11 +397,16 @@ void main() {
         const ApiException(code: 'NotFound', message: 'x', statusCode: 400),
       ),
     ]) {
-      testWidgets('$titulo borra el pendiente y vuelve al formulario',
-          (tester) async {
-        final e = await _pump(tester, pendiente: 'viejo', preparar: (e) {
-          e.repo.onGet = (_) async => throw error;
-        });
+      testWidgets('$titulo borra el pendiente y vuelve al formulario', (
+        tester,
+      ) async {
+        final e = await _pump(
+          tester,
+          pendiente: 'viejo',
+          preparar: (e) {
+            e.repo.onGet = (_) async => throw error;
+          },
+        );
 
         expect(e.session.pendingDeposit, isNull);
         expect(find.byKey(const Key('monto')), findsOneWidget);
@@ -349,29 +415,40 @@ void main() {
       });
     }
 
-    testWidgets('un error 500 al retomar conserva el pendiente',
-        (tester) async {
-      final e = await _pump(tester, pendiente: 'd9', preparar: (e) {
-        e.repo.onGet = (_) async => throw const ApiException(
-              code: 'InternalError',
-              message: 'x',
-              statusCode: 500,
-            );
-      });
+    testWidgets('un error 500 al retomar conserva el pendiente', (
+      tester,
+    ) async {
+      final e = await _pump(
+        tester,
+        pendiente: 'd9',
+        preparar: (e) {
+          e.repo.onGet = (_) async => throw const ApiException(
+            code: 'InternalError',
+            message: 'x',
+            statusCode: 500,
+          );
+        },
+      );
 
       expect(e.session.pendingDeposit, 'd9');
       expect(find.byKey(const Key('monto')), findsNothing);
       expect(find.text('Reintentar'), findsOneWidget);
     });
 
-    testWidgets('un error de red al retomar permite reintentar', (tester) async {
+    testWidgets('un error de red al retomar permite reintentar', (
+      tester,
+    ) async {
       var falla = true;
-      final e = await _pump(tester, pendiente: 'd9', preparar: (e) {
-        e.repo.onGet = (_) async {
-          if (falla) throw TimeoutException('x');
-          return _deposito(EstadoDeposito.pendiente, id: 'd9');
-        };
-      });
+      final e = await _pump(
+        tester,
+        pendiente: 'd9',
+        preparar: (e) {
+          e.repo.onGet = (_) async {
+            if (falla) throw TimeoutException('x');
+            return _deposito(EstadoDeposito.pendiente, id: 'd9');
+          };
+        },
+      );
       expect(find.text('Reintentar'), findsOneWidget);
       expect(e.session.pendingDeposit, 'd9');
 
@@ -390,16 +467,46 @@ void main() {
       (EstadoDeposito.expirada, mensajeRecargaExpirada),
     ];
     for (final (estado, mensaje) in casos) {
-      testWidgets('muestra el mensaje de ${estado.name} y borra el pendiente',
-          (tester) async {
-        final e = await _pump(tester, pendiente: 'd9', preparar: (e) {
-          e.repo.onGet = (_) async => _deposito(estado, id: 'd9');
-        });
+      testWidgets('muestra el mensaje de ${estado.name} y borra el pendiente', (
+        tester,
+      ) async {
+        final e = await _pump(
+          tester,
+          pendiente: 'd9',
+          preparar: (e) {
+            e.repo.onGet = (_) async => _deposito(estado, id: 'd9');
+          },
+        );
 
         expect(find.text(mensaje), findsOneWidget);
         expect(e.session.pendingDeposit, isNull);
         await tester.pump(_intervalo * 3);
         expect(e.repo.getCalls, hasLength(1));
+      });
+    }
+
+    final lineas = <(EstadoDeposito, String)>[
+      (EstadoDeposito.confirmada, 'Acreditado en tu saldo'),
+      (EstadoDeposito.rechazada, 'Pago rechazado'),
+      (EstadoDeposito.expirada, 'Pago expirado'),
+    ];
+    for (final (estado, texto) in lineas) {
+      testWidgets('la línea de tiempo de ${estado.name} dice «$texto»', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          pendiente: 'd9',
+          preparar: (e) {
+            e.repo.onGet = (_) async => _deposito(estado, id: 'd9');
+          },
+        );
+
+        expect(find.text(texto), findsOneWidget);
+        // Un estado terminal solo ofrece empezar otra recarga.
+        expect(find.byKey(const Key('nueva-recarga')), findsOneWidget);
+        expect(find.byKey(const Key('consultar-de-nuevo')), findsNothing);
+        expect(find.byKey(const Key('abrir-pago')), findsNothing);
       });
     }
 

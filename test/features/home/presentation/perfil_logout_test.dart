@@ -64,7 +64,7 @@ void main() {
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
     await tester.pump(const Duration(milliseconds: 100));
     expect(_ubicacion(router), '/home');
-    await tester.tap(find.text('Perfil'));
+    await tester.tap(find.byKey(const Key('nav_perfil')));
     await tester.pump();
     await tester.pump();
   }
@@ -77,21 +77,22 @@ void main() {
     expect(find.text('Mi cuenta'), findsNothing);
   });
 
-  testWidgets('cerrar sesión llama al repositorio, borra el perfil y vuelve a /login', (
-    tester,
-  ) async {
-    await abrirPerfil(tester);
-    await tester.tap(find.text('Cerrar sesión'));
-    await tester.pump(const Duration(milliseconds: 100));
-    await tester.pump(const Duration(milliseconds: 100));
+  testWidgets(
+    'cerrar sesión llama al repositorio, borra el perfil y vuelve a /login',
+    (tester) async {
+      await abrirPerfil(tester);
+      await tester.tap(find.text('Cerrar sesión'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
 
-    expect(auth.logoutCalls, 1);
-    expect(session.authenticated, isFalse);
-    expect(_ubicacion(router), '/login');
-    expect(store.profile.nombreCompleto, isNull);
-    expect(store.access, isNull);
-    expect(store.refresh, isNull);
-  });
+      expect(auth.logoutCalls, 1);
+      expect(session.authenticated, isFalse);
+      expect(_ubicacion(router), '/login');
+      expect(store.profile.nombreCompleto, isNull);
+      expect(store.access, isNull);
+      expect(store.refresh, isNull);
+    },
+  );
 
   testWidgets('un error del servidor al cerrar sesión no rompe la pantalla', (
     tester,

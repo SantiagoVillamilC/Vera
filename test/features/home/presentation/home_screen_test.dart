@@ -68,7 +68,14 @@ Future<GoRouter> _pumpConRouter(
           session: session ?? FakeSessionStore(),
         ),
       ),
-      for (final ruta in ['/enviar', '/recargar', '/enviar-llave'])
+      for (final ruta in [
+        '/enviar',
+        '/recargar',
+        '/enviar-llave',
+        '/inteligencia',
+        '/estadisticas',
+        '/asistente',
+      ])
         GoRoute(
           path: ruta,
           builder: (_, _) => Scaffold(body: Text('destino $ruta')),
@@ -98,10 +105,69 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
   });
 
+  for (final (llave, ruta) in [
+    ('acceso_categorias', '/inteligencia'),
+    ('acceso_estadisticas', '/estadisticas'),
+  ]) {
+    testWidgets('el acceso $llave navega a $ruta', (tester) async {
+      final router = await _pumpConRouter(tester);
+
+      await tester.tap(find.byKey(Key(llave)));
+      await tester.pumpAndSettle();
+
+      expect(_ubicacion(router), ruta);
+    });
+  }
+
+  testWidgets('Historial de Vera reabre la conversación elegida en el chat', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (_, _) => HomeScreen(
+            repository: FakeNucleoRepository(),
+            session: FakeSessionStore(),
+          ),
+        ),
+        GoRoute(
+          path: '/asistente/historial',
+          builder: (context, _) => Scaffold(
+            body: TextButton(
+              onPressed: () => context.pop('conv-7'),
+              child: const Text('elegir conversación'),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/asistente',
+          builder: (_, state) => Text('chat-con-${state.extra}'),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('acceso_historial_vera')));
+    await tester.pumpAndSettle();
+    expect(find.text('elegir conversación'), findsOneWidget);
+
+    await tester.tap(find.text('elegir conversación'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('chat-con-conv-7'), findsOneWidget);
+  });
+
   testWidgets('Enviar por llave navega a /enviar-llave', (tester) async {
     final router = await _pumpConRouter(tester);
 
-    await tester.tap(find.text('Enviar por llave'));
+    await tester.tap(find.byTooltip('Enviar por llave'));
     await tester.pumpAndSettle();
 
     expect(_ubicacion(router), '/enviar-llave');
@@ -174,9 +240,9 @@ void main() {
     await _pump(tester, repo);
 
     // Alternar la visibilidad del saldo reconstruye todo el árbol.
-    await tester.tap(find.byIcon(Icons.visibility_off_outlined));
+    await tester.tap(find.byKey(const Key('alternar_saldo')));
     await tester.pump();
-    await tester.tap(find.byIcon(Icons.visibility_outlined));
+    await tester.tap(find.byKey(const Key('alternar_saldo')));
     await tester.pump();
 
     expect(repo.movimientosCalls, hasLength(1));
@@ -320,7 +386,8 @@ void main() {
     await _pump(tester, repo);
     await tester.pump();
 
-    expect(find.text(formatPesos(BigInt.zero)), findsOneWidget);
+    // Los centavos van aparte y en gris, así que el saldo es un texto con estilos.
+    expect(find.text('\$0,00', findRichText: true), findsOneWidget);
     expect(find.text('Error al cargar'), findsNothing);
   });
 
@@ -366,7 +433,7 @@ void main() {
     await tester.pump();
     final antes = repo.saldoCalls;
 
-    await tester.tap(find.byIcon(Icons.mic_rounded).last);
+    await tester.tap(find.byKey(const Key('boton_vera')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.text('volver'));
@@ -383,7 +450,7 @@ void main() {
     await _pump(tester, FakeNucleoRepository());
     expect(find.byType(MovimientosTab), findsNothing);
 
-    await tester.tap(find.text('Historial'));
+    await tester.tap(find.byTooltip('Historial'));
     await tester.pump();
 
     expect(find.byType(MovimientosTab), findsOneWidget);
@@ -442,16 +509,6 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('la tarjeta mini muestra el rótulo y el número enmascarado', (
-    tester,
-  ) async {
-    await _pump(tester, FakeNucleoRepository());
-
-    expect(find.text('Vera Débito'), findsOneWidget);
-    expect(find.text('•••• •••• •••• 4417'), findsOneWidget);
-    expect(find.text('Próximamente'), findsNothing);
-  });
-
   testWidgets('el preview no se bloquea si el saldo falla', (tester) async {
     final completer = Completer<MovimientosPage>();
     final repo = FakeNucleoRepository()
@@ -460,6 +517,7 @@ void main() {
     await _pump(tester, repo);
 
     expect(find.text('Error al cargar'), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsWidgets);
+    // Los movimientos aún no llegan: se ve el esqueleto, no un spinner.
+    expect(find.byKey(const Key('esqueleto_movimientos')), findsOneWidget);
   });
 }
