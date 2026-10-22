@@ -101,6 +101,20 @@ class MovimientoEnriquecido {
 
   bool get sinCategoria => categoria == codigoSinCategoria;
 
+  /// La categoría la propuso la cascada y el usuario todavía no la confirmó.
+  ///
+  /// Memoria, contraparte interna y corrección manual son hechos. MCC, catálogo,
+  /// léxico, TF-IDF y LLM son sugerencias que se pueden confirmar o corregir.
+  bool get categoriaSugerida => switch (origenCategoria) {
+        OrigenCategoria.mcc ||
+        OrigenCategoria.catalogo ||
+        OrigenCategoria.lexico ||
+        OrigenCategoria.tfidf ||
+        OrigenCategoria.llm =>
+          !sinCategoria,
+        _ => false,
+      };
+
   bool get esIngreso => direccion == DireccionMovimiento.entrada;
 
   /// Monto con el signo de la dirección, para el formateador de pesos.
