@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Vera · wireframes de avisos</title>
+<style>
+  :root { --tinta:#111; --gris:#6b7280; --linea:#9ca3af; --suave:#f3f4f6; --acento:#1d4ed8; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:28px 24px 48px; background:#fff; color:var(--tinta);
+         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--gris); font-size:13px; margin:0 0 22px; max-width:980px; line-height:1.5; }
+  .nota { border-left:3px solid var(--tinta); padding:8px 12px; background:var(--suave);
+          font-size:12.5px; margin:0 0 26px; max-width:980px; }
+  .marco { display:flex; flex-wrap:wrap; gap:26px; align-items:flex-start; }
+  figure { margin:0; width:320px; }
+  figcaption { font-size:12px; color:var(--gris); margin-top:8px; line-height:1.45; }
+  figcaption b { color:var(--tinta); }
+  .tel { border:2px solid var(--tinta); border-radius:18px; padding:10px; height:600px;
+         display:flex; flex-direction:column; gap:10px; position:relative; }
+  .tel::before { content:""; width:52px; height:5px; background:var(--tinta); border-radius:3px;
+                 margin:0 auto 2px; }
+  .barra { display:flex; justify-content:space-between; align-items:center;
+           border-bottom:1px solid var(--linea); padding-bottom:6px; font-size:12px; }
+  .campana { display:flex; align-items:center; gap:4px; }
+  .badge { border:1px solid var(--tinta); border-radius:10px; font-size:10px; padding:0 5px; }
+  .caja { border:1px dashed var(--linea); border-radius:8px; padding:8px; font-size:11.5px; }
+  .caja.solida { border-style:solid; }
+  .rotulo { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:10px;
+            text-transform:uppercase; letter-spacing:.05em; color:var(--gris); margin-bottom:4px; }
+  .saldo { font-size:22px; font-weight:700; }
+  .aviso { border:2px dashed var(--tinta); border-radius:8px; padding:8px; font-size:11.5px; }
+  .aviso .tipo { font-family:ui-monospace,monospace; font-size:9.5px; color:var(--gris); }
+  .aviso .tit { font-weight:700; margin:2px 0 3px; }
+  .aviso .dato { color:var(--gris); }
+  .acciones { display:flex; gap:6px; margin-top:7px; }
+  .btn { border:1px solid var(--tinta); border-radius:6px; padding:3px 7px; font-size:10.5px; }
+  .btn.fuerte { background:var(--tinta); color:#fff; }
+  .lista { display:flex; flex-direction:column; gap:8px; }
+  .item { border:1px solid var(--linea); border-radius:8px; padding:7px 8px; font-size:11px; }
+  .item .fila { display:flex; justify-content:space-between; gap:8px; }
+  .item .tipo { font-family:ui-monospace,monospace; font-size:9px; color:var(--gris); }
+  .item .tit { font-weight:600; }
+  .item .meta { color:var(--gris); font-size:10.5px; }
+  .vacio { border:1px dashed var(--linea); border-radius:8px; padding:20px 10px; text-align:center;
+           font-size:11px; color:var(--gris); }
+  .porque { border:1px solid var(--linea); border-radius:8px; background:var(--suave);
+            padding:7px; font-size:10.5px; line-height:1.4; }
+  .porque b { font-family:ui-monospace,monospace; font-size:9.5px; letter-spacing:.04em; }
+  .pie { margin-top:auto; border-top:1px solid var(--linea); padding-top:6px; font-size:10px;
+         color:var(--gris); display:flex; justify-content:space-between; }
+  .mapa { margin-top:34px; max-width:1000px; }
+  table { border-collapse:collapse; font-size:12px; width:100%; }
+  th, td { border:1px solid var(--linea); padding:6px 8px; text-align:left; vertical-align:top; }
+  th { background:var(--suave); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+  code { font-family:ui-monospace,monospace; font-size:11px; }
+</style>
+</head>
+<body>
+
+<h1>Wireframes de avisos · Vera</h1>
+<p class="sub">Baja fidelidad: cajas, rótulos y comportamiento, sin diseño visual. Los hábitos de consumo
+no piden una pantalla propia; piden que el aviso llegue donde el usuario ya está. El módulo de
+inteligencia calcula la fecha y el monto esperados del próximo pago y si el saldo alcanza; la
+interfaz solo lo cuenta.</p>
+
+<div class="nota"><b>Decisión de alcance:</b> no se crea vista de series recurrentes ni de proyección
+de saldo. La única superficie nueva es el centro de notificaciones; el resto son inserciones en
+pantallas que ya existen.</div>
+
+<div class="marco">
+
+  <!-- 1. Inicio con aviso -->
+  <figure>
+    <div class="tel">
+      <div class="barra"><span>Hola, Laura</span><span class="campana">Avisos <span class="badge">2</span></span></div>
+      <div class="caja solida">
+        <div class="rotulo">Saldo disponible</div>
+        <div class="saldo">$ 320.400</div>
+      </div>
+      <div class="aviso">
+        <div class="tipo">pago_no_alcanza · severidad alta</div>
+        <div class="tit">No te alcanza para el recibo de la luz</div>
+        <div class="dato">Vence el <b>20</b> · suele ser de <b>$ 50.000</b></div>
+        <div class="acciones"><span class="btn fuerte">Ver</span><span class="btn">Entendido</span></div>
+      </div>
+      <div class="caja">
+        <div class="rotulo">Accesos</div>
+        Enviar · Recargar · Movimientos
+      </div>
+      <div class="caja">
+        <div class="rotulo">Últimos movimientos</div>
+        … lista existente …
+      </div>
+      <div class="pie"><span>Inicio (existente)</span><span>1 aviso visible</span></div>
+    </div>
+    <figcaption><b>A · Inicio.</b> El aviso aparece entre el saldo y los accesos, con el monto y la
+    fecha que calculó el backend. La campana con contador lleva al centro. Máximo un aviso inline:
+    el resto se ve en la lista.</figcaption>
+  </figure>
+
+  <!-- 2. Centro de notificaciones -->
+  <figure>
+    <div class="tel">
+      <div class="barra"><span>← Avisos</span><span>junio</span></div>
+      <div class="lista">
+        <div class="item">
+          <div class="tipo">pago_no_alcanza</div>
+          <div class="fila"><span class="tit">Recibo de la luz</span><span class="meta">20 jun</span></div>
+          <div class="meta">$ 50.000 · no alcanza</div>
+        </div>
+        <div class="item">
+          <div class="tipo">cobro_nuevo</div>
+          <div class="fila"><span class="tit">Cobro nuevo de streaming</span><span class="meta">12 jun</span></div>
+          <div class="meta">$ 24.900 · primera vez</div>
+        </div>
+        <div class="item">
+          <div class="tipo">presupuesto_anticipado</div>
+          <div class="fila"><span class="tit">Vas gastando más rápido</span><span class="meta">junio</span></div>
+          <div class="meta">+18 % frente a tu media</div>
+        </div>
+        <div class="item">
+          <div class="tipo">categoria_sobre_media</div>
+          <div class="fila"><span class="tit">Restaurantes sobre tu media</span><span class="meta">junio</span></div>
+          <div class="meta">$ 310.000 · 2,1×</div>
+        </div>
+      </div>
+      <div class="pie"><span>Centro de notificaciones</span><span>orden: prioridad</span></div>
+    </div>
+    <figcaption><b>B · Centro (nueva, simple).</b> Una lista, sin pestañas ni filtros. Orden por
+    prioridad y severidad, que ya calcula el backend. Tocar un item abre el detalle; deslizar o el
+    botón del detalle descarta. Tope de 3 por mes.</figcaption>
+  </figure>
+
+  <!-- 3. Detalle -->
+  <figure>
+    <div class="tel">
+      <div class="barra"><span>← Aviso</span><span>⋯</span></div>
+      <div class="rotulo">pago_no_alcanza</div>
+      <div class="tit" style="font-weight:700;font-size:14px;">No te alcanza para el recibo de la luz</div>
+      <div class="caja">
+        <div class="rotulo">Qué pasa</div>
+        El 20 vence el recibo. En los últimos tres meses pagaste $ 50.000 y tu saldo proyectado a esa
+        fecha es $ 32.100.
+      </div>
+      <div class="porque"><b>POR QUÉ</b><br>
+        Recurrencia detectada en 3 pagos al mismo destino · cadencia mensual · banda de monto
+        45.000–55.000 · saldo proyectado menor que el monto esperado.
+      </div>
+      <div class="caja">
+        <div class="rotulo">Acciones</div>
+        <div class="acciones">
+          <span class="btn fuerte">Recargar</span>
+          <span class="btn">Ver movimiento</span>
+          <span class="btn">Descartar</span>
+        </div>
+      </div>
+      <div class="pie"><span>Detalle del aviso</span><span>datos del backend</span></div>
+    </div>
+    <figcaption><b>C · Detalle.</b> Explica el cálculo con los campos del contrato
+    (<code>texto</code>, <code>porque</code>, <code>severidad_centavos</code>, <code>periodo</code>).
+    La acción principal depende del tipo: recargar, ver el movimiento o ir a pagar.</figcaption>
+  </figure>
+
+  <!-- 4. Vacío -->
+  <figure>
+    <div class="tel">
+      <div class="barra"><span>← Avisos</span><span>junio</span></div>
+      <div class="vacio">Sin avisos este mes.<br><br>Cuando detectemos un cobro nuevo, un pago que no
+        alcanza o un gasto fuera de tu hábito, aparece acá.</div>
+      <div class="caja">
+        <div class="rotulo">Nota de comportamiento</div>
+        Con menos de tres meses de historia el sistema no afirma un hábito: lo dice en vez de inventar
+        una serie.
+      </div>
+      <div class="pie"><span>Centro · vacío</span><span>historial insuficiente</span></div>
+    </div>
+    <figcaption><b>D · Vacío.</b> El estado vacío explica qué falta y no promete avisos que el sistema
+    no puede sostener todavía.</figcaption>
+  </figure>
+
+</div>
+
+<div class="mapa">
+  <h2 style="font-size:15px;margin:26px 0 8px;">Correspondencia con el contrato</h2>
+  <table>
+    <thead><tr><th>Aviso</th><th>Dónde aparece</th><th>Acción principal</th><th>Campos usados</th></tr></thead>
+    <tbody>
+      <tr><td><code>pago_no_alcanza</code></td><td>Inicio + centro + detalle</td><td>Recargar</td>
+          <td>titulo, texto, porque, severidad_centavos, periodo, transaccion_id</td></tr>
+      <tr><td><code>cobro_nuevo</code></td><td>Centro + detalle</td><td>Ver movimiento</td>
+          <td>titulo, texto, porque, periodo, transaccion_id</td></tr>
+      <tr><td><code>presupuesto_anticipado</code></td><td>Centro + detalle</td><td>Ver resumen del mes</td>
+          <td>titulo, texto, porque, periodo</td></tr>
+      <tr><td><code>categoria_sobre_media</code></td><td>Centro + detalle</td><td>Ver categoría</td>
+          <td>titulo, texto, porque, periodo</td></tr>
+      <tr><td><code>caida_ingreso</code></td><td>Centro + detalle</td><td>Entendido</td>
+          <td>titulo, texto, porque, periodo</td></tr>
+    </tbody>
+  </table>
+  <p class="sub" style="margin-top:12px;">Fuera de alcance por decisión: vista de series recurrentes,
+  proyección de saldo, presupuesto configurable por el usuario y avisos por push. El cupo de tres
+  avisos por mes se muestra en el centro cuando está lleno.</p>
+</div>
+
+</body>
+</html>
