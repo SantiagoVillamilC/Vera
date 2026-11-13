@@ -8,9 +8,11 @@ import 'package:go_router/go_router.dart';
 import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/features/home/presentation/home_screen.dart';
+import 'package:vera/features/inteligencia/data/aviso.dart';
 import 'package:vera/features/home/presentation/movimientos_tab.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
+import 'fake_inteligencia.dart';
 import 'fake_nucleo_repository.dart';
 import 'fake_session_store.dart';
 
@@ -34,6 +36,7 @@ Future<void> _pump(
   Size size = const Size(800, 1600),
   Duration? offset,
   bool fuenteReal = false,
+  FakeInteligenciaRepository? inteligencia,
 }) async {
   if (fuenteReal) await _cargarRoboto();
   tester.view.physicalSize = size;
@@ -42,7 +45,12 @@ Future<void> _pump(
   await tester.pumpWidget(
     MaterialApp(
       theme: fuenteReal ? ThemeData(fontFamily: 'Roboto') : null,
-      home: HomeScreen(repository: repo, offsetLocal: offset),
+      home: HomeScreen(
+        repository: repo,
+        offsetLocal: offset,
+        // Sin fake, el contador llamaría a la red de verdad.
+        inteligencia: inteligencia ?? FakeInteligenciaRepository(),
+      ),
     ),
   );
   await tester.pump();
@@ -54,6 +62,7 @@ Future<GoRouter> _pumpConRouter(
   WidgetTester tester, {
   FakeSessionStore? session,
   Size size = const Size(800, 1600),
+  FakeInteligenciaRepository? inteligencia,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -66,9 +75,11 @@ Future<GoRouter> _pumpConRouter(
         builder: (_, _) => HomeScreen(
           repository: repo,
           session: session ?? FakeSessionStore(),
+          inteligencia: inteligencia ?? FakeInteligenciaRepository(),
         ),
       ),
       for (final ruta in [
+        '/avisos',
         '/enviar',
         '/recargar',
         '/enviar-llave',
@@ -519,5 +530,104 @@ void main() {
     expect(find.text('Error al cargar'), findsOneWidget);
     // Los movimientos aún no llegan: se ve el esqueleto, no un spinner.
     expect(find.byKey(const Key('esqueleto_movimientos')), findsOneWidget);
+  });
+
+  // ── Contador de avisos en el encabezado ───────────────────────────────────
+  // Cuenta los mismos avisos que vería la bandeja: el mes en curso más el
+  // anterior, que es el único camino a caida_ingreso.
+  Aviso avisoDePrueba(String id, {String periodo = '2026-11-20'}) =>
+      Aviso.fromJson({
+        'accion': 'Ver los pagos que vencen',
+        'accion_codigo': 'revisar_pagos',
+        'clave': 'pago-proximo',
+        'creado_en': '2026-11-19T12:00:00-05:00',
+        'id': id,
+        'monto_centavos': '970000',
+        'periodo': periodo,
+        'porque': 'x',
+        'prioridad': 1,
+        'severidad_centavos': '1',
+        'texto': 'Texto del aviso.',
+        'tipo': 'pago_no_alcanza',
+        'titulo': 'Tus próximos pagos suman más que tu saldo',
+        'transaccion_id': null,
+      });
+
+  testWidgets('sin avisos no se dibuja el contador', (tester) async {
+    await _pump(tester, FakeNucleoRepository());
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('contador-avisos')), findsNothing);
+  });
+
+  testWidgets('el contador suma el mes en curso y el anterior', (tester) async {
+    final inteligencia = FakeInteligenciaRepository();
+    inteligencia.onAvisos = (mes) async => mes == null
+        ? [avisoDePrueba('a'), avisoDePrueba('b')]
+        : [avisoDePrueba('c', periodo: '2026-10-01')];
+    await _pump(tester, FakeNucleoRepository(), inteligencia: inteligencia);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('contador-avisos')), findsOneWidget);
+    expect(find.text('Avisos · 3'), findsOneWidget);
+    expect(inteligencia.mesesDeAvisos, hasLength(2));
+    expect(inteligencia.mesesDeAvisos.first, isNull);
+  });
+
+  testWidgets('si la lectura de avisos falla el contador no se dibuja', (
+    tester,
+  ) async {
+    final inteligencia = FakeInteligenciaRepository();
+    inteligencia.onAvisos = (_) async => throw const SocketException('sin red');
+    await _pump(tester, FakeNucleoRepository(), inteligencia: inteligencia);
+    await tester.pumpAndSettle();
+
+    // No se inventa un cero ni se rompe el Inicio.
+    expect(find.byKey(const ValueKey('contador-avisos')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('el contador abre la bandeja y se relee al volver', (
+    tester,
+  ) async {
+    final inteligencia = FakeInteligenciaRepository();
+    var cuantos = 2;
+    inteligencia.onAvisos = (mes) async => mes == null
+        ? [for (var i = 0; i < cuantos; i++) avisoDePrueba('a$i')]
+        : const <Aviso>[];
+    final router = await _pumpConRouter(tester, inteligencia: inteligencia);
+    await tester.pumpAndSettle();
+    expect(find.text('Avisos · 2'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('contador-avisos')));
+    await tester.pumpAndSettle();
+    expect(_ubicacion(router), '/avisos');
+
+    // Descartar uno en la bandeja deja el contador desactualizado hasta volver.
+    cuantos = 1;
+    router.pop();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Avisos · 1'), findsOneWidget);
+  });
+
+  testWidgets('deslizar hacia abajo vuelve a contar los avisos', (
+    tester,
+  ) async {
+    final inteligencia = FakeInteligenciaRepository();
+    inteligencia.onAvisos = (mes) async =>
+        mes == null ? [avisoDePrueba('a')] : const <Aviso>[];
+    await _pump(tester, FakeNucleoRepository(), inteligencia: inteligencia);
+    await tester.pumpAndSettle();
+    final antes = inteligencia.mesesDeAvisos.length;
+
+    await tester.fling(
+      find.byType(SingleChildScrollView),
+      const Offset(0, 400),
+      1000,
+    );
+    await tester.pumpAndSettle();
+
+    expect(inteligencia.mesesDeAvisos.length, greaterThan(antes));
   });
 }
