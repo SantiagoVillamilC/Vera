@@ -100,6 +100,69 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('solo el destino activo se anuncia como seleccionado', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    const porLlave = {
+      'nav_inicio': (0, 'Inicio'),
+      'nav_movimientos': (1, 'Movimientos'),
+      'nav_tarjetas': (3, 'Tarjetas'),
+      'nav_perfil': (4, 'Perfil'),
+    };
+
+    for (final activo in porLlave.entries) {
+      await _pump(tester, indice: activo.value.$1);
+
+      for (final destino in porLlave.entries) {
+        final (_, etiqueta) = destino.value;
+        final seleccionado = destino.key == activo.key;
+        expect(
+          tester.getSemantics(find.byKey(Key(destino.key))),
+          matchesSemantics(
+            label: etiqueta,
+            isButton: true,
+            isSelected: seleccionado,
+            hasTapAction: true,
+            hasSelectedState: true,
+          ),
+          reason: '${destino.key} con ${activo.key} activo',
+        );
+      }
+    }
+    handle.dispose();
+  });
+
+  testWidgets('con letra 2.0 la barra no crece y sigue completa', (
+    tester,
+  ) async {
+    await _pump(tester, size: const Size(320, 640));
+    final alto = tester.getSize(find.byType(BarraVera)).height;
+    final anchos = {
+      for (final llave in [
+        'nav_inicio',
+        'nav_movimientos',
+        'nav_tarjetas',
+        'nav_perfil',
+        'boton_vera',
+      ])
+        llave: tester.getSize(find.byKey(Key(llave))),
+    };
+
+    await _pump(tester, size: const Size(320, 640), escala: 2);
+
+    // Fija su escala en 1.0 por diseño: a 2.0 mide exactamente lo mismo.
+    expect(tester.takeException(), isNull);
+    expect(tester.getSize(find.byType(BarraVera)).height, alto);
+    for (final entrada in anchos.entries) {
+      expect(
+        tester.getSize(find.byKey(Key(entrada.key))),
+        entrada.value,
+        reason: entrada.key,
+      );
+    }
+  });
+
   testWidgets('el orbe no tapa a ningún destino con ninguno activo', (
     tester,
   ) async {

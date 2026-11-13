@@ -8,6 +8,7 @@ import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/core/widgets/cargando_vera.dart';
+import 'package:vera/core/widgets/insignia_muestra.dart';
 import 'package:vera/core/widgets/tarjeta_vidrio.dart';
 import 'package:vera/features/home/presentation/burbujas_categorias.dart';
 import 'package:vera/features/home/presentation/movimiento_vista.dart';
@@ -264,6 +265,11 @@ class _EstadisticasScreenState extends State<EstadisticasScreen>
                 ),
               ),
               const SizedBox(height: 12),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Row(children: [InsigniaMuestra()]),
+              ),
+              const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
@@ -304,7 +310,20 @@ class _EstadisticasScreenState extends State<EstadisticasScreen>
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 10),
+              // Los totales y la curva salen de la serie fija de arriba: no hay
+              // endpoint de estadísticas en el contrato. El gasto por categoría
+              // de abajo sí es real, así que la marca va aquí y no en la
+              // pantalla entera.
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: AvisoMuestra(
+                  detalle: 'los totales de ingresos y gastos y la curva de este '
+                      'período son de ejemplo. Tu balance, el gasto por '
+                      'categoría y los movimientos son reales.',
+                ),
+              ),
+              const SizedBox(height: 26),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: _SeccionCategorias(
@@ -877,6 +896,8 @@ class _StatChip extends StatelessWidget {
               children: [
                 Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,

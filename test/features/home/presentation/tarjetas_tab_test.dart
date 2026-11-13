@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vera/core/format/tarjeta_muestra.dart';
+import 'package:vera/core/widgets/insignia_muestra.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/features/home/presentation/home_screen.dart';
 import 'package:vera/features/home/presentation/tarjetas_tab.dart';
@@ -185,5 +186,45 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
+  });
+
+  // Tamaño de letra del sistema al máximo (escala 2.0) en los dos anchos más
+  // angostos que soportamos.
+  for (final ancho in [320.0, 360.0]) {
+    testWidgets('a ${ancho.toInt()}x640 con letra 2.0 no hay desborde', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        session: FakeSessionStore(
+          profile: const SessionProfile(
+            nombreCompleto: 'Nombre Muy Largo Para Una Tarjeta Angosta',
+          ),
+        ),
+        size: Size(ancho, 640),
+        escala: 2,
+        fuenteReal: true,
+      );
+
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('la tarjeta y sus movimientos quedan marcados como de muestra', (
+    tester,
+  ) async {
+    final semantica = tester.ensureSemantics();
+    await _pump(tester);
+
+    // Una insignia junto al título de la pestaña y otra junto a los
+    // movimientos: la marca va pegada al dato, no solo en el encabezado.
+    expect(find.byType(InsigniaMuestra), findsNWidgets(2));
+    expect(find.byType(AvisoMuestra), findsOneWidget);
+    expect(
+      find.textContaining('los movimientos de esta tarjeta son de ejemplo'),
+      findsOneWidget,
+    );
+    expect(find.bySemanticsLabel(rotuloDatosDeMuestra), findsWidgets);
+    semantica.dispose();
   });
 }
