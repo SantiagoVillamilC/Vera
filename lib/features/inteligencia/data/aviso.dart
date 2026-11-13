@@ -4,6 +4,14 @@
 /// `MovimientoEnriquecido`: pasan de 2^53 y un `double` los redondearía.
 library;
 
+/// Código del 409 al descartar un aviso cuya alta es posterior al reloj del
+/// servidor, tal como lo nombra el contrato.
+const codigoDescarteAnteriorAlAlta = 'DescarteAnteriorAlAlta';
+
+/// Lo que se le dice al usuario en ese caso. No es un fallo del servidor: el
+/// aviso sigue vigente y se podrá descartar más tarde.
+const mensajeDescarteAnteriorAlAlta = 'Todavía no se puede descartar.';
+
 /// Los cinco tipos que emite el backend hoy, más el comodín.
 ///
 /// Un sexto tipo no debe romper el parseo: cae en [desconocido] y el aviso se

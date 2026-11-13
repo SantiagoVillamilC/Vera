@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/features/inteligencia/data/aviso.dart';
 import 'package:vera/features/inteligencia/data/modelos.dart';
 import 'package:vera/features/inteligencia/presentation/bandeja_avisos_screen.dart';
+import 'package:vera/features/inteligencia/presentation/detalle_aviso_screen.dart';
 
 import '../../home/presentation/fake_inteligencia.dart';
 
@@ -180,7 +182,9 @@ void main() {
       find.textContaining('los pagos recurrentes que vencen desde 2026-11-20'),
       findsOneWidget,
     );
-    expect(find.text('Ver los pagos que vencen'), findsOneWidget);
+    // revisar_pagos lleva a /recargar, así que el botón dice lo que hace.
+    // La etiqueta del contrato describiría un destino que la app no tiene.
+    expect(find.text('Recargar'), findsOneWidget);
     expect(find.text('Descartar'), findsOneWidget);
   });
 
@@ -402,6 +406,96 @@ void main() {
     expect(find.text('Tus próximos pagos suman más que tu saldo'), findsOneWidget);
     expect(find.byType(SnackBar), findsOneWidget);
     expect(find.byKey(const ValueKey('error-avisos')), findsNothing);
+  });
+  // ── Paso al detalle ───────────────────────────────────────────────────────
+
+  /// La bandeja dentro de un router, para poder abrir el detalle.
+  Future<GoRouter> pumpConRouter(
+    WidgetTester tester,
+    FakeInteligenciaRepository repo,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final router = GoRouter(
+      initialLocation: '/avisos',
+      routes: [
+        GoRoute(
+          path: '/avisos',
+          builder: (_, _) =>
+              BandejaAvisosScreen(repository: repo, ahora: _ahora),
+          routes: [
+            GoRoute(
+              path: ':id',
+              builder: (_, state) => DetalleAvisoScreen(
+                aviso: state.extra is Aviso ? state.extra! as Aviso : null,
+                avisoId: state.pathParameters['id'],
+                repository: repo,
+                ahora: _ahora,
+              ),
+            ),
+          ],
+        ),
+        GoRoute(
+          path: '/recargar',
+          builder: (_, _) => const Scaffold(body: Text('destino /recargar')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    return router;
+  }
+
+  testWidgets('tocar un aviso abre su detalle con el objeto que ya se tiene', (
+    tester,
+  ) async {
+    final aviso = _pagoNoAlcanza();
+    final repo = _repo(enCurso: [aviso]);
+    await pumpConRouter(tester, repo);
+
+    await tester.tap(find.byKey(ValueKey('abrir-${aviso.id}')));
+    await tester.pumpAndSettle();
+
+    // El porqué solo está en el detalle.
+    expect(find.byKey(const ValueKey('porque-aviso')), findsOneWidget);
+    // Y no hizo falta pedirlo: la bandeja pasó el aviso.
+    expect(repo.idsPedidos, isEmpty);
+  });
+
+  testWidgets('descartar desde el detalle deja el aviso fuera de la bandeja', (
+    tester,
+  ) async {
+    final aviso = _pagoNoAlcanza();
+    final repo = _repo(enCurso: [aviso, _presupuesto()]);
+    await pumpConRouter(tester, repo);
+    expect(find.byKey(ValueKey('aviso-${aviso.id}')), findsOneWidget);
+
+    await tester.tap(find.byKey(ValueKey('abrir-${aviso.id}')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('descartar-detalle')));
+    await tester.pumpAndSettle();
+
+    // De vuelta en la bandeja, sin el aviso y sin recargar la lista.
+    expect(repo.descartados, [aviso.id]);
+    expect(find.byKey(ValueKey('aviso-${aviso.id}')), findsNothing);
+    expect(find.text('Tu gasto va por encima de lo habitual'), findsOneWidget);
+  });
+
+  testWidgets('el botón de la tarjeta lleva al destino de su accion_codigo', (
+    tester,
+  ) async {
+    final aviso = _pagoNoAlcanza();
+    final router = await pumpConRouter(tester, _repo(enCurso: [aviso]));
+
+    await tester.tap(find.byKey(ValueKey('accion-${aviso.id}')));
+    await tester.pumpAndSettle();
+
+    expect(
+      router.routerDelegate.currentConfiguration.last.matchedLocation,
+      '/recargar',
+    );
   });
 }
 
