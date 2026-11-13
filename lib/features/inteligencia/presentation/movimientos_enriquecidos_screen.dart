@@ -10,6 +10,7 @@ import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/features/home/presentation/movimiento_vista.dart';
 import 'package:vera/features/inteligencia/data/inteligencia_repository.dart';
 import 'package:vera/features/inteligencia/data/modelos.dart';
+import 'package:vera/features/inteligencia/presentation/chip_senal.dart';
 import 'package:vera/features/inteligencia/presentation/correccion_sheet.dart';
 
 /// Vista enriquecida de los movimientos: categoría, contraparte legible y
@@ -369,11 +370,8 @@ class _TileEnriquecido extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = movimiento;
     final local = m.enLocal(offset: offsetLocal);
-    final origen = etiquetaDeOrigen(m.origenCategoria);
-    final fecha = [
-      encabezadoDeFecha(local, ahora),
-      if (origen.isNotEmpty) origen,
-    ].join(' · ');
+    final senal = m.senal;
+    final fecha = encabezadoDeFecha(local, ahora);
 
     return Padding(
       key: ValueKey('enriquecido-${m.transaccionId}'),
@@ -407,6 +405,9 @@ class _TileEnriquecido extends StatelessWidget {
                       onTap: onCorregir == null ? null : () => onCorregir!(m),
                     ),
                     if (m.categoriaSugerida) const _SugeridaBadge(),
+                    // Qué señal decidió la categoría. La insignia «Sugerida»
+                    // sigue indicando que falta confirmarla.
+                    if (senal != null) ChipSenal(senal: senal),
                   ],
                 ),
               ],

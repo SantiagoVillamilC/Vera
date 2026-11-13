@@ -30,17 +30,86 @@ const _origenes = <String, OrigenCategoria>{
 };
 
 /// Etiqueta corta del origen, la que ve el usuario. Vacía cuando no aporta.
+///
+/// `sinCategoria` queda vacía a propósito: su nombre depende del escalón, así
+/// que lo resuelve [senalDeCategoria]. `llm` y `manual` no se nombran porque el
+/// backend dejó de emitirlos con la migración 0032; el enum los conserva solo
+/// para no romperse con datos viejos.
 String etiquetaDeOrigen(OrigenCategoria origen) => switch (origen) {
   OrigenCategoria.memoria => 'Tu corrección',
-  OrigenCategoria.contraparteInterna => 'Contacto',
-  OrigenCategoria.mcc => 'Comercio',
-  OrigenCategoria.catalogo => 'Catálogo',
-  OrigenCategoria.lexico => 'Descripción',
-  OrigenCategoria.tfidf => 'Clasificador',
-  OrigenCategoria.llm => 'Vera',
-  OrigenCategoria.manual => 'Manual',
-  OrigenCategoria.sinCategoria || OrigenCategoria.desconocido => '',
+  OrigenCategoria.contraparteInterna => 'Cargo de la billetera',
+  OrigenCategoria.mcc => 'Tipo de comercio (MCC)',
+  OrigenCategoria.catalogo => 'Catálogo de marcas',
+  OrigenCategoria.lexico => 'Palabras del nombre',
+  OrigenCategoria.tfidf => 'Modelo de texto (TF-IDF)',
+  OrigenCategoria.llm ||
+  OrigenCategoria.manual ||
+  OrigenCategoria.sinCategoria ||
+  OrigenCategoria.desconocido => '',
 };
+
+/// Señal de la cascada que decidió la categoría de un movimiento.
+///
+/// [chip] es el nombre corto que se pinta y [explicacion] lo que se abre al
+/// tocarlo. [esAbstencion] distingue «el modelo miró y prefirió no arriesgar»
+/// de «ninguna señal aplicó»: se dibuja con estilo neutro, porque es parte del
+/// diseño de la cascada y no un error.
+class SenalDeCategoria {
+  const SenalDeCategoria({
+    required this.chip,
+    required this.explicacion,
+    this.esAbstencion = false,
+  });
+
+  final String chip;
+  final String explicacion;
+  final bool esAbstencion;
+}
+
+const _explicaciones = <OrigenCategoria, String>{
+  OrigenCategoria.memoria:
+      'Vera usó la categoría que tú elegiste antes para este comercio o esta '
+      'persona.',
+  OrigenCategoria.contraparteInterna:
+      'Es una comisión o el impuesto GMF que cobra la propia plataforma, por '
+      'eso va en comisiones y costos financieros.',
+  OrigenCategoria.mcc:
+      'El comercio informó su tipo de negocio en el pago por QR y ese código '
+      'define la categoría.',
+  OrigenCategoria.catalogo:
+      'El comercio está en una lista de marcas conocidas que ya tiene su '
+      'categoría.',
+  OrigenCategoria.lexico:
+      'El nombre del comercio contiene una palabra que apunta a una sola '
+      'categoría.',
+  OrigenCategoria.tfidf:
+      'Un modelo local comparó el nombre del comercio con ejemplos y propuso '
+      'esta categoría.',
+};
+
+/// La señal de un movimiento, o `null` cuando no hay chip que mostrar.
+///
+/// Los seis primeros escalones se deciden solo con [origen], porque el escalón
+/// equivale a su orden. El escalón únicamente hace falta para separar los dos
+/// `sin_categoria`: 6 es la abstención del clasificador y 7 es que ninguna
+/// señal aplicó. Sin escalón, o con uno fuera de 1 a 7, cae en «Sin categoría».
+SenalDeCategoria? senalDeCategoria(OrigenCategoria origen, int? escalon) {
+  if (origen == OrigenCategoria.sinCategoria) {
+    final abstencion = escalon == 6;
+    return SenalDeCategoria(
+      chip: abstencion ? 'Sin categoría, Vera no adivina' : 'Sin categoría',
+      explicacion: abstencion
+          ? 'Vera analizó el nombre y prefirió no arriesgar una categoría. '
+                'Puedes asignarla tú.'
+          : 'Ninguna señal alcanzó para decidirla. Puedes asignarla tú.',
+      esAbstencion: abstencion,
+    );
+  }
+  final chip = etiquetaDeOrigen(origen);
+  final explicacion = _explicaciones[origen];
+  if (chip.isEmpty || explicacion == null) return null;
+  return SenalDeCategoria(chip: chip, explicacion: explicacion);
+}
 
 /// Código de la categoría que representa un movimiento sin clasificar.
 const codigoSinCategoria = 'sin_categoria';
@@ -58,6 +127,7 @@ class MovimientoEnriquecido {
     required this.categoria,
     required this.categoriaNombre,
     required this.origenCategoria,
+    this.escalon,
     this.descripcion,
   });
 
@@ -79,6 +149,12 @@ class MovimientoEnriquecido {
       origenCategoria:
           _origenes[json['origen_categoria']?.toString()] ??
           OrigenCategoria.desconocido,
+      escalon: switch (json['escalon']) {
+        final int n => n,
+        final num n => n.toInt(),
+        final String s => int.tryParse(s),
+        _ => null,
+      },
     );
   }
 
@@ -99,7 +175,13 @@ class MovimientoEnriquecido {
   final String categoriaNombre;
   final OrigenCategoria origenCategoria;
 
+  /// Escalón de la cascada, de 1 a 7. Nulo con un backend que no lo envíe.
+  final int? escalon;
+
   bool get sinCategoria => categoria == codigoSinCategoria;
+
+  /// Qué señal decidió la categoría. Nula cuando no hay chip que mostrar.
+  SenalDeCategoria? get senal => senalDeCategoria(origenCategoria, escalon);
 
   /// La categoría la propuso la cascada y el usuario todavía no la confirmó.
   ///

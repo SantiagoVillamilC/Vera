@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/features/inteligencia/presentation/chip_senal.dart';
 import 'package:vera/features/home/presentation/movimiento_vista.dart'
     show montoConSigno;
 import 'package:vera/features/inteligencia/data/categorias.dart';
@@ -83,6 +84,7 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
   @override
   Widget build(BuildContext context) {
     final categorias = categoriasPara(widget.movimiento.direccion);
+    final senal = widget.movimiento.senal;
     final sugiere = _sugerenciaAplicable;
     return Padding(
       padding: EdgeInsets.only(
@@ -211,6 +213,15 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
                     ],
                   ),
                 ),
+                // Qué señal decidió la categoría que se va a confirmar o
+                // corregir. Se puede tocar para ver por qué.
+                if (senal != null) ...[
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ChipSenal(senal: senal),
+                  ),
+                ],
                 const SizedBox(height: 18),
                 Wrap(
                   spacing: 10,
