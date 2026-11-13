@@ -11,7 +11,7 @@
   h1 { font-size:20px; margin:0 0 4px; }
   .sub { color:var(--gris); font-size:13px; margin:0 0 22px; max-width:980px; line-height:1.5; }
   .nota { border-left:3px solid var(--tinta); padding:8px 12px; background:var(--suave);
-          font-size:12.5px; margin:0 0 26px; max-width:980px; }
+          font-size:12.5px; margin:0 0 14px; max-width:980px; line-height:1.5; }
   .marco { display:flex; flex-wrap:wrap; gap:26px; align-items:flex-start; }
   figure { margin:0; width:320px; }
   figcaption { font-size:12px; color:var(--gris); margin-top:8px; line-height:1.45; }
@@ -22,7 +22,13 @@
                  margin:0 auto 2px; }
   .barra { display:flex; justify-content:space-between; align-items:center;
            border-bottom:1px solid var(--linea); padding-bottom:6px; font-size:12px; }
-  .campana { display:flex; align-items:center; gap:4px; }
+  .encab { display:flex; justify-content:space-between; align-items:center; gap:8px;
+           border-bottom:1px solid var(--linea); padding-bottom:7px; }
+  .quien { display:flex; align-items:center; gap:7px; font-size:12px; line-height:1.3; }
+  .ava { width:22px; height:22px; border:1px solid var(--tinta); border-radius:50%;
+         flex:0 0 auto; }
+  .contador { border:1px solid var(--tinta); border-radius:11px; font-size:10px; padding:2px 7px;
+              white-space:nowrap; }
   .badge { border:1px solid var(--tinta); border-radius:10px; font-size:10px; padding:0 5px; }
   .caja { border:1px dashed var(--linea); border-radius:8px; padding:8px; font-size:11.5px; }
   .caja.solida { border-style:solid; }
@@ -33,10 +39,13 @@
   .aviso .tipo { font-family:ui-monospace,monospace; font-size:9.5px; color:var(--gris); }
   .aviso .tit { font-weight:700; margin:2px 0 3px; }
   .aviso .dato { color:var(--gris); }
-  .acciones { display:flex; gap:6px; margin-top:7px; }
+  .acciones { display:flex; gap:6px; margin-top:7px; flex-wrap:wrap; }
   .btn { border:1px solid var(--tinta); border-radius:6px; padding:3px 7px; font-size:10.5px; }
   .btn.fuerte { background:var(--tinta); color:#fff; }
-  .lista { display:flex; flex-direction:column; gap:8px; }
+  .lista { display:flex; flex-direction:column; gap:8px; overflow:hidden; }
+  .grupo { font-family:ui-monospace,monospace; font-size:9.5px; text-transform:uppercase;
+           letter-spacing:.05em; color:var(--gris); border-bottom:1px solid var(--linea);
+           padding-bottom:2px; }
   .item { border:1px solid var(--linea); border-radius:8px; padding:7px 8px; font-size:11px; }
   .item .fila { display:flex; justify-content:space-between; gap:8px; }
   .item .tipo { font-family:ui-monospace,monospace; font-size:9px; color:var(--gris); }
@@ -47,125 +56,168 @@
   .porque { border:1px solid var(--linea); border-radius:8px; background:var(--suave);
             padding:7px; font-size:10.5px; line-height:1.4; }
   .porque b { font-family:ui-monospace,monospace; font-size:9.5px; letter-spacing:.04em; }
+  .cifra { font-size:10.5px; line-height:1.5; }
+  .cifra b { font-family:ui-monospace,monospace; font-size:9.5px; }
   .pie { margin-top:auto; border-top:1px solid var(--linea); padding-top:6px; font-size:10px;
          color:var(--gris); display:flex; justify-content:space-between; }
-  .mapa { margin-top:34px; max-width:1000px; }
+  .mapa { margin-top:34px; max-width:1180px; }
   table { border-collapse:collapse; font-size:12px; width:100%; }
   th, td { border:1px solid var(--linea); padding:6px 8px; text-align:left; vertical-align:top; }
   th { background:var(--suave); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
   code { font-family:ui-monospace,monospace; font-size:11px; }
+  h2 { font-size:15px; margin:26px 0 8px; }
 </style>
 </head>
 <body>
 
 <h1>Wireframes de avisos · Vera</h1>
-<p class="sub">Baja fidelidad: cajas, rótulos y comportamiento, sin diseño visual. Los hábitos de consumo
-no piden una pantalla propia; piden que el aviso llegue donde el usuario ya está. El módulo de
-inteligencia calcula la fecha y el monto esperados del próximo pago y si el saldo alcanza; la
-interfaz solo lo cuenta.</p>
+<p class="sub">Baja fidelidad: cajas, rótulos y comportamiento, sin diseño visual. Los hábitos de
+consumo no piden una pantalla propia; piden que el aviso llegue donde el usuario ya está. La única
+superficie nueva es la bandeja de avisos; Inicio y el detalle son inserciones sobre lo que existe.
+<b>Cada dato dibujado es un campo que la API entrega hoy</b>: lo que no está en el contrato no se
+dibuja. Verificado contra <code>docs/contrato-frontend-avisos.md</code> y los esquemas
+<code>InteligenciaAviso</code> e <code>InteligenciaResumen</code> de <code>api/openapi.yaml</code>
+(Backend_Vera, commit <code>7681d88</code>). Los textos dibujados son los ejemplos reales del
+escenario de demo, salvo donde se indica.</p>
 
-<div class="nota"><b>Decisión de alcance:</b> no se crea vista de series recurrentes ni de proyección
-de saldo. La única superficie nueva es el centro de notificaciones; el resto son inserciones en
-pantallas que ya existen.</div>
+<div class="nota"><b>Decisión de alcance:</b> sin vista de series recurrentes, sin proyección de
+saldo, sin presupuesto configurable por el usuario y sin avisos por push.</div>
+
+<div class="nota"><b>Lo que el contrato no tiene y por eso no se dibuja:</b> no hay nivel textual de
+severidad — <code>severidad_centavos</code> es un monto que solo ordena dentro de una prioridad, así
+que el nivel visual sale de <code>prioridad</code> (1 a 5) · no hay saldo proyectado ni banda de
+monto · no llega el nombre del comercio ni la identidad del destino, así que no se escribe «luz» ni
+«streaming» · no hay indicadores como «+18 %» o «2,1×» · <code>transaccion_id</code> es
+<code>null</code> en los cinco tipos, así que no hay botón «Ver movimiento» · no hay campo de
+vigencia, vencimiento ni estado, así que no se dibuja «vencido».</div>
 
 <div class="marco">
 
-  <!-- 1. Inicio con aviso -->
+  <!-- A · Inicio con aviso -->
   <figure>
     <div class="tel">
-      <div class="barra"><span>Hola, Laura</span><span class="campana">Avisos <span class="badge">2</span></span></div>
+      <div class="encab">
+        <span class="quien"><span class="ava"></span><span>Buenas tardes<br>Laura</span></span>
+        <span class="contador">Avisos · 2</span>
+      </div>
       <div class="caja solida">
         <div class="rotulo">Saldo disponible</div>
-        <div class="saldo">$ 320.400</div>
+        <div class="saldo">$ 9.700</div>
+        <div class="acciones">
+          <span class="btn">Enviar</span><span class="btn">Recargar</span>
+          <span class="btn">Enviar por llave</span><span class="btn">Historial</span>
+        </div>
       </div>
       <div class="aviso">
-        <div class="tipo">pago_no_alcanza · severidad alta</div>
-        <div class="tit">No te alcanza para el recibo de la luz</div>
-        <div class="dato">Vence el <b>20</b> · suele ser de <b>$ 50.000</b></div>
-        <div class="acciones"><span class="btn fuerte">Ver</span><span class="btn">Entendido</span></div>
+        <div class="tipo">pago_no_alcanza · prioridad 1</div>
+        <div class="tit">Tus próximos pagos suman más que tu saldo</div>
+        <div class="dato">Tu saldo es $9.700 y los pagos recurrentes que vencen desde 2026-11-20
+          suman $139.900.</div>
+        <div class="acciones">
+          <span class="btn fuerte">Ver los pagos que vencen</span><span class="btn">Descartar</span>
+        </div>
       </div>
       <div class="caja">
         <div class="rotulo">Accesos</div>
-        Enviar · Recargar · Movimientos
+        Categorías · Estadísticas · Mis charlas
       </div>
       <div class="caja">
         <div class="rotulo">Últimos movimientos</div>
         … lista existente …
       </div>
-      <div class="pie"><span>Inicio (existente)</span><span>1 aviso visible</span></div>
+      <div class="pie"><span>Inicio (existente)</span><span>1 aviso en línea</span></div>
     </div>
-    <figcaption><b>A · Inicio.</b> El aviso aparece entre el saldo y los accesos, con el monto y la
-    fecha que calculó el backend. La campana con contador lleva al centro. Máximo un aviso inline:
-    el resto se ve en la lista.</figcaption>
+    <figcaption><b>A · Inicio.</b> El aviso va entre la tarjeta de saldo y los accesos, que son los
+    que la app tiene hoy. El título es <code>titulo</code> y el cuerpo es <code>texto</code> tal
+    cual: ya trae su monto y su fecha, así que no se recalcula ni se reformatea. El rótulo del botón
+    es <code>accion</code> y el destino lo decide <code>accion_codigo</code>. Solo un aviso en línea,
+    el de menor <code>prioridad</code>; el resto en la bandeja. El contador va a la derecha del
+    saludo: hoy <code>_Saludo</code> es un <code>Row</code> cuyo <code>Expanded</code> ocupa todo el
+    ancho sobrante, así que hay que cederle espacio.</figcaption>
   </figure>
 
-  <!-- 2. Centro de notificaciones -->
+  <!-- B · Bandeja agrupada por mes -->
   <figure>
     <div class="tel">
-      <div class="barra"><span>← Avisos</span><span>junio</span></div>
+      <div class="barra"><span>← Avisos</span><span class="badge">2 de 3</span></div>
       <div class="lista">
+        <div class="grupo">Noviembre · mes en curso</div>
         <div class="item">
-          <div class="tipo">pago_no_alcanza</div>
-          <div class="fila"><span class="tit">Recibo de la luz</span><span class="meta">20 jun</span></div>
-          <div class="meta">$ 50.000 · no alcanza</div>
+          <div class="tipo">pago_no_alcanza · p1</div>
+          <div class="fila"><span class="tit">Tus próximos pagos suman más que tu saldo</span></div>
+          <div class="meta">Tu saldo es $9.700 y los pagos recurrentes que vencen desde 2026-11-20
+            suman $139.900.</div>
         </div>
         <div class="item">
-          <div class="tipo">cobro_nuevo</div>
-          <div class="fila"><span class="tit">Cobro nuevo de streaming</span><span class="meta">12 jun</span></div>
-          <div class="meta">$ 24.900 · primera vez</div>
+          <div class="tipo">presupuesto_anticipado · p4</div>
+          <div class="fila"><span class="tit">Tu gasto va por encima de lo habitual</span></div>
+          <div class="meta">En noviembre de 2026 llevas $195.900 en gastos. Lo habitual en tus meses
+            completos es $189.900.</div>
+        </div>
+        <div class="grupo">Octubre · mes anterior · ?mes=2026-10</div>
+        <div class="item">
+          <div class="tipo">caida_ingreso · p2</div>
+          <div class="fila"><span class="tit">Tu ingreso bajó</span></div>
+          <div class="meta">El ingreso de octubre de 2026 fue $138.000. Lo habitual en tus meses
+            anteriores es $200.000.</div>
         </div>
         <div class="item">
-          <div class="tipo">presupuesto_anticipado</div>
-          <div class="fila"><span class="tit">Vas gastando más rápido</span><span class="meta">junio</span></div>
-          <div class="meta">+18 % frente a tu media</div>
-        </div>
-        <div class="item">
-          <div class="tipo">categoria_sobre_media</div>
-          <div class="fila"><span class="tit">Restaurantes sobre tu media</span><span class="meta">junio</span></div>
-          <div class="meta">$ 310.000 · 2,1×</div>
+          <div class="tipo">cobro_nuevo · p3</div>
+          <div class="fila"><span class="tit">Apareció un cobro nuevo</span></div>
+          <div class="meta">Apareció un cobro de $24.900 el 2026-10-28 y ya se repite o está
+            declarado como recurrente.</div>
         </div>
       </div>
-      <div class="pie"><span>Centro de notificaciones</span><span>orden: prioridad</span></div>
+      <div class="pie"><span>Bandeja · única pantalla nueva</span><span>prioridad ↑, severidad ↓</span></div>
     </div>
-    <figcaption><b>B · Centro (nueva, simple).</b> Una lista, sin pestañas ni filtros. Orden por
-    prioridad y severidad, que ya calcula el backend. Tocar un item abre el detalle; deslizar o el
-    botón del detalle descarta. Tope de 3 por mes.</figcaption>
+    <figcaption><b>B · Bandeja, agrupada por mes.</b> Dos grupos porque son dos llamadas distintas:
+    la bandeja por defecto trae el mes en curso y <code>caida_ingreso</code> solo se obtiene con
+    <code>?mes=</code> del mes anterior, al que pertenece su <code>periodo</code>. Un
+    <code>cobro_nuevo</code> cuyo primer pago fue el mes pasado cae en ese mismo grupo. Cada fila
+    muestra <code>titulo</code> y <code>texto</code>; no hay nombre de comercio que mostrar. El orden
+    lo da el servidor. «2 de 3» es <code>avisos_emitidos</code> de <code>cupo_avisos</code>.</figcaption>
   </figure>
 
-  <!-- 3. Detalle -->
+  <!-- C · Detalle -->
   <figure>
     <div class="tel">
-      <div class="barra"><span>← Aviso</span><span>⋯</span></div>
+      <div class="barra"><span>← Aviso</span><span>prioridad 1</span></div>
       <div class="rotulo">pago_no_alcanza</div>
-      <div class="tit" style="font-weight:700;font-size:14px;">No te alcanza para el recibo de la luz</div>
+      <div style="font-weight:700;font-size:14px;">Tus próximos pagos suman más que tu saldo</div>
       <div class="caja">
-        <div class="rotulo">Qué pasa</div>
-        El 20 vence el recibo. En los últimos tres meses pagaste $ 50.000 y tu saldo proyectado a esa
-        fecha es $ 32.100.
+        <div class="rotulo">Qué pasa · texto</div>
+        Tu saldo es $9.700 y los pagos recurrentes que vencen desde 2026-11-20 suman $139.900.
       </div>
-      <div class="porque"><b>POR QUÉ</b><br>
-        Recurrencia detectada en 3 pagos al mismo destino · cadencia mensual · banda de monto
-        45.000–55.000 · saldo proyectado menor que el monto esperado.
+      <div class="porque"><b>POR QUÉ · porque</b><br>
+        Los pagos recurrentes de la ventana suman más que tu saldo.
+      </div>
+      <div class="caja cifra">
+        <div class="rotulo">Cifras</div>
+        <div><b>monto_centavos</b> · Tu saldo: $ 9.700</div>
+        <div><b>referencia_centavos</b> · Pagos que vencen: $ 139.900</div>
+        <div><b>periodo</b> · 2026-11-20</div>
       </div>
       <div class="caja">
         <div class="rotulo">Acciones</div>
         <div class="acciones">
-          <span class="btn fuerte">Recargar</span>
-          <span class="btn">Ver movimiento</span>
+          <span class="btn fuerte">Ver los pagos que vencen</span>
           <span class="btn">Descartar</span>
         </div>
       </div>
-      <div class="pie"><span>Detalle del aviso</span><span>datos del backend</span></div>
+      <div class="pie"><span>Detalle del aviso</span><span>no dice si está descartado</span></div>
     </div>
-    <figcaption><b>C · Detalle.</b> Explica el cálculo con los campos del contrato
-    (<code>texto</code>, <code>porque</code>, <code>severidad_centavos</code>, <code>periodo</code>).
-    La acción principal depende del tipo: recargar, ver el movimiento o ir a pagar.</figcaption>
+    <figcaption><b>C · Detalle.</b> Las dos cifras se rotulan según el tipo, porque
+    <code>monto_centavos</code> cambia de significado: aquí es el <b>saldo</b>, no una proyección.
+    <code>referencia_centavos</code> no viene en <code>cobro_nuevo</code>, así que esa fila
+    desaparece en ese tipo. «Descartar» es la misma acción que la de Inicio:
+    <code>POST /v1/inteligencia/avisos/{id}/descartar</code>, un solo rótulo. El detalle responde 200
+    aunque el aviso ya esté descartado y no trae marca de estado.</figcaption>
   </figure>
 
-  <!-- 4. Vacío -->
+  <!-- D · Vacío -->
   <figure>
     <div class="tel">
-      <div class="barra"><span>← Avisos</span><span>junio</span></div>
+      <div class="barra"><span>← Avisos</span><span class="badge">0 de 3</span></div>
       <div class="vacio">Sin avisos este mes.<br><br>Cuando detectemos un cobro nuevo, un pago que no
         alcanza o un gasto fuera de tu hábito, aparece acá.</div>
       <div class="caja">
@@ -173,34 +225,153 @@ pantallas que ya existen.</div>
         Con menos de tres meses de historia el sistema no afirma un hábito: lo dice en vez de inventar
         una serie.
       </div>
-      <div class="pie"><span>Centro · vacío</span><span>historial insuficiente</span></div>
+      <div class="pie"><span>Bandeja · vacío</span><span>data: [] con 200</span></div>
     </div>
-    <figcaption><b>D · Vacío.</b> El estado vacío explica qué falta y no promete avisos que el sistema
-    no puede sostener todavía.</figcaption>
+    <figcaption><b>D · Vacío.</b> Explica qué falta y no promete avisos que el sistema no puede
+    sostener todavía. Una bandeja vacía con avisos reales solo puede ser de otro mes, así que el
+    grupo del mes anterior se sigue consultando antes de afirmar que no hay nada.</figcaption>
+  </figure>
+
+  <!-- E · Error con reintento -->
+  <figure>
+    <div class="tel">
+      <div class="barra"><span>← Avisos</span><span></span></div>
+      <div class="vacio">No pudimos cargar tus avisos.<br><br>Revisa tu conexión y vuelve a
+        intentarlo.
+        <div class="acciones" style="justify-content:center">
+          <span class="btn fuerte">Reintentar</span>
+        </div>
+      </div>
+      <div class="caja">
+        <div class="rotulo">Nota</div>
+        Mismo patrón que <code>EstadoVista.sinRed</code>, que la app ya usa. Si el resumen falla, el
+        contador del encabezado de Inicio no se dibuja: no se inventa un cero.
+      </div>
+      <div class="pie"><span>Bandeja · sin red</span><span>reintento local</span></div>
+    </div>
+    <figcaption><b>E · Error con reintento.</b> Cubre el fallo de red y los que la API declara: 401
+    de sesión vencida y 429. El 409 <code>DescarteAnteriorAlAlta</code> no es este estado: se muestra
+    sobre la tarjeta como «todavía no se puede descartar», sin tratarlo como fallo del
+    servidor.</figcaption>
+  </figure>
+
+  <!-- F · Cupo lleno -->
+  <figure>
+    <div class="tel">
+      <div class="barra"><span>← Avisos</span><span class="badge">3 de 3</span></div>
+      <div class="caja solida">
+        <div class="rotulo">Cupo del mes</div>
+        Llegaste a los 3 avisos de este mes. Descartar uno libera espacio para el siguiente.
+      </div>
+      <div class="lista">
+        <div class="item">
+          <div class="tipo">pago_no_alcanza · p1</div>
+          <div class="fila"><span class="tit">Tus próximos pagos suman más que tu saldo</span></div>
+        </div>
+        <div class="item">
+          <div class="tipo">caida_ingreso · p2</div>
+          <div class="fila"><span class="tit">Tu ingreso bajó</span></div>
+        </div>
+        <div class="item">
+          <div class="tipo">presupuesto_anticipado · p4</div>
+          <div class="fila"><span class="tit">Tu gasto va por encima de lo habitual</span></div>
+        </div>
+      </div>
+      <div class="pie"><span>Bandeja · cupo lleno</span><span>n = N</span></div>
+    </div>
+    <figcaption><b>F · Cupo lleno.</b> Se dibuja cuando <code>avisos_emitidos</code> iguala a
+    <code>cupo_avisos</code>. El número no es fijo: 3 por defecto y 5 en la demo, según el entorno.
+    La API <b>no</b> dice cuántas tarjetas recortó el cupo, así que el texto no promete un número de
+    avisos ocultos. Descartar libera cupo del periodo, pero el aviso descartado no se vuelve a
+    emitir.</figcaption>
   </figure>
 
 </div>
 
 <div class="mapa">
-  <h2 style="font-size:15px;margin:26px 0 8px;">Correspondencia con el contrato</h2>
+  <h2>Correspondencia con el contrato · un campo dibujado por fila</h2>
   <table>
-    <thead><tr><th>Aviso</th><th>Dónde aparece</th><th>Acción principal</th><th>Campos usados</th></tr></thead>
+    <thead><tr><th>Dato dibujado</th><th>Campo del contrato</th><th>Piezas</th><th>Nota</th></tr></thead>
     <tbody>
-      <tr><td><code>pago_no_alcanza</code></td><td>Inicio + centro + detalle</td><td>Recargar</td>
-          <td>titulo, texto, porque, severidad_centavos, periodo, transaccion_id</td></tr>
-      <tr><td><code>cobro_nuevo</code></td><td>Centro + detalle</td><td>Ver movimiento</td>
-          <td>titulo, texto, porque, periodo, transaccion_id</td></tr>
-      <tr><td><code>presupuesto_anticipado</code></td><td>Centro + detalle</td><td>Ver resumen del mes</td>
-          <td>titulo, texto, porque, periodo</td></tr>
-      <tr><td><code>categoria_sobre_media</code></td><td>Centro + detalle</td><td>Ver categoría</td>
-          <td>titulo, texto, porque, periodo</td></tr>
-      <tr><td><code>caida_ingreso</code></td><td>Centro + detalle</td><td>Entendido</td>
-          <td>titulo, texto, porque, periodo</td></tr>
+      <tr><td>Título del aviso</td><td><code>titulo</code></td><td>A, B, C, F</td>
+          <td>Fijo por tipo. En <code>categoria_sobre_media</code> lleva la etiqueta de la categoría</td></tr>
+      <tr><td>Cuerpo del aviso</td><td><code>texto</code></td><td>A, B, C</td>
+          <td>Se muestra tal cual: ya trae su monto y su fecha</td></tr>
+      <tr><td>Explicación «Por qué»</td><td><code>porque</code></td><td>C</td>
+          <td>Frase fija por tipo</td></tr>
+      <tr><td>Primera cifra</td><td><code>monto_centavos</code></td><td>C</td>
+          <td>Cambia de significado por tipo: en <code>pago_no_alcanza</code> es el saldo</td></tr>
+      <tr><td>Segunda cifra</td><td><code>referencia_centavos</code></td><td>C</td>
+          <td>Línea base. Ausente en <code>cobro_nuevo</code>: esa fila no se dibuja</td></tr>
+      <tr><td>Fecha del aviso</td><td><code>periodo</code></td><td>B (grupo), C</td>
+          <td>Mes al que pertenece el hecho, no el día de entrega</td></tr>
+      <tr><td>Nivel visual y orden</td><td><code>prioridad</code></td><td>A, B, C, F</td>
+          <td>1 a 5. Sustituye al rótulo textual de severidad, que no existe</td></tr>
+      <tr><td>Orden dentro de una prioridad</td><td><code>severidad_centavos</code></td><td>B (orden)</td>
+          <td>Monto, no etiqueta: ordena, no se muestra como número</td></tr>
+      <tr><td>Rótulo del botón de acción</td><td><code>accion</code></td><td>A, C</td>
+          <td>Texto visible; no decide el destino</td></tr>
+      <tr><td>Destino del botón de acción</td><td><code>accion_codigo</code></td><td>A, C</td>
+          <td>Opcional en el esquema: si falta o no se reconoce, la tarjeta va sin botón de acción</td></tr>
+      <tr><td>Tipo rotulado en el dibujo</td><td><code>tipo</code></td><td>A, B, C, F</td>
+          <td>Apoyo para esta revisión; la app no se lo muestra al usuario</td></tr>
+      <tr><td>Identidad para abrir el detalle</td><td><code>id</code></td><td>B → C</td>
+          <td>También es el <code>{id}</code> de descartar</td></tr>
+      <tr><td>Contador «n de N»</td><td><code>avisos_emitidos</code> y <code>cupo_avisos</code></td><td>A, B, D, F</td>
+          <td>De <code>GET /v1/inteligencia/resumen</code>, no del aviso</td></tr>
     </tbody>
   </table>
-  <p class="sub" style="margin-top:12px;">Fuera de alcance por decisión: vista de series recurrentes,
-  proyección de saldo, presupuesto configurable por el usuario y avisos por push. El cupo de tres
-  avisos por mes se muestra en el centro cuando está lleno.</p>
+  <p class="sub" style="margin-top:10px;">Campos del esquema que existen y <b>no</b> se dibujan:
+  <code>clave</code> (identidad interna; solo sirve para filtrar localmente los movimientos de la
+  categoría), <code>creado_en</code> (el usuario no lo necesita y en la demo viene adelantado) y
+  <code>transaccion_id</code> (siempre <code>null</code>). <b>Cero campos dibujados sin
+  correspondencia.</b></p>
+
+  <h2>Acción por tipo</h2>
+  <table>
+    <thead><tr><th>Tipo</th><th><code>accion_codigo</code></th><th>Rótulo (<code>accion</code>)</th><th>Destino en la app</th><th>Límite conocido</th></tr></thead>
+    <tbody>
+      <tr><td><code>pago_no_alcanza</code></td><td><code>revisar_pagos</code></td>
+          <td>Ver los pagos que vencen</td><td>Pagos recurrentes próximos</td>
+          <td>El aviso no trae la identidad: no abre la serie concreta</td></tr>
+      <tr><td><code>caida_ingreso</code></td><td><code>revisar_ingreso</code></td>
+          <td>Ver mis ingresos</td><td>Movimientos filtrados a ingresos</td>
+          <td>El servidor no filtra por dirección: el filtro es local</td></tr>
+      <tr><td><code>cobro_nuevo</code></td><td><code>revisar_cobro</code></td>
+          <td>Ver el cobro y su próximo vencimiento</td><td>Pagos recurrentes, resaltando el cobro nuevo</td>
+          <td>Sin identidad ni <code>transaccion_id</code></td></tr>
+      <tr><td><code>presupuesto_anticipado</code></td><td><code>revisar_presupuesto</code></td>
+          <td>Ver los gastos de este mes</td><td>Resumen de gastos del mes en curso</td>
+          <td>Ninguno</td></tr>
+      <tr><td><code>categoria_sobre_media</code></td><td><code>revisar_categoria</code></td>
+          <td>Ver los movimientos de esta categoría</td><td>Movimientos de la categoría del aviso</td>
+          <td>El servidor no filtra por categoría: el filtro es local con <code>clave</code></td></tr>
+    </tbody>
+  </table>
+  <p class="sub" style="margin-top:10px;"><b>Descartar</b> es la misma acción en Inicio y en el
+  detalle: <code>POST /v1/inteligencia/avisos/{id}/descartar</code>, un solo rótulo. Es idempotente y
+  no borra: libera cupo del periodo y el aviso no se vuelve a emitir.
+  <code>categoria_sobre_media</code> no lo produce la semilla de la demo, así que su ejemplo es
+  derivado y no capturado; por eso aparece en esta tabla y no dibujado en la bandeja.</p>
+
+  <h2>Estados cubiertos</h2>
+  <table>
+    <thead><tr><th>Estado</th><th>Pieza</th><th>Cómo se alcanza</th></tr></thead>
+    <tbody>
+      <tr><td>Con avisos</td><td>A, B</td><td>Bandeja del mes en curso más <code>?mes=</code> del anterior</td></tr>
+      <tr><td>Detalle</td><td>C</td><td><code>GET /v1/inteligencia/avisos/{id}</code></td></tr>
+      <tr><td>Vacío</td><td>D</td><td><code>data: []</code> con 200</td></tr>
+      <tr><td>Error con reintento</td><td>E</td><td>Fallo de red, 401 o 429</td></tr>
+      <tr><td>Cupo lleno</td><td>F</td><td><code>avisos_emitidos == cupo_avisos</code> del resumen</td></tr>
+      <tr><td>Vencido</td><td>—</td>
+          <td><b>No se dibuja:</b> el esquema no tiene vigencia ni estado. Solo se podría inferir
+          comparando <code>periodo</code> con hoy, y no está verificado que el emisor retire el aviso
+          después de esa fecha</td></tr>
+      <tr><td>Descartado listado</td><td>—</td>
+          <td>Fuera de este wireframe: <code>estado=descartados</code> solo lista el mes en curso y el
+          detalle no trae marca de estado</td></tr>
+    </tbody>
+  </table>
 </div>
 
 </body>
