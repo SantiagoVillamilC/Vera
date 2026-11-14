@@ -682,6 +682,29 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    // El contador solo se dibuja si hay avisos, así que las dos pruebas de
+    // arriba, que montan el Home sin ninguno, no lo llegan a medir.
+    testWidgets(
+      'a ${ancho.toInt()}x640 con letra 2.0 el contador de avisos no desborda',
+      (tester) async {
+        final inteligencia = FakeInteligenciaRepository();
+        inteligencia.onAvisos = (mes) async =>
+            mes == null ? [avisoDePrueba('a'), avisoDePrueba('b')] : [];
+        await _pump(
+          tester,
+          FakeNucleoRepository(),
+          inteligencia: inteligencia,
+          size: Size(ancho, 640),
+          escala: 2,
+          fuenteReal: true,
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const ValueKey('contador-avisos')), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
     testWidgets(
       'a ${ancho.toInt()}x640 con letra 2.0 y recarga pendiente no hay desborde',
       (tester) async {

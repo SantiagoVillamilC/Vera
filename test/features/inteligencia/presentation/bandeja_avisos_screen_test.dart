@@ -7,6 +7,7 @@ import 'package:vera/features/inteligencia/data/modelos.dart';
 import 'package:vera/features/inteligencia/presentation/bandeja_avisos_screen.dart';
 import 'package:vera/features/inteligencia/presentation/detalle_aviso_screen.dart';
 
+import '../../home/presentation/cargar_roboto.dart';
 import '../../home/presentation/fake_inteligencia.dart';
 
 /// El reloj del servidor en el escenario de demo: noviembre de 2026.
@@ -134,12 +135,28 @@ FakeInteligenciaRepository _repo({
   return repo;
 }
 
-Future<void> _pump(WidgetTester tester, FakeInteligenciaRepository repo) async {
-  tester.view.physicalSize = const Size(900, 1800);
+Future<void> _pump(
+  WidgetTester tester,
+  FakeInteligenciaRepository repo, {
+  Size tamano = const Size(900, 1800),
+  double escala = 1,
+  bool fuenteReal = false,
+}) async {
+  if (fuenteReal) await cargarRoboto();
+  tester.view.physicalSize = tamano;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
-    MaterialApp(home: BandejaAvisosScreen(repository: repo, ahora: _ahora)),
+    MaterialApp(
+      theme: fuenteReal ? ThemeData(fontFamily: 'Roboto') : null,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(escala)),
+        child: child!,
+      ),
+      home: BandejaAvisosScreen(repository: repo, ahora: _ahora),
+    ),
   );
   await tester.pumpAndSettle();
 }
@@ -496,6 +513,97 @@ void main() {
       router.routerDelegate.currentConfiguration.last.matchedLocation,
       '/recargar',
     );
+  });
+
+  // La tarjeta de accesibilidad pide que la bandeja aguante el tamaño de letra
+  // del sistema al máximo y que sus botones se anuncien.
+  group('accesibilidad', () {
+    for (final ancho in [320.0, 360.0]) {
+      testWidgets('a ${ancho.toInt()}x640 con letra 2.0 no hay desborde', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          _repo(
+            enCurso: [_pagoNoAlcanza(), _presupuesto(), _categoriaSobreMedia()],
+            anterior: [_caidaIngreso()],
+          ),
+          tamano: Size(ancho, 640),
+          escala: 2,
+          fuenteReal: true,
+        );
+
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets(
+        'a ${ancho.toInt()}x640 con letra 2.0 el cupo lleno no desborda',
+        (tester) async {
+          await _pump(
+            tester,
+            _repo(
+              enCurso: [_pagoNoAlcanza()],
+              resumen: _resumen(emitidos: 3, cupo: 3),
+            ),
+            tamano: Size(ancho, 640),
+            escala: 2,
+            fuenteReal: true,
+          );
+
+          expect(find.byKey(const Key('cupo-lleno')), findsOneWidget);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
+    testWidgets('cada aviso y su descarte se anuncian por separado', (
+      tester,
+    ) async {
+      final semantica = tester.ensureSemantics();
+      final pago = _pagoNoAlcanza();
+      final presupuesto = _presupuesto();
+      await _pump(tester, _repo(enCurso: [pago, presupuesto]));
+
+      // Abrir lleva el título: quien no ve la tarjeta sabe cuál abre.
+      expect(
+        find.bySemanticsLabel('${pago.titulo}. Ver el detalle'),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel('${presupuesto.titulo}. Ver el detalle'),
+        findsOneWidget,
+      );
+
+      // Y descartar también: con dos avisos en pantalla, «Descartar» a secas
+      // se oiría dos veces igual.
+      expect(
+        find.bySemanticsLabel('Descartar: ${pago.titulo}'),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel('Descartar: ${presupuesto.titulo}'),
+        findsOneWidget,
+      );
+      semantica.dispose();
+    });
+
+    testWidgets('descartar desde la etiqueta semántica quita el aviso', (
+      tester,
+    ) async {
+      final semantica = tester.ensureSemantics();
+      final pago = _pagoNoAlcanza();
+      final repo = _repo(enCurso: [pago]);
+      await _pump(tester, repo);
+
+      // Se toca por la etiqueta, que es por donde lo haría un lector de
+      // pantalla, no por la llave del botón.
+      await tester.tap(find.bySemanticsLabel('Descartar: ${pago.titulo}'));
+      await tester.pumpAndSettle();
+
+      expect(repo.descartados, [pago.id]);
+      expect(find.byKey(ValueKey('aviso-${pago.id}')), findsNothing);
+      semantica.dispose();
+    });
   });
 }
 
