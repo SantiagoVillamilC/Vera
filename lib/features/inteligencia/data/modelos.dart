@@ -185,6 +185,8 @@ class ResumenDelMes {
     required this.mes,
     required this.totalCentavos,
     required this.categorias,
+    this.cupoAvisos,
+    this.avisosEmitidos,
   });
 
   factory ResumenDelMes.fromJson(Map<String, dynamic> json) {
@@ -192,10 +194,18 @@ class ResumenDelMes {
       for (final c in (json['categorias'] as List?) ?? const [])
         GastoDeCategoria.fromJson(c as Map<String, dynamic>),
     ]..sort((a, b) => b.totalCentavos.abs().compareTo(a.totalCentavos.abs()));
+    int? entero(Object? v) => switch (v) {
+      final int n => n,
+      final num n => n.toInt(),
+      final String s => int.tryParse(s),
+      _ => null,
+    };
     return ResumenDelMes(
       mes: json['mes']?.toString() ?? '',
       totalCentavos: BigInt.parse(json['total_centavos']?.toString() ?? '0'),
       categorias: categorias,
+      cupoAvisos: entero(json['cupo_avisos']),
+      avisosEmitidos: entero(json['avisos_emitidos']),
     );
   }
 
@@ -203,4 +213,18 @@ class ResumenDelMes {
   final String mes;
   final BigInt totalCentavos;
   final List<GastoDeCategoria> categorias;
+
+  /// Tope de avisos del mes. Se configura por entorno: 3 por defecto y 5 en la
+  /// demo, así que la app nunca fija el número. Nulo si el backend no lo envía.
+  final int? cupoAvisos;
+
+  /// Avisos ya emitidos este mes. Cuenta solo el mes en curso.
+  final int? avisosEmitidos;
+
+  /// El mes llegó a su tope y no se emiten más avisos hasta descartar uno.
+  bool get cupoLleno {
+    final cupo = cupoAvisos;
+    final emitidos = avisosEmitidos;
+    return cupo != null && emitidos != null && cupo > 0 && emitidos >= cupo;
+  }
 }

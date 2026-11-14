@@ -14,6 +14,7 @@ import 'package:vera/features/home/presentation/enviar_screen.dart';
 import 'package:vera/features/home/presentation/estadisticas_screen.dart';
 import 'package:vera/features/home/presentation/home_screen.dart';
 import 'package:vera/features/home/presentation/recargar_screen.dart';
+import 'package:vera/features/inteligencia/presentation/bandeja_avisos_screen.dart';
 import 'package:vera/features/inteligencia/presentation/movimientos_enriquecidos_screen.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
@@ -136,6 +137,10 @@ GoRouter buildRouter(
     GoRoute(
       path: '/inteligencia',
       builder: (context, state) => const MovimientosEnriquecidosScreen(),
+    ),
+    GoRoute(
+      path: '/avisos',
+      builder: (context, state) => const BandejaAvisosScreen(),
     ),
   ],
 );

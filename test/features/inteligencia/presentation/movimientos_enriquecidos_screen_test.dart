@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/features/home/presentation/movimientos_tab.dart';
+import 'package:vera/features/inteligencia/data/aviso.dart';
 import 'package:vera/features/inteligencia/data/inteligencia_repository.dart';
 import 'package:vera/features/inteligencia/data/modelos.dart';
 import 'package:vera/features/inteligencia/presentation/movimientos_enriquecidos_screen.dart';
@@ -66,6 +67,13 @@ class _FakeInteligencia implements InteligenciaRepository {
     totalCentavos: BigInt.zero,
     categorias: const [],
   );
+
+  @override
+  Future<List<Aviso>> listarAvisos({String? mes}) async => const [];
+
+  @override
+  Future<AvisoDescartado> descartarAviso(String id) async =>
+      AvisoDescartado(id: id, descartadoEn: DateTime.utc(2026));
 
   @override
   Future<CorreccionAplicada> corregir({
