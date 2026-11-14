@@ -72,6 +72,10 @@ class _FakeInteligencia implements InteligenciaRepository {
   Future<List<Aviso>> listarAvisos({String? mes}) async => const [];
 
   @override
+  Future<Aviso> obtenerAviso(String id) async =>
+      throw UnimplementedError('la pantalla de movimientos no lee avisos');
+
+  @override
   Future<AvisoDescartado> descartarAviso(String id) async =>
       AvisoDescartado(id: id, descartadoEn: DateTime.utc(2026));
 

@@ -63,6 +63,17 @@ class InteligenciaRepository {
     ];
   }
 
+  /// GET /v1/inteligencia/avisos/{id}
+  ///
+  /// Devuelve el aviso esté descartado o no: la respuesta no trae marca de
+  /// estado. La bandeja pasa el objeto que ya tiene, así que esto solo hace
+  /// falta al entrar al detalle por enlace directo.
+  Future<Aviso> obtenerAviso(String id) async {
+    final raw = await _client.get('/v1/inteligencia/avisos/$id');
+    final data = (raw['data'] as Map?)?.cast<String, dynamic>() ?? const {};
+    return Aviso.fromJson(data);
+  }
+
   /// POST /v1/inteligencia/avisos/{id}/descartar
   ///
   /// Idempotente y sin cuerpo: repetirlo devuelve el primer instante. No borra

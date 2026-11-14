@@ -15,6 +15,7 @@ class FakeInteligenciaRepository implements InteligenciaRepository {
   Future<List<Aviso>> Function(String? mes)? onAvisos;
   final mesesDeAvisos = <String?>[];
   final descartados = <String>[];
+  final idsPedidos = <String>[];
   ApiException? errorAlDescartar;
 
   @override
@@ -35,6 +36,23 @@ class FakeInteligenciaRepository implements InteligenciaRepository {
   Future<List<Aviso>> listarAvisos({String? mes}) {
     mesesDeAvisos.add(mes);
     return onAvisos?.call(mes) ?? Future.value(const []);
+  }
+
+  @override
+  Future<Aviso> obtenerAviso(String id) async {
+    idsPedidos.add(id);
+    final todos = [
+      ...await listarAvisos(),
+      ...await listarAvisos(mes: 'cualquiera'),
+    ];
+    return todos.firstWhere(
+      (a) => a.id == id,
+      orElse: () => throw ApiException(
+        statusCode: 404,
+        code: 'NotFound',
+        message: 'Notice not found.',
+      ),
+    );
   }
 
   @override

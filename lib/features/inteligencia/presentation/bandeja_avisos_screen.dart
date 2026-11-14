@@ -10,13 +10,7 @@ import 'package:vera/core/widgets/tarjeta_vidrio.dart';
 import 'package:vera/features/inteligencia/data/aviso.dart';
 import 'package:vera/features/inteligencia/data/inteligencia_repository.dart';
 import 'package:vera/features/inteligencia/data/modelos.dart';
-
-/// Texto del 409 al descartar un aviso cuya alta es posterior al reloj del
-/// servidor. No es un fallo: el aviso sigue vigente y se podrá descartar luego.
-const mensajeDescarteAnteriorAlAlta = 'Todavía no se puede descartar.';
-
-/// Código del 409 de descarte, tal como lo nombra el contrato.
-const codigoDescarteAnteriorAlAlta = 'DescarteAnteriorAlAlta';
+import 'package:vera/features/inteligencia/presentation/destino_de_aviso.dart';
 
 /// Cuenta los avisos vigentes que vería la bandeja: el mes en curso más el
 /// anterior. Es la fuente del contador de Inicio, para que el número y la
@@ -123,6 +117,23 @@ class _BandejaAvisosScreenState extends State<BandejaAvisosScreen> {
         _avisar('No se pudo actualizar. ${mensajeDeError(e)}');
       }
     }
+  }
+
+  /// Abre el detalle con el aviso que ya se tiene y, si allí se descartó,
+  /// lo quita de la lista y deja el contador de Inicio al día al volver.
+  Future<void> _abrirDetalle(Aviso aviso) async {
+    final descartado = await context.push<Object?>(
+      '/avisos/${aviso.id}',
+      extra: aviso,
+    );
+    if (!mounted || descartado is! String) return;
+    setState(() {
+      _avisos = [
+        for (final a in _avisos)
+          if (a.id != descartado) a,
+      ];
+    });
+    _relerElCupo();
   }
 
   void _avisar(String texto) {
@@ -316,6 +327,7 @@ class _BandejaAvisosScreenState extends State<BandejaAvisosScreen> {
             for (final aviso in grupos[mes]!)
               _TarjetaDeAviso(
                 aviso: aviso,
+                onAbrir: () => _abrirDetalle(aviso),
                 onDescartar: () => _descartar(aviso),
               ),
           ],
@@ -397,9 +409,14 @@ class _AvisoDeCupoLleno extends StatelessWidget {
 }
 
 class _TarjetaDeAviso extends StatelessWidget {
-  const _TarjetaDeAviso({required this.aviso, required this.onDescartar});
+  const _TarjetaDeAviso({
+    required this.aviso,
+    required this.onAbrir,
+    required this.onDescartar,
+  });
 
   final Aviso aviso;
+  final VoidCallback onAbrir;
   final VoidCallback onDescartar;
 
   @override
@@ -413,22 +430,37 @@ class _TarjetaDeAviso extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              aviso.titulo,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              aviso.texto,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 14,
-                height: 1.45,
+            Semantics(
+              button: true,
+              label: '${aviso.titulo}. Ver el detalle',
+              excludeSemantics: true,
+              child: GestureDetector(
+                key: ValueKey('abrir-${aviso.id}'),
+                onTap: onAbrir,
+                behavior: HitTestBehavior.opaque,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      aviso.titulo,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      aviso.texto,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 14),
@@ -439,10 +471,11 @@ class _TarjetaDeAviso extends StatelessWidget {
               children: [
                 // Sin accion_codigo conocido no hay destino que abrir, así que
                 // la tarjeta se muestra sin botón de acción.
-                if (aviso.tieneAccion)
+                if (rotuloDeAccion(aviso) case final rotulo?)
                   TextButton(
                     key: ValueKey('accion-${aviso.id}'),
-                    onPressed: () {},
+                    onPressed: () =>
+                        context.push(destinoDe(aviso)!.ruta),
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.tintaBotonClaro,
                       backgroundColor: AppColors.botonClaro,
@@ -455,7 +488,7 @@ class _TarjetaDeAviso extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      aviso.accion,
+                      rotulo,
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
