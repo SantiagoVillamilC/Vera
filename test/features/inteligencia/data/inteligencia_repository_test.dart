@@ -72,6 +72,7 @@ Map<String, dynamic> _fila({
   String direccion = 'salida',
   String contraparte = 'Tienda D1',
   String monto = '12500000',
+  Object? escalon,
 }) =>
     {
       'transaccion_id': _id,
@@ -85,6 +86,7 @@ Map<String, dynamic> _fila({
       'categoria': categoria,
       'categoria_nombre': categoriaNombre,
       'origen_categoria': origen,
+      'escalon': ?escalon,
     };
 
 void main() {
@@ -135,6 +137,50 @@ void main() {
       // Más allá de 2^53: se conserva la precisión.
       expect(segunda.montoCentavos.toString(), '9007199254740993');
       expect(segunda.montoConSigno, segunda.montoCentavos);
+    });
+
+    test('lee el escalón como entero y tolera que no venga', () async {
+      final repo = _build((req) async => _json(200, {
+            'success': true,
+            'data': [
+              _fila(origen: 'lexico', escalon: 5),
+              _fila(origen: 'tfidf', escalon: '6'),
+              _fila(origen: 'catalogo', escalon: 4.0),
+              _fila(origen: 'sin_categoria'),
+            ],
+          }));
+
+      final lista = await repo.listarMovimientos();
+      expect(lista.map((m) => m.escalon).toList(), [5, 6, 4, null]);
+    });
+
+    test('la señal cubre los ocho casos del contrato', () {
+      SenalDeCategoria? senal(OrigenCategoria o, int? e) =>
+          senalDeCategoria(o, e);
+
+      expect(senal(OrigenCategoria.memoria, 1)?.chip, 'Tu corrección');
+      expect(
+        senal(OrigenCategoria.contraparteInterna, 2)?.chip,
+        'Cargo de la billetera',
+      );
+      expect(senal(OrigenCategoria.mcc, 3)?.chip, 'Tipo de comercio (MCC)');
+      expect(senal(OrigenCategoria.catalogo, 4)?.chip, 'Catálogo de marcas');
+      expect(senal(OrigenCategoria.lexico, 5)?.chip, 'Palabras del nombre');
+      expect(senal(OrigenCategoria.tfidf, 6)?.chip, 'Modelo de texto (TF-IDF)');
+      expect(
+        senal(OrigenCategoria.sinCategoria, 6)?.chip,
+        'Sin categoría, Vera no adivina',
+      );
+      expect(senal(OrigenCategoria.sinCategoria, 7)?.chip, 'Sin categoría');
+
+      // La abstención es la única que se marca como tal.
+      expect(senal(OrigenCategoria.sinCategoria, 6)?.esAbstencion, isTrue);
+      expect(senal(OrigenCategoria.sinCategoria, 7)?.esAbstencion, isFalse);
+
+      // Sin chip: desconocido y los dos que el backend ya no emite.
+      expect(senal(OrigenCategoria.desconocido, 3), isNull);
+      expect(senal(OrigenCategoria.llm, 6), isNull);
+      expect(senal(OrigenCategoria.manual, 1), isNull);
     });
 
     test('un origen desconocido no rompe el parseo', () async {
