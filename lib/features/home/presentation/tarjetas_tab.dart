@@ -6,6 +6,7 @@ import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/theme/tintes.dart';
 import 'package:vera/core/widgets/adornos_vera.dart';
 import 'package:vera/core/widgets/marca_vera.dart';
+import 'package:vera/core/widgets/insignia_muestra.dart';
 import 'package:vera/core/widgets/tarjeta_vidrio.dart';
 import 'package:vera/features/home/presentation/perfil_tab.dart';
 
@@ -67,11 +68,21 @@ class _TarjetasTabState extends State<TarjetasTab> {
                     ),
                   ),
                 ),
+                const SizedBox(width: 10),
+                const InsigniaMuestra(),
               ],
             ),
             const SizedBox(height: 16),
             _TarjetaVisual(
               nombre: (_nombre ?? nombreTarjetaGenerico).toUpperCase(),
+            ),
+            const SizedBox(height: 12),
+            // El contrato no tiene endpoint de tarjetas: todo lo de esta
+            // pestaña es fijo y se marca como tal junto al dato, no solo en el
+            // encabezado.
+            const AvisoMuestra(
+              detalle: 'el número, el vencimiento y los movimientos de esta '
+                  'tarjeta son de ejemplo. Tu nombre sí es el de tu perfil.',
             ),
             const SizedBox(height: 14),
             const _PuntosPaginacion(),
@@ -105,14 +116,22 @@ class _TarjetasTabState extends State<TarjetasTab> {
               ),
             ),
             const SizedBox(height: 26),
-            const Text(
-              'Movimientos con tarjeta',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 21,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.3,
-              ),
+            Row(
+              children: [
+                const Flexible(
+                  child: Text(
+                    'Movimientos con tarjeta',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 21,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const InsigniaMuestra(compacta: true),
+              ],
             ),
             const SizedBox(height: 8),
             for (final m in movimientosTarjetaMuestra) _TxItem(datos: m),

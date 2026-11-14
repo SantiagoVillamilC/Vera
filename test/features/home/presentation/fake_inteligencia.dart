@@ -1,13 +1,22 @@
+import 'package:vera/core/network/api_client.dart';
+import 'package:vera/features/inteligencia/data/aviso.dart';
 import 'package:vera/features/inteligencia/data/inteligencia_repository.dart';
 import 'package:vera/features/inteligencia/data/modelos.dart';
 
 /// Inteligencia de mentira: devuelve el resumen que se le dé, sin tocar la red.
 class FakeInteligenciaRepository implements InteligenciaRepository {
-  FakeInteligenciaRepository({this.onResumen});
+  FakeInteligenciaRepository({this.onResumen, this.onAvisos});
 
   Future<ResumenDelMes> Function(String? mes)? onResumen;
   int resumenCalls = 0;
   final meses = <String?>[];
+
+  /// Avisos por mes pedido: `null` es la bandeja del mes en curso.
+  Future<List<Aviso>> Function(String? mes)? onAvisos;
+  final mesesDeAvisos = <String?>[];
+  final descartados = <String>[];
+  final idsPedidos = <String>[];
+  ApiException? errorAlDescartar;
 
   @override
   Future<ResumenDelMes> resumen({String? mes}) {
@@ -21,6 +30,40 @@ class FakeInteligenciaRepository implements InteligenciaRepository {
             categorias: const [],
           ),
         );
+  }
+
+  @override
+  Future<List<Aviso>> listarAvisos({String? mes}) {
+    mesesDeAvisos.add(mes);
+    return onAvisos?.call(mes) ?? Future.value(const []);
+  }
+
+  @override
+  Future<Aviso> obtenerAviso(String id) async {
+    idsPedidos.add(id);
+    final todos = [
+      ...await listarAvisos(),
+      ...await listarAvisos(mes: 'cualquiera'),
+    ];
+    return todos.firstWhere(
+      (a) => a.id == id,
+      orElse: () => throw ApiException(
+        statusCode: 404,
+        code: 'NotFound',
+        message: 'Notice not found.',
+      ),
+    );
+  }
+
+  @override
+  Future<AvisoDescartado> descartarAviso(String id) async {
+    final error = errorAlDescartar;
+    if (error != null) throw error;
+    descartados.add(id);
+    return AvisoDescartado(
+      id: id,
+      descartadoEn: DateTime.utc(2026, 11, 19, 17),
+    );
   }
 
   @override

@@ -10,6 +10,7 @@ import 'cargar_roboto.dart';
 import 'package:vera/features/inteligencia/data/modelos.dart';
 
 import 'package:vera/core/widgets/cargando_vera.dart';
+import 'package:vera/core/widgets/insignia_muestra.dart';
 
 import 'fake_inteligencia.dart';
 import 'fake_nucleo_repository.dart';
@@ -222,6 +223,53 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  // Tamaño de letra del sistema al máximo (escala 2.0) en los dos anchos
+  // más angostos que soportamos, que es lo que pide la tarjeta de accesibilidad.
+  for (final ancho in [320.0, 360.0]) {
+    testWidgets('a ${ancho.toInt()}x640 con letra 2.0 no hay desborde', (
+      tester,
+    ) async {
+      final repo = FakeNucleoRepository()
+        ..onSaldo = (() async => _saldo(123456789012))
+        ..onMovimientos = ((_, _) async => pagina([
+          movCompensado(1),
+          mov(2, [(MotivoLinea.transferenciaRecibida, 2500000)]),
+        ]));
+      await _pump(
+        tester,
+        repo,
+        size: Size(ancho, 640),
+        escala: 2,
+        fuenteReal: true,
+      );
+      expect(tester.takeException(), isNull);
+
+      for (final periodo in ['Sem', 'Año']) {
+        await tester.tap(find.text(periodo));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: periodo);
+      }
+    });
+
+    testWidgets('a ${ancho.toInt()}x640 con letra 2.0 y errores no hay desborde', (
+      tester,
+    ) async {
+      final repo = FakeNucleoRepository()
+        ..onSaldo = (() async => throw const FormatException('x'))
+        ..onMovimientos = ((_, _) async => throw const FormatException('x'));
+      await _pump(
+        tester,
+        repo,
+        size: Size(ancho, 640),
+        escala: 2,
+        fuenteReal: true,
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text(mensajeErrorGenerico), findsWidgets);
+    });
+  }
+
   testWidgets('a 320x640 con errores tampoco hay desborde', (tester) async {
     final repo = FakeNucleoRepository()
       ..onSaldo = (() async => throw const FormatException('x'))
@@ -382,5 +430,30 @@ void main() {
       await _pump(tester, FakeNucleoRepository(), inteligencia: inteligencia);
       expect(find.byKey(const Key('chip_comparacion')), findsNothing);
     });
+  });
+
+  testWidgets('los totales y la curva quedan marcados, el resto no', (
+    tester,
+  ) async {
+    final semantica = tester.ensureSemantics();
+    await _pump(tester, FakeNucleoRepository());
+
+    // Una insignia sobre los dos totales, que salen de la serie fija.
+    expect(find.byType(InsigniaMuestra), findsOneWidget);
+    expect(find.byType(AvisoMuestra), findsOneWidget);
+    expect(
+      find.textContaining('los totales de ingresos y gastos y la curva'),
+      findsOneWidget,
+    );
+    // El gasto por categoría sí viene de /inteligencia/resumen: no se marca.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('gasto_del_mes')),
+        matching: find.byType(InsigniaMuestra),
+      ),
+      findsNothing,
+    );
+    expect(find.bySemanticsLabel(rotuloDatosDeMuestra), findsWidgets);
+    semantica.dispose();
   });
 }

@@ -14,6 +14,9 @@ import 'package:vera/features/home/presentation/enviar_screen.dart';
 import 'package:vera/features/home/presentation/estadisticas_screen.dart';
 import 'package:vera/features/home/presentation/home_screen.dart';
 import 'package:vera/features/home/presentation/recargar_screen.dart';
+import 'package:vera/features/inteligencia/data/aviso.dart';
+import 'package:vera/features/inteligencia/presentation/bandeja_avisos_screen.dart';
+import 'package:vera/features/inteligencia/presentation/detalle_aviso_screen.dart';
 import 'package:vera/features/inteligencia/presentation/movimientos_enriquecidos_screen.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
@@ -136,6 +139,21 @@ GoRouter buildRouter(
     GoRoute(
       path: '/inteligencia',
       builder: (context, state) => const MovimientosEnriquecidosScreen(),
+    ),
+    GoRoute(
+      path: '/avisos',
+      builder: (context, state) => const BandejaAvisosScreen(),
+      routes: [
+        GoRoute(
+          path: ':id',
+          // La bandeja pasa el aviso que ya tiene; por enlace directo solo
+          // llega el id y el detalle lo pide.
+          builder: (context, state) => DetalleAvisoScreen(
+            aviso: state.extra is Aviso ? state.extra! as Aviso : null,
+            avisoId: state.pathParameters['id'],
+          ),
+        ),
+      ],
     ),
   ],
 );
