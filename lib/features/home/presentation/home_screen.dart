@@ -507,9 +507,15 @@ class _TarjetaSaldo extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Text(
-                'Saldo disponible',
-                style: TextStyle(color: Colors.white, fontSize: 17),
+              // Con la letra del sistema al maximo el rotulo no cabe junto al
+              // ojo en 320: se parte en dos lineas en vez de desbordarse.
+              const Flexible(
+                child: Text(
+                  'Saldo disponible',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Colors.white, fontSize: 17),
+                ),
               ),
               const SizedBox(width: 10),
               GestureDetector(
@@ -1134,19 +1140,30 @@ class _BloqueBajoMonto extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (kyc.tieneLimites) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _CifraLimite(
-                    etiqueta: 'Disponible del mes',
-                    valor: formatPesos(disponible!),
-                  ),
-                  _CifraLimite(
-                    etiqueta: 'Tope mensual',
-                    valor: formatPesos(tope!),
-                    alinearDerecha: true,
-                  ),
-                ],
+              // Wrap y no Row: con la letra grande las dos cifras no caben
+              // lado a lado y bajan una debajo de la otra, sin recortar pesos.
+              LayoutBuilder(
+                builder: (context, c) {
+                  final cabenAlLado =
+                      MediaQuery.textScalerOf(context).scale(18) * 11 <
+                      c.maxWidth;
+                  return Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    spacing: 12,
+                    runSpacing: 10,
+                    children: [
+                      _CifraLimite(
+                        etiqueta: 'Disponible del mes',
+                        valor: formatPesos(disponible!),
+                      ),
+                      _CifraLimite(
+                        etiqueta: 'Tope mensual',
+                        valor: formatPesos(tope!),
+                        alinearDerecha: cabenAlLado,
+                      ),
+                    ],
+                  );
+                },
               ),
               if (usado != null) ...[
                 const SizedBox(height: 14),

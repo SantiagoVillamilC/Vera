@@ -495,19 +495,32 @@ class _TarjetaDeAviso extends StatelessWidget {
                       ),
                     ),
                   ),
-                TextButton(
-                  key: ValueKey('descartar-${aviso.id}'),
-                  onPressed: onDescartar,
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.textSecondary,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 10,
+                // El botón dice solo «Descartar» porque al lado se ve de qué
+                // aviso es. Quien usa lector de pantalla no lo ve, y oiría
+                // «Descartar» repetido una vez por aviso: la etiqueta nombra
+                // cuál se va a descartar.
+                Semantics(
+                  button: true,
+                  label: 'Descartar: ${aviso.titulo}',
+                  excludeSemantics: true,
+                  onTap: onDescartar,
+                  child: TextButton(
+                    key: ValueKey('descartar-${aviso.id}'),
+                    onPressed: onDescartar,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 10,
+                      ),
                     ),
-                  ),
-                  child: const Text(
-                    'Descartar',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    child: const Text(
+                      'Descartar',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               ],

@@ -378,31 +378,55 @@ class _Cifra extends StatelessWidget {
   final String rotulo;
   final String valor;
 
+  static const _estiloRotulo = TextStyle(
+    color: AppColors.textSecondary,
+    fontSize: 14,
+  );
+
+  static const _estiloValor = TextStyle(
+    color: AppColors.textPrimary,
+    fontSize: 16,
+    fontWeight: FontWeight.w700,
+  );
+
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Text(
-            rotulo,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 14,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          valor,
-          textAlign: TextAlign.right,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
+    final rotuloTexto = Text(rotulo, style: _estiloRotulo);
+
+    // Con la letra del sistema al máximo un peso como «$139.900» ocupa casi
+    // todo el ancho y no deja sitio al rótulo. En vez de recortar la cifra,
+    // que es el dato, el rótulo se pasa arriba.
+    return LayoutBuilder(
+      builder: (context, restricciones) {
+        final escala = MediaQuery.textScalerOf(context);
+        final pintor = TextPainter(
+          text: TextSpan(text: valor, style: _estiloValor),
+          textScaler: escala,
+          textDirection: Directionality.of(context),
+        )..layout();
+        final anchoValor = pintor.width;
+        pintor.dispose();
+
+        if (anchoValor <= restricciones.maxWidth / 2) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: rotuloTexto),
+              const SizedBox(width: 12),
+              Text(valor, textAlign: TextAlign.right, style: _estiloValor),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            rotuloTexto,
+            const SizedBox(height: 2),
+            Text(valor, style: _estiloValor),
+          ],
+        );
+      },
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:vera/features/inteligencia/data/aviso.dart';
 import 'package:vera/features/inteligencia/presentation/destino_de_aviso.dart';
 import 'package:vera/features/inteligencia/presentation/detalle_aviso_screen.dart';
 
+import '../../home/presentation/cargar_roboto.dart';
 import '../../home/presentation/fake_inteligencia.dart';
 
 /// El reloj del escenario de demo: noviembre de 2026.
@@ -51,8 +52,12 @@ Future<GoRouter> _pump(
   Aviso? aviso,
   String? avisoId,
   FakeInteligenciaRepository? repo,
+  Size tamano = const Size(900, 1800),
+  double escala = 1,
+  bool fuenteReal = false,
 }) async {
-  tester.view.physicalSize = const Size(900, 1800);
+  if (fuenteReal) await cargarRoboto();
+  tester.view.physicalSize = tamano;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final router = GoRouter(
@@ -74,7 +79,18 @@ Future<GoRouter> _pump(
     ],
   );
   addTearDown(router.dispose);
-  await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+  await tester.pumpWidget(
+    MaterialApp.router(
+      routerConfig: router,
+      theme: fuenteReal ? ThemeData(fontFamily: 'Roboto') : null,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(escala)),
+        child: child!,
+      ),
+    ),
+  );
   await tester.pumpAndSettle();
   return router;
 }
@@ -367,6 +383,93 @@ void main() {
       );
       expect(rotuloDeAccion(_aviso(accionCodigo: null)), isNull);
       expect(rotuloDeAccion(_aviso(accionCodigo: 'otro')), isNull);
+    });
+  });
+
+  // La tarjeta de accesibilidad pide que el detalle aguante el tamaño de letra
+  // del sistema al máximo y que sus botones se anuncien.
+  group('accesibilidad', () {
+    for (final ancho in [320.0, 360.0]) {
+      testWidgets('a ${ancho.toInt()}x640 con letra 2.0 no hay desborde', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          aviso: _aviso(),
+          tamano: Size(ancho, 640),
+          escala: 2,
+          fuenteReal: true,
+        );
+
+        expect(tester.takeException(), isNull);
+
+        // A 2.0 el detalle no cabe de una vez y la lista se construye
+        // perezosamente: se recorre hasta el final para que también se midan
+        // el porqué y los botones.
+        for (final llave in ['porque-aviso', 'descartar-detalle']) {
+          await tester.scrollUntilVisible(
+            find.byKey(Key(llave)),
+            400,
+            scrollable: find.byType(Scrollable).first,
+          );
+          await tester.pumpAndSettle();
+          expect(find.byKey(Key(llave)), findsOneWidget);
+        }
+
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets(
+        'a ${ancho.toInt()}x640 con letra 2.0 un aviso de otro mes no desborda',
+        (tester) async {
+          await _pump(
+            tester,
+            aviso: _aviso(periodo: '2026-10-01', tipo: 'caida_ingreso'),
+            tamano: Size(ancho, 640),
+            escala: 2,
+            fuenteReal: true,
+          );
+
+          expect(find.byKey(const Key('aviso-de-otro-mes')), findsOneWidget);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
+    testWidgets('la acción y el descarte se anuncian al lector de pantalla', (
+      tester,
+    ) async {
+      final semantica = tester.ensureSemantics();
+      await _pump(tester, aviso: _aviso());
+
+      // Aquí hay un solo aviso en pantalla, así que «Descartar» a secas no se
+      // confunde con nada: lo que se verifica es que llegue al lector.
+      expect(
+        tester.getSemantics(find.byKey(const Key('descartar-detalle'))),
+        matchesSemantics(
+          isButton: true,
+          isEnabled: true,
+          hasEnabledState: true,
+          isFocusable: true,
+          hasTapAction: true,
+          hasFocusAction: true,
+          label: 'Descartar',
+        ),
+      );
+      expect(
+        tester.getSemantics(find.byKey(const Key('accion-principal'))),
+        matchesSemantics(
+          isButton: true,
+          isEnabled: true,
+          hasEnabledState: true,
+          isFocusable: true,
+          hasTapAction: true,
+          hasFocusAction: true,
+          label: 'Recargar',
+        ),
+      );
+      expect(find.bySemanticsLabel('Volver'), findsOneWidget);
+      semantica.dispose();
     });
   });
 }

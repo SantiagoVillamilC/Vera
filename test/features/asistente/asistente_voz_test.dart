@@ -11,6 +11,8 @@ import 'package:vera/features/asistente/data/grabador_voz.dart';
 import 'package:vera/features/asistente/data/lector_voz.dart';
 import 'package:vera/features/asistente/presentation/asistente_screen.dart';
 
+import '../home/presentation/cargar_roboto.dart';
+
 http.Response _json(Object body, int status) => http.Response(
   jsonEncode(body),
   status,
@@ -121,8 +123,12 @@ Future<_Montaje> _montar(
   bool leer = false,
   bool permiso = true,
   Future<void> Function()? abrirAjustes,
+  Size tamano = const Size(800, 1600),
+  double escala = 1,
+  bool fuenteReal = false,
 }) async {
-  t.view.physicalSize = const Size(800, 1600);
+  if (fuenteReal) await cargarRoboto();
+  t.view.physicalSize = tamano;
   t.view.devicePixelRatio = 1;
   addTearDown(t.view.reset);
   final cola = [...sobre];
@@ -149,6 +155,13 @@ Future<_Montaje> _montar(
   final preferencia = _PreferenciaFalsa(leer);
   await t.pumpWidget(
     MaterialApp(
+      theme: fuenteReal ? ThemeData(fontFamily: 'Roboto') : null,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(escala)),
+        child: child!,
+      ),
       home: AsistenteScreen(
         repository: AsistenteRepository(
           client: ApiClient(baseUrl: 'http://x', clientFactory: () => mock),
@@ -456,5 +469,91 @@ void main() {
       expect(find.byKey(const Key('detener_lectura')), findsNothing);
       t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     });
+  });
+
+  // La tarjeta de accesibilidad pide etiqueta semántica en los controles de
+  // audio y que aguanten el tamaño de letra del sistema al máximo.
+  group('accesibilidad de los controles de audio', () {
+    testWidgets('escuchar y detener se anuncian al lector de pantalla', (
+      t,
+    ) async {
+      final semantica = t.ensureSemantics();
+      await _montar(
+        t,
+        leer: true,
+        sobre: [(_) => _json(_respuesta('Hola', transcripcion: 'x'), 200)],
+      );
+
+      // Apagado y encendido el control dice qué va a hacer, no en qué estado
+      // está: es lo que escucha quien no ve el icono.
+      expect(
+        t.getSemantics(
+          find.byTooltip('Dejar de leer las respuestas en voz alta'),
+        ),
+        matchesSemantics(
+          isButton: true,
+          isEnabled: true,
+          hasEnabledState: true,
+          hasTapAction: true,
+          hasFocusAction: true,
+          isFocusable: true,
+          tooltip: 'Dejar de leer las respuestas en voz alta',
+        ),
+      );
+
+      await _grabarYEnviar(t);
+
+      expect(find.bySemanticsLabel('Detener la lectura'), findsOneWidget);
+      expect(
+        t.getSemantics(find.byKey(const Key('detener_lectura'))),
+        matchesSemantics(
+          isButton: true,
+          label: 'Detener la lectura',
+          hasTapAction: true,
+        ),
+      );
+      semantica.dispose();
+    });
+
+    testWidgets('apagada la lectura, el control ofrece encenderla', (t) async {
+      final semantica = t.ensureSemantics();
+      await _montar(t);
+
+      expect(
+        t.getSemantics(find.byTooltip('Leer las respuestas en voz alta')),
+        matchesSemantics(
+          isButton: true,
+          isEnabled: true,
+          hasEnabledState: true,
+          hasTapAction: true,
+          hasFocusAction: true,
+          isFocusable: true,
+          tooltip: 'Leer las respuestas en voz alta',
+        ),
+      );
+      semantica.dispose();
+    });
+
+    for (final ancho in [320.0, 360.0]) {
+      testWidgets(
+        'a ${ancho.toInt()}x640 con letra 2.0 los controles no desbordan',
+        (t) async {
+          await _montar(
+            t,
+            leer: true,
+            tamano: Size(ancho, 640),
+            escala: 2,
+            fuenteReal: true,
+            sobre: [(_) => _json(_respuesta('Hola', transcripcion: 'x'), 200)],
+          );
+          await _grabarYEnviar(t);
+
+          // El chip de «Leyendo…» es el control más ancho de la pantalla: si
+          // algo se sale a 2.0, se sale aquí.
+          expect(find.byKey(const Key('detener_lectura')), findsOneWidget);
+          expect(t.takeException(), isNull);
+        },
+      );
+    }
   });
 }
