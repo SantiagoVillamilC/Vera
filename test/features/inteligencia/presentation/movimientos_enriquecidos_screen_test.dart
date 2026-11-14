@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/features/home/presentation/movimientos_tab.dart';
+import 'package:vera/features/inteligencia/data/aviso.dart';
 import 'package:vera/features/inteligencia/data/inteligencia_repository.dart';
 import 'package:vera/features/inteligencia/data/modelos.dart';
+import 'package:vera/features/inteligencia/presentation/chip_senal.dart';
 import 'package:vera/features/inteligencia/presentation/movimientos_enriquecidos_screen.dart';
 
 import '../../home/presentation/fake_nucleo_repository.dart';
@@ -20,6 +22,7 @@ MovimientoEnriquecido _movimiento({
   String contraparte = 'Tienda D1',
   BigInt? monto,
   OrigenCategoria? origen,
+  int? escalon,
 }) => MovimientoEnriquecido(
   transaccionId: id,
   ocurridoEn: DateTime.utc(2026, 10, 12, 19, 30),
@@ -36,7 +39,32 @@ MovimientoEnriquecido _movimiento({
       (categoria == codigoSinCategoria
           ? OrigenCategoria.sinCategoria
           : OrigenCategoria.catalogo),
+  escalon: escalon,
 );
+
+/// Movimiento armado desde el JSON de la API, que es como llega `escalon`.
+/// La semilla de la demo solo produce `lexico` y `sin_categoria`, así que el
+/// resto de las combinaciones se arman a mano.
+MovimientoEnriquecido _desdeJson({
+  required String origen,
+  Object? escalon,
+  String id = _idTransporte,
+  String categoria = 'transporte',
+  String categoriaNombre = 'Transporte',
+}) => MovimientoEnriquecido.fromJson({
+  'transaccion_id': id,
+  'ocurrido_en': '2026-10-12T19:30:00Z',
+  'moneda': 'COP',
+  'direccion': 'salida',
+  'monto_centavos': '1250000',
+  'contraparte': 'Uber',
+  'contraparte_resuelta': true,
+  'descripcion': 'COMPRA POS',
+  'categoria': categoria,
+  'categoria_nombre': categoriaNombre,
+  'origen_categoria': origen,
+  'escalon': ?escalon,
+});
 
 class _FakeInteligencia implements InteligenciaRepository {
   _FakeInteligencia(this.movimientos);
@@ -68,6 +96,17 @@ class _FakeInteligencia implements InteligenciaRepository {
   );
 
   @override
+  Future<List<Aviso>> listarAvisos({String? mes}) async => const [];
+
+  @override
+  Future<Aviso> obtenerAviso(String id) async =>
+      throw UnimplementedError('la pantalla de movimientos no lee avisos');
+
+  @override
+  Future<AvisoDescartado> descartarAviso(String id) async =>
+      AvisoDescartado(id: id, descartadoEn: DateTime.utc(2026));
+
+  @override
   Future<CorreccionAplicada> corregir({
     required String transaccionId,
     String? categoria,
@@ -92,6 +131,7 @@ class _FakeInteligencia implements InteligenciaRepository {
             contraparte: m.contraparte,
             monto: m.montoCentavos,
             origen: OrigenCategoria.memoria,
+            escalon: 1,
           )
         else
           m,
@@ -175,9 +215,14 @@ void main() {
     expect(find.text('Alimentos y mercado'), findsOneWidget);
     expect(find.text('Restaurantes y domicilios'), findsOneWidget);
     expect(find.text('Transporte'), findsOneWidget);
-    // Las de ingreso no se ofrecen y sin_categoria tampoco.
+    // Las de ingreso no se ofrecen y sin_categoria tampoco. Se mira la lista
+    // de opciones, no el texto suelto: el chip de la señal también dice
+    // «Sin categoría» y es otra cosa.
     expect(find.text('Salario'), findsNothing);
-    expect(find.text('Sin categoría'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('opcion-categoria-$codigoSinCategoria')),
+      findsNothing,
+    );
 
     await tester.tap(find.byKey(const ValueKey('opcion-categoria-transporte')));
     await tester.pumpAndSettle();
@@ -410,5 +455,192 @@ void main() {
       '/inteligencia',
     );
     expect(find.text('destino'), findsOneWidget);
+  });
+
+  // ── Chip de la señal de la cascada ────────────────────────────────────────
+  // Una prueba por fila de la tabla del contrato: el chip exacto, armado con
+  // el JSON de cada combinación de origen_categoria y escalon.
+  const tabla = <({String origen, int escalon, String chip})>[
+    (origen: 'memoria', escalon: 1, chip: 'Tu corrección'),
+    (origen: 'contraparte_interna', escalon: 2, chip: 'Cargo de la billetera'),
+    (origen: 'mcc', escalon: 3, chip: 'Tipo de comercio (MCC)'),
+    (origen: 'catalogo', escalon: 4, chip: 'Catálogo de marcas'),
+    (origen: 'lexico', escalon: 5, chip: 'Palabras del nombre'),
+    (origen: 'tfidf', escalon: 6, chip: 'Modelo de texto (TF-IDF)'),
+    (
+      origen: 'sin_categoria',
+      escalon: 6,
+      chip: 'Sin categoría, Vera no adivina',
+    ),
+    (origen: 'sin_categoria', escalon: 7, chip: 'Sin categoría'),
+  ];
+
+  for (final fila in tabla) {
+    testWidgets('${fila.origen} en el escalón ${fila.escalon} '
+        'muestra «${fila.chip}»', (tester) async {
+      final sin = fila.origen == 'sin_categoria';
+      final repo = _FakeInteligencia([
+        _desdeJson(
+          origen: fila.origen,
+          escalon: fila.escalon,
+          categoria: sin ? codigoSinCategoria : 'transporte',
+          categoriaNombre: sin ? 'Sin categoría' : 'Transporte',
+        ),
+      ]);
+      await _pump(tester, repo);
+
+      expect(find.byKey(ValueKey('senal-${fila.chip}')), findsOneWidget);
+      expect(find.text(fila.chip), findsOneWidget);
+    });
+  }
+
+  testWidgets('sin_categoria sin escalón cae en «Sin categoría»', (
+    tester,
+  ) async {
+    final repo = _FakeInteligencia([
+      _desdeJson(
+        origen: 'sin_categoria',
+        categoria: codigoSinCategoria,
+        categoriaNombre: 'Sin categoría',
+      ),
+    ]);
+    await _pump(tester, repo);
+
+    expect(find.text('Sin categoría'), findsOneWidget);
+    expect(find.text('Sin categoría, Vera no adivina'), findsNothing);
+  });
+
+  testWidgets('un escalón fuera de 1 a 7 no rompe la fila', (tester) async {
+    final repo = _FakeInteligencia([
+      _desdeJson(origen: 'catalogo', escalon: 99),
+      _desdeJson(
+        id: _idSinCategoria,
+        origen: 'sin_categoria',
+        escalon: 0,
+        categoria: codigoSinCategoria,
+        categoriaNombre: 'Sin categoría',
+      ),
+    ]);
+    await _pump(tester, repo);
+
+    expect(tester.takeException(), isNull);
+    // El origen conocido conserva su chip; sin_categoria cae en el neutro.
+    expect(find.text('Catálogo de marcas'), findsOneWidget);
+    expect(find.text('Sin categoría'), findsOneWidget);
+  });
+
+  testWidgets('un origen desconocido se pinta sin chip y sin romperse', (
+    tester,
+  ) async {
+    final repo = _FakeInteligencia([
+      _desdeJson(origen: 'algo_que_no_existe', escalon: 3),
+    ]);
+    await _pump(tester, repo);
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ChipSenal), findsNothing);
+    expect(find.text('Transporte'), findsOneWidget);
+  });
+
+  testWidgets('tocar el chip abre la explicación de esa señal', (tester) async {
+    final repo = _FakeInteligencia([
+      _desdeJson(origen: 'mcc', escalon: 3),
+    ]);
+    await _pump(tester, repo);
+
+    await tester.tap(find.byKey(const ValueKey('senal-Tipo de comercio (MCC)')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('explicacion-texto')), findsOneWidget);
+    expect(
+      find.text(
+        'El comercio informó su tipo de negocio en el pago por QR y ese '
+        'código define la categoría.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Entendido'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('explicacion-texto')), findsNothing);
+  });
+
+  testWidgets('la abstención explica que Vera prefirió no arriesgar', (
+    tester,
+  ) async {
+    final repo = _FakeInteligencia([
+      _desdeJson(
+        origen: 'sin_categoria',
+        escalon: 6,
+        categoria: codigoSinCategoria,
+        categoriaNombre: 'Sin categoría',
+      ),
+    ]);
+    await _pump(tester, repo);
+
+    await tester.tap(
+      find.byKey(const ValueKey('senal-Sin categoría, Vera no adivina')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('prefirió no arriesgar una categoría'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('la hoja de corrección también muestra el chip de la señal', (
+    tester,
+  ) async {
+    final repo = _FakeInteligencia([
+      _desdeJson(
+        id: _idSinCategoria,
+        origen: 'sin_categoria',
+        escalon: 7,
+        categoria: codigoSinCategoria,
+        categoriaNombre: 'Sin categoría',
+      ),
+    ]);
+    await _pump(tester, repo);
+
+    await tester.tap(find.text('+ Categoría'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('hoja-correccion')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('hoja-correccion')),
+        matching: find.byType(ChipSenal),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('tras corregir, el chip pasa a «Tu corrección» sin recargar', (
+    tester,
+  ) async {
+    final repo = _FakeInteligencia([
+      _desdeJson(
+        id: _idSinCategoria,
+        origen: 'sin_categoria',
+        escalon: 7,
+        categoria: codigoSinCategoria,
+        categoriaNombre: 'Sin categoría',
+      ),
+    ])..fallaLaRecarga = true;
+    await _pump(tester, repo);
+    expect(find.text('Sin categoría'), findsOneWidget);
+
+    await tester.tap(find.text('+ Categoría'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('opcion-categoria-transporte')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('boton-aplicar-correccion')));
+    await tester.pumpAndSettle();
+
+    // La recarga falla a propósito: el chip tiene que haber cambiado con la
+    // respuesta de la corrección, no con una segunda lectura de la lista.
+    expect(find.text('Tu corrección'), findsOneWidget);
+    expect(find.text('Sin categoría'), findsNothing);
   });
 }

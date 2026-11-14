@@ -20,6 +20,8 @@ import 'package:vera/features/home/presentation/movimiento_vista.dart';
 import 'package:vera/features/home/presentation/movimientos_tab.dart';
 import 'package:vera/features/home/presentation/tarjetas_tab.dart';
 import 'package:vera/features/home/presentation/perfil_tab.dart';
+import 'package:vera/features/inteligencia/data/inteligencia_repository.dart';
+import 'package:vera/features/inteligencia/presentation/bandeja_avisos_screen.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
 /// Saludo cuando no hay nombre guardado.
@@ -34,7 +36,11 @@ class HomeScreen extends StatefulWidget {
     this.offsetLocal,
     this.session,
     this.authRepository,
+    this.inteligencia,
   });
+
+  /// Por defecto el repositorio real. Alimenta el contador de avisos.
+  final InteligenciaRepository? inteligencia;
 
   /// Por defecto la sesión real.
   final SessionStore? session;
@@ -62,6 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _nombre;
   bool _hayRecargaPendiente = false;
   KycEstado? _kyc;
+  int _avisosVigentes = 0;
   late Future<MovimientosPage> _movimientos;
 
   @override
@@ -72,6 +79,21 @@ class _HomeScreenState extends State<HomeScreen> {
     _cargarKyc();
     _cargarNombre();
     _cargarPendiente();
+    _cargarAvisos();
+  }
+
+  /// El contador cuenta los mismos avisos que vería la bandeja, para que el
+  /// número y la lista no se contradigan. Si falla, no se dibuja: no se
+  /// inventa un cero.
+  Future<void> _cargarAvisos() async {
+    try {
+      final n = await contarAvisosVigentes(
+        widget.inteligencia ?? InteligenciaRepository(),
+      );
+      if (mounted) setState(() => _avisosVigentes = n);
+    } catch (_) {
+      if (mounted) setState(() => _avisosVigentes = 0);
+    }
   }
 
   Future<void> _cargarPendiente() async {
@@ -90,7 +112,10 @@ class _HomeScreenState extends State<HomeScreen> {
   /// pendiente se relee, para que el aviso no quede desactualizado.
   Future<void> _abrir(String ruta) async {
     await context.push(ruta);
-    if (mounted) await _cargarPendiente();
+    if (!mounted) return;
+    await _cargarPendiente();
+    // Al volver de la bandeja el contador puede haber cambiado.
+    if (mounted) await _cargarAvisos();
   }
 
   Future<void> _cargarNombre() async {
@@ -142,6 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await Future.wait([
       _cargarSaldo(),
       _cargarKyc(),
+      _cargarAvisos(),
       preview.then((_) {}, onError: (_) {}),
     ]);
   }
@@ -183,6 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
       errorSaldo: _errorSaldo,
       recargaPendiente: _hayRecargaPendiente,
       kyc: _kyc,
+      avisos: _avisosVigentes,
       onAbrir: _abrir,
       onToggleSaldo: () => setState(() => _saldoVisible = !_saldoVisible),
       movimientos: _movimientos,
@@ -220,6 +247,7 @@ class _InicioTab extends StatelessWidget {
     required this.errorSaldo,
     required this.recargaPendiente,
     required this.kyc,
+    required this.avisos,
     required this.onAbrir,
     required this.movimientos,
     required this.offsetLocal,
@@ -236,6 +264,9 @@ class _InicioTab extends StatelessWidget {
   final bool errorSaldo;
   final bool recargaPendiente;
   final KycEstado? kyc;
+
+  /// Avisos vigentes, para el contador del encabezado.
+  final int avisos;
   final void Function(String ruta) onAbrir;
   final Future<MovimientosPage> movimientos;
   final Duration? offsetLocal;
@@ -258,7 +289,11 @@ class _InicioTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Saludo(nombre: nombre),
+              _Saludo(
+                nombre: nombre,
+                avisos: avisos,
+                onAbrirAvisos: () => onAbrir('/avisos'),
+              ),
               const SizedBox(height: 20),
               _TarjetaSaldo(
                 saldoVisible: saldoVisible,
@@ -296,9 +331,17 @@ class _InicioTab extends StatelessWidget {
 // ── Saludo ─────────────────────────────────────────────────────
 
 class _Saludo extends StatelessWidget {
-  const _Saludo({required this.nombre});
+  const _Saludo({
+    required this.nombre,
+    required this.avisos,
+    required this.onAbrirAvisos,
+  });
 
   final String? nombre;
+
+  /// Avisos vigentes. En cero no se dibuja el contador.
+  final int avisos;
+  final VoidCallback onAbrirAvisos;
 
   @override
   Widget build(BuildContext context) {
@@ -331,7 +374,60 @@ class _Saludo extends StatelessWidget {
             ],
           ),
         ),
+        if (avisos > 0) ...[
+          const SizedBox(width: 10),
+          _ContadorDeAvisos(cantidad: avisos, onTocar: onAbrirAvisos),
+        ],
       ],
+    );
+  }
+}
+
+/// Contador de avisos vigentes, a la derecha del saludo. Abre la bandeja.
+class _ContadorDeAvisos extends StatelessWidget {
+  const _ContadorDeAvisos({required this.cantidad, required this.onTocar});
+
+  final int cantidad;
+  final VoidCallback onTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: cantidad == 1 ? '1 aviso' : '$cantidad avisos',
+      excludeSemantics: true,
+      child: GestureDetector(
+        key: const ValueKey('contador-avisos'),
+        onTap: onTocar,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.botonOscuro,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: AppColors.borderGlass),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.lightbulb_outline_rounded,
+                size: 15,
+                color: AppColors.gradientStart,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Avisos · $cantidad',
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -411,9 +507,15 @@ class _TarjetaSaldo extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Text(
-                'Saldo disponible',
-                style: TextStyle(color: Colors.white, fontSize: 17),
+              // Con la letra del sistema al maximo el rotulo no cabe junto al
+              // ojo en 320: se parte en dos lineas en vez de desbordarse.
+              const Flexible(
+                child: Text(
+                  'Saldo disponible',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Colors.white, fontSize: 17),
+                ),
               ),
               const SizedBox(width: 10),
               GestureDetector(
@@ -1038,19 +1140,30 @@ class _BloqueBajoMonto extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (kyc.tieneLimites) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _CifraLimite(
-                    etiqueta: 'Disponible del mes',
-                    valor: formatPesos(disponible!),
-                  ),
-                  _CifraLimite(
-                    etiqueta: 'Tope mensual',
-                    valor: formatPesos(tope!),
-                    alinearDerecha: true,
-                  ),
-                ],
+              // Wrap y no Row: con la letra grande las dos cifras no caben
+              // lado a lado y bajan una debajo de la otra, sin recortar pesos.
+              LayoutBuilder(
+                builder: (context, c) {
+                  final cabenAlLado =
+                      MediaQuery.textScalerOf(context).scale(18) * 11 <
+                      c.maxWidth;
+                  return Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    spacing: 12,
+                    runSpacing: 10,
+                    children: [
+                      _CifraLimite(
+                        etiqueta: 'Disponible del mes',
+                        valor: formatPesos(disponible!),
+                      ),
+                      _CifraLimite(
+                        etiqueta: 'Tope mensual',
+                        valor: formatPesos(tope!),
+                        alinearDerecha: cabenAlLado,
+                      ),
+                    ],
+                  );
+                },
               ),
               if (usado != null) ...[
                 const SizedBox(height: 14),
