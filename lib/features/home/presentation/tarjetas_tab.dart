@@ -154,7 +154,8 @@ class _TarjetaVisual extends StatelessWidget {
     return MediaQuery.withClampedTextScaling(
       minScaleFactor: 1,
       maxScaleFactor: 1,
-      child: _cuerpo(),
+      // Tarjeta de marca: su contenido conserva la paleta oscura en claro.
+      child: ZonaOscura(child: _cuerpo()),
     );
   }
 
