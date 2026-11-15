@@ -201,7 +201,9 @@ class MyNotifier extends _$MyNotifier {
 
 ### Theme
 
-The app is **dark by default**. The mode comes from `--dart-define=TEMA=claro|oscuro|sistema` (default `oscuro`), read once by `appThemeModeProvider`, which is the single source of truth for `themeMode` in `app.dart`. Colors that change with the mode go through `context.paleta` (`PaletaVera`), never through `AppColors` directly in widgets. Brand surfaces (gradient cards) keep the dark palette via `ZonaOscura`. Do not add a theme toggle UI.
+> **Note:** the light mode is optional and off by default. Including it in a build or release requires the approval of the repo maintainer.
+
+The app is **dark by default**. The mode comes from `--dart-define=TEMA=claro|oscuro|sistema` (default `oscuro`), read once by `appThemeModeProvider`, which is the single source of truth for `themeMode` in `app.dart`. Colors that change with the mode go through `context.paleta` (`PaletaVera`), not through `AppColors` in widgets. The legitimate exceptions are brand surfaces that look the same in both modes (for example `AppColors.gradientMid` in button shadows, logo and background gradients), which keep the dark palette via `ZonaOscura` or read the constants directly. Do not add a theme toggle UI.
 
 ---
 
