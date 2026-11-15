@@ -6,6 +6,7 @@ import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/security/verificador_local.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/codigo_otp.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/features/asistente/data/asistente_mensajes.dart';
@@ -235,7 +236,7 @@ class _AccionCardState extends State<AccionCard> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.paleta.surface,
       builder: (_) => _CodigoSheet(
         expiraEnSegundos: _desafio!.expiraEnSegundos,
         alCompletar: (codigo) => _verificarCodigo(codigo, sinVerificacionLocal),
@@ -297,25 +298,25 @@ class _AccionCardState extends State<AccionCard> {
   }
 
   /// Mensaje del estado final de la tarjeta, con los datos del resultado cuando existen.
-  Widget? _resultado(AccionPendiente a) {
+  Widget? _resultado(BuildContext context, AccionPendiente a) {
     final (texto, color) = switch (a.estado) {
       EstadoAccion.confirmada => (
         'Transferencia enviada.',
-        AppColors.accentGreen,
+        context.paleta.accentGreen,
       ),
       EstadoAccion.fallida => (
         _motivoFallo ?? 'La transferencia no se pudo completar.',
-        AppColors.error,
+        context.paleta.error,
       ),
       EstadoAccion.vencida => (
         'Esta transferencia venció. Pídele a Vera que la prepare de nuevo.',
-        AppColors.warning,
+        context.paleta.warning,
       ),
       EstadoAccion.cancelada => (
         'Cancelaste esta transferencia.',
-        AppColors.textSecondary,
+        context.paleta.textSecondary,
       ),
-      _ => (null, AppColors.textSecondary),
+      _ => (null, context.paleta.textSecondary),
     };
     if (texto == null) return null;
     final t = _transferencia;
@@ -327,23 +328,27 @@ class _AccionCardState extends State<AccionCard> {
           const SizedBox(height: 4),
           Text(
             'Identificador: ${t.id}',
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+            style: TextStyle(color: context.paleta.textMuted, fontSize: 12),
           ),
           Text(
             _fecha(t.creadaEn),
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+            style: TextStyle(color: context.paleta.textMuted, fontSize: 12),
           ),
         ],
       ],
     );
   }
 
+  /// La tarjeta es de marca (gradiente azul): conserva la paleta oscura en los dos modos.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      ZonaOscura(child: Builder(builder: _tarjeta));
+
+  Widget _tarjeta(BuildContext context) {
     final a = widget.accion;
     final restante = a.expiraEn.difference(DateTime.now());
     final accionable = a.esAccionable;
-    final resultado = _resultado(a);
+    final resultado = _resultado(context, a);
     final destino = switch (a.tipo) {
       TipoAccion.transferenciaLlave => a.llave ?? a.destinatario?.nombre ?? '',
       _ => a.destinatario?.nombre ?? '',
@@ -355,18 +360,21 @@ class _AccionCardState extends State<AccionCard> {
       decoration: BoxDecoration(
         gradient: AppGradients.card,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.borderGlass),
+        border: Border.all(color: context.paleta.borderGlass),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.send_rounded, size: 16, color: AppColors.accent),
+              Icon(Icons.send_rounded, size: 16, color: context.paleta.accent),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Transferencia preparada',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                style: TextStyle(
+                  color: context.paleta.textSecondary,
+                  fontSize: 13,
+                ),
               ),
               const Spacer(),
               _EstadoChip(estado: a.estado),
@@ -379,8 +387,8 @@ class _AccionCardState extends State<AccionCard> {
             children: [
               Text(
                 formatPesos(a.montoCentavos),
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: context.paleta.textPrimary,
                   fontSize: 30,
                   fontWeight: FontWeight.w700,
                 ),
@@ -388,8 +396,8 @@ class _AccionCardState extends State<AccionCard> {
               const SizedBox(width: 8),
               Text(
                 a.moneda,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
+                style: TextStyle(
+                  color: context.paleta.textSecondary,
                   fontSize: 14,
                 ),
               ),
@@ -402,10 +410,7 @@ class _AccionCardState extends State<AccionCard> {
               if (a.destinatario?.celularParcial != null)
                 a.destinatario!.celularParcial!,
             ].join('  ·  '),
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: context.paleta.textSecondary, fontSize: 14),
           ),
           if (accionable) ...[
             const SizedBox(height: 6),
@@ -413,8 +418,8 @@ class _AccionCardState extends State<AccionCard> {
               'Vence en ${_mmss(restante)}',
               style: TextStyle(
                 color: restante.inSeconds < 60
-                    ? AppColors.warning
-                    : AppColors.textMuted,
+                    ? context.paleta.warning
+                    : context.paleta.textMuted,
                 fontSize: 12,
               ),
             ),
@@ -424,7 +429,7 @@ class _AccionCardState extends State<AccionCard> {
             const SizedBox(height: 10),
             Text(
               _error!,
-              style: const TextStyle(color: AppColors.error, fontSize: 13),
+              style: TextStyle(color: context.paleta.error, fontSize: 13),
             ),
           ],
           if (accionable) ...[
@@ -435,8 +440,8 @@ class _AccionCardState extends State<AccionCard> {
                   child: OutlinedButton(
                     onPressed: _ocupada ? null : _cancelar,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary,
-                      side: const BorderSide(color: AppColors.border),
+                      foregroundColor: context.paleta.textSecondary,
+                      side: BorderSide(color: context.paleta.border),
                       minimumSize: const Size.fromHeight(46),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -547,10 +552,10 @@ class _CodigoSheetState extends State<_CodigoSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Código de confirmación',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.paleta.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
@@ -558,8 +563,8 @@ class _CodigoSheetState extends State<_CodigoSheet> {
             const SizedBox(height: 6),
             Text(
               'Te lo enviamos por WhatsApp. Vale por ${widget.expiraEnSegundos ~/ 60} minutos.',
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.paleta.textSecondary,
                 fontSize: 14,
               ),
             ),
@@ -567,7 +572,7 @@ class _CodigoSheetState extends State<_CodigoSheet> {
               const SizedBox(height: 10),
               Text(
                 _error!,
-                style: const TextStyle(color: AppColors.error, fontSize: 13),
+                style: TextStyle(color: context.paleta.error, fontSize: 13),
               ),
             ],
             const SizedBox(height: 16),
@@ -593,12 +598,12 @@ class _EstadoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (texto, color) = switch (estado) {
-      EstadoAccion.pendiente => ('Pendiente', AppColors.accent),
-      EstadoAccion.confirmada => ('Enviada', AppColors.accentGreen),
-      EstadoAccion.cancelada => ('Cancelada', AppColors.textSecondary),
-      EstadoAccion.vencida => ('Vencida', AppColors.warning),
-      EstadoAccion.fallida => ('Fallida', AppColors.error),
-      EstadoAccion.desconocido => ('—', AppColors.textMuted),
+      EstadoAccion.pendiente => ('Pendiente', context.paleta.accent),
+      EstadoAccion.confirmada => ('Enviada', context.paleta.accentGreen),
+      EstadoAccion.cancelada => ('Cancelada', context.paleta.textSecondary),
+      EstadoAccion.vencida => ('Vencida', context.paleta.warning),
+      EstadoAccion.fallida => ('Fallida', context.paleta.error),
+      EstadoAccion.desconocido => ('—', context.paleta.textMuted),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 
 /// Fondo del chat de Vera: degradado de negro a violeta, con luces violetas de la marca que se
 /// mueven despacio.
@@ -48,7 +49,11 @@ class _FondoAsistenteState extends State<FondoAsistente>
           tween: Tween(end: widget.intenso ? 1 : 0),
           duration: const Duration(milliseconds: 500),
           builder: (context, k, _) => CustomPaint(
-            painter: _FondoPainter(t: _ctrl.value, intensidad: k),
+            painter: _FondoPainter(
+              t: _ctrl.value,
+              intensidad: k,
+              paleta: context.paleta,
+            ),
             size: Size.infinite,
           ),
         ),
@@ -58,10 +63,15 @@ class _FondoAsistenteState extends State<FondoAsistente>
 }
 
 class _FondoPainter extends CustomPainter {
-  _FondoPainter({required this.t, required this.intensidad});
+  _FondoPainter({
+    required this.t,
+    required this.intensidad,
+    required this.paleta,
+  });
 
   final double t;
   final double intensidad;
+  final PaletaVera paleta;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -69,11 +79,13 @@ class _FondoPainter extends CustomPainter {
     canvas.drawRect(
       rect,
       Paint()
-        ..shader = const LinearGradient(
+        ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF1B1040), Color(0xFF050509), Color(0xFF07050F)],
-          stops: [0, 0.5, 1],
+          colors: paleta.esClara
+              ? const [Color(0xFFEEEAFB), Color(0xFFF6F4FD), Color(0xFFF8F7FD)]
+              : const [Color(0xFF1B1040), Color(0xFF050509), Color(0xFF07050F)],
+          stops: const [0, 0.5, 1],
         ).createShader(rect),
     );
 
@@ -94,7 +106,8 @@ class _FondoPainter extends CustomPainter {
         size.height * (cy + 0.06 * math.cos(a + fase * 1.3)),
       );
       final r = size.shortestSide * radio * pulso;
-      final alfa = (alpha * fuerza).clamp(0, 255).round();
+      final suave = paleta.esClara ? 0.4 : 1.0;
+      final alfa = (alpha * fuerza * suave).clamp(0, 255).round();
       canvas.drawCircle(
         centro,
         r,
@@ -112,5 +125,5 @@ class _FondoPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_FondoPainter old) =>
-      old.t != t || old.intensidad != intensidad;
+      old.t != t || old.intensidad != intensidad || old.paleta != paleta;
 }

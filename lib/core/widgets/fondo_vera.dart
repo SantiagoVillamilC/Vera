@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/adornos_vera.dart';
 
 /// Fondo de las pantallas principales de VeraDark: azul acerado arriba que cae a casi negro.
@@ -11,7 +11,7 @@ class FondoVera extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(gradient: AppGradients.fondo),
+      decoration: BoxDecoration(gradient: context.paleta.fondo),
       child: Stack(
         fit: StackFit.expand,
         children: [

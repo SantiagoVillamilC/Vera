@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 
 class VeraAnimatedLogo extends StatefulWidget {
   const VeraAnimatedLogo({super.key});
@@ -259,7 +260,7 @@ class _VeraAnimatedLogoState extends State<VeraAnimatedLogo>
                   Text(
                     'vera',
                     style: GoogleFonts.playfairDisplay(
-                      color: AppColors.textPrimary,
+                      color: context.paleta.textPrimary,
                       fontSize: 52,
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.5,
@@ -270,7 +271,7 @@ class _VeraAnimatedLogoState extends State<VeraAnimatedLogo>
                   Text(
                     'billetera digital',
                     style: GoogleFonts.playfairDisplay(
-                      color: AppColors.textSecondary,
+                      color: context.paleta.textSecondary,
                       fontSize: 15,
                       fontWeight: FontWeight.w400,
                       letterSpacing: 0.5,

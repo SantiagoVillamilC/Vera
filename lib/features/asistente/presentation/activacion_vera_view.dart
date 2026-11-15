@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
 import 'package:vera/features/asistente/data/asistente_repository.dart';
 
@@ -43,19 +43,19 @@ class _ActivacionVeraViewState extends State<ActivacionVeraView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Activa a Vera',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: context.paleta.textPrimary,
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'Antes de empezar, esto es lo que debes saber.',
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: context.paleta.textSecondary,
                       fontSize: 15,
                     ),
                   ),
@@ -99,14 +99,14 @@ class _ActivacionVeraViewState extends State<ActivacionVeraView> {
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceVariant,
+                        color: context.paleta.surfaceVariant,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: context.paleta.border),
                       ),
                       child: Text(
                         c.texto,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
+                        style: TextStyle(
+                          color: context.paleta.textSecondary,
                           fontSize: 13,
                           height: 1.4,
                         ),
@@ -125,10 +125,7 @@ class _ActivacionVeraViewState extends State<ActivacionVeraView> {
                   Text(
                     widget.error!,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: AppColors.error,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: context.paleta.error, fontSize: 14),
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -140,9 +137,9 @@ class _ActivacionVeraViewState extends State<ActivacionVeraView> {
                 const SizedBox(height: 4),
                 TextButton(
                   onPressed: widget.activando ? null : widget.onAhoraNo,
-                  child: const Text(
+                  child: Text(
                     'Ahora no',
-                    style: TextStyle(color: AppColors.textSecondary),
+                    style: TextStyle(color: context.paleta.textSecondary),
                   ),
                 ),
               ],
@@ -172,7 +169,7 @@ class _Punto extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icono, color: AppColors.gradientStart, size: 22),
+          Icon(icono, color: context.paleta.gradientStart, size: 22),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -180,8 +177,8 @@ class _Punto extends StatelessWidget {
               children: [
                 Text(
                   titulo,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.paleta.textPrimary,
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
@@ -189,8 +186,8 @@ class _Punto extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   texto,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: context.paleta.textSecondary,
                     fontSize: 13,
                     height: 1.4,
                   ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/adornos_vera.dart';
 
 /// Superficie de vidrio de VeraDark: relleno translúcido y filo claro.
@@ -29,26 +29,25 @@ class TarjetaVidrio extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final paleta = context.paleta;
+    // Una tarjeta de gradiente es de marca: se ve igual en claro y en oscuro.
+    final deMarca = gradiente != null;
+    final contenido = adorno == null
+        ? child
+        : ConAdorno(tipo: adorno!, radio: radio, padding: padding, child: child);
     return Container(
       padding: adorno == null ? padding : null,
       decoration: BoxDecoration(
         gradient: gradiente,
-        color: gradiente != null
-            ? null
-            : (opaca ? AppColors.surface : Colors.white.withAlpha(14)),
+        color: deMarca ? null : (opaca ? paleta.surface : paleta.vidrio),
         borderRadius: BorderRadius.circular(radio),
         border: Border.all(
-          color: opaca ? AppColors.border : AppColors.borderGlass,
+          color: deMarca
+              ? PaletaVera.oscura.borderGlass
+              : (opaca ? paleta.border : paleta.borderGlass),
         ),
       ),
-      child: adorno == null
-          ? child
-          : ConAdorno(
-              tipo: adorno!,
-              radio: radio,
-              padding: padding,
-              child: child,
-            ),
+      child: deMarca ? ZonaOscura(child: contenido) : contenido,
     );
   }
 }

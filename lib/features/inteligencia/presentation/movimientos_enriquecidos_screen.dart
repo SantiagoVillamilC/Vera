@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/theme/tintes.dart';
 import 'package:vera/core/widgets/fondo_vera.dart';
 import 'package:vera/core/widgets/tarjeta_vidrio.dart';
@@ -150,7 +150,7 @@ class _MovimientosEnriquecidosScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.paleta.background,
       body: FondoVera(
         child: SafeArea(
           bottom: false,
@@ -185,20 +185,20 @@ class _MovimientosEnriquecidosScreenState
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: AppColors.botonOscuro,
+                  color: context.paleta.botonOscuro,
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.borderGlass),
+                  border: Border.all(color: context.paleta.borderGlass),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.chevron_left_rounded,
-                  color: AppColors.textPrimary,
+                  color: context.paleta.textPrimary,
                   size: 28,
                 ),
               ),
             ),
           ),
           const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -209,7 +209,7 @@ class _MovimientosEnriquecidosScreenState
                     'Movimientos con categoría',
                     maxLines: 1,
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: context.paleta.textPrimary,
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.4,
@@ -219,7 +219,7 @@ class _MovimientosEnriquecidosScreenState
                 Text(
                   'Vera clasifica, tú corriges',
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: context.paleta.textSecondary,
                     fontSize: 15,
                   ),
                 ),
@@ -227,11 +227,11 @@ class _MovimientosEnriquecidosScreenState
             ),
           ),
           if (_aplicando)
-            const SizedBox(
+            SizedBox(
               width: 20,
               height: 20,
               child: CircularProgressIndicator(
-                color: AppColors.gradientStart,
+                color: context.paleta.gradientStart,
                 strokeWidth: 2,
               ),
             )
@@ -239,9 +239,9 @@ class _MovimientosEnriquecidosScreenState
             IconButton(
               key: const ValueKey('recargar-inteligencia'),
               onPressed: _cargando ? null : _cargar,
-              icon: const Icon(
+              icon: Icon(
                 Icons.refresh_rounded,
-                color: AppColors.textSecondary,
+                color: context.paleta.textSecondary,
                 size: 22,
               ),
             ),
@@ -283,13 +283,13 @@ class _MovimientosEnriquecidosScreenState
                     child: CircularProgressIndicator(
                       value: avance,
                       strokeWidth: 6,
-                      color: AppColors.gradientStart,
-                      backgroundColor: Colors.white.withAlpha(30),
+                      color: context.paleta.gradientStart,
+                      backgroundColor: context.paleta.velo.withAlpha(30),
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.check_rounded,
-                    color: AppColors.gradientStart,
+                    color: context.paleta.gradientStart,
                     size: 26,
                   ),
                 ],
@@ -302,8 +302,8 @@ class _MovimientosEnriquecidosScreenState
                 children: [
                   Text(
                     titulo,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
+                    style: TextStyle(
+                      color: context.paleta.textPrimary,
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       height: 1.2,
@@ -312,8 +312,8 @@ class _MovimientosEnriquecidosScreenState
                   const SizedBox(height: 4),
                   Text(
                     leyenda,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: context.paleta.textSecondary,
                       fontSize: 15,
                       height: 1.3,
                     ),
@@ -340,7 +340,7 @@ class _MovimientosEnriquecidosScreenState
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 120),
       itemCount: _movimientos.length,
       separatorBuilder: (_, _) =>
-          Divider(color: Colors.white.withAlpha(24), height: 1),
+          Divider(color: context.paleta.velo.withAlpha(24), height: 1),
       itemBuilder: (context, i) => _TileEnriquecido(
         movimiento: _movimientos[i],
         ahora: ahora,
@@ -387,8 +387,8 @@ class _TileEnriquecido extends StatelessWidget {
                   m.titulo,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.paleta.textPrimary,
                     fontSize: 19,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.3,
@@ -421,8 +421,8 @@ class _TileEnriquecido extends StatelessWidget {
                 montoConSigno(m.montoConSigno),
                 style: TextStyle(
                   color: m.esIngreso
-                      ? AppColors.accentGreen
-                      : AppColors.textPrimary,
+                      ? context.paleta.accentGreen
+                      : context.paleta.textPrimary,
                   fontSize: 19,
                   fontWeight: FontWeight.w700,
                 ),
@@ -430,17 +430,14 @@ class _TileEnriquecido extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 fecha,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
+                style: TextStyle(
+                  color: context.paleta.textSecondary,
                   fontSize: 15,
                 ),
               ),
               Text(
                 formatHora(local),
-                style: const TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: context.paleta.textMuted, fontSize: 12),
               ),
             ],
           ),
@@ -461,8 +458,8 @@ class _EtiquetaDeCategoria extends StatelessWidget {
   Widget build(BuildContext context) {
     final sin = movimiento.sinCategoria;
     final tinte = sin
-        ? const TinteVera(Color(0x1A6CB6F2), AppColors.accent)
-        : tinteDeCategoria(movimiento.categoriaNombre);
+        ? TinteVera(Color(0x1A6CB6F2), context.paleta.accent)
+        : tinteDeCategoria(movimiento.categoriaNombre).en(context.paleta);
     final contenido = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -558,23 +555,23 @@ class _SugeridaBadge extends StatelessWidget {
       key: const ValueKey('marca-sugerida'),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.accentGreen.withAlpha(24),
+        color: context.paleta.accentGreen.withAlpha(24),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.accentGreen.withAlpha(90)),
+        border: Border.all(color: context.paleta.accentGreen.withAlpha(90)),
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             Icons.auto_awesome_rounded,
             size: 12,
-            color: AppColors.accentGreen,
+            color: context.paleta.accentGreen,
           ),
           SizedBox(width: 5),
           Text(
             'Sugerida',
             style: TextStyle(
-              color: AppColors.accentGreen,
+              color: context.paleta.accentGreen,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
