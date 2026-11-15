@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 
 /// Par fondo y tinta de los iconos y etiquetas de categoría de VeraDark.
 class TinteVera {
@@ -15,6 +16,21 @@ class TinteVera {
   static const morado = TinteVera(Color(0xFF271F4D), Color(0xFFA58BF2));
   static const ambar = TinteVera(Color(0xFF332A10), Color(0xFFE7B23E));
   static const gris = TinteVera(Color(0xFF1C2838), Color(0xFF9AA9BD));
+
+  static const _claras = <TinteVera, TinteVera>{
+    naranja: TinteVera(Color(0xFFFDEBDD), Color(0xFFA85410)),
+    azul: TinteVera(Color(0xFFE3F0FC), Color(0xFF1D5FB0)),
+    verde: TinteVera(Color(0xFFDDF4E7), Color(0xFF127040)),
+    teal: TinteVera(Color(0xFFD9F4EE), Color(0xFF0C7560)),
+    rosa: TinteVera(Color(0xFFFBE3EA), Color(0xFFB8365C)),
+    morado: TinteVera(Color(0xFFEAE5FB), Color(0xFF6044BC)),
+    ambar: TinteVera(Color(0xFFF8EDCB), Color(0xFF7F5800)),
+    gris: TinteVera(Color(0xFFE6ECF3), Color(0xFF4F5F76)),
+  };
+
+  /// Equivalente de este tinte para la paleta dada. En oscuro es él mismo.
+  TinteVera en(PaletaVera paleta) =>
+      paleta.esClara ? (_claras[this] ?? this) : this;
 }
 
 String _sinTildes(String s) => s
