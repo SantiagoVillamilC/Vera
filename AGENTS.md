@@ -1,7 +1,7 @@
 # Vera — Agent Guide
 
 Flutter mobile app — billetera digital para Colombia.
-Flutter 3.47.2, Dart SDK ^3.12, Material 3, **dark-only theme**.
+Flutter 3.47.2, Dart SDK ^3.12, Material 3, dark by default (optional light mode via `--dart-define=TEMA=claro`).
 
 ---
 
@@ -40,12 +40,13 @@ flutter test --coverage                                # LCOV coverage
 lib/
 ├── main.dart                              # ProviderScope + runApp
 ├── app/
-│   ├── app.dart                           # MaterialApp.router, dark-only
+│   ├── app.dart                           # MaterialApp.router, mode from TEMA
 │   └── router.dart                        # all GoRouter routes
 ├── core/
 │   ├── theme/
 │   │   ├── app_theme.dart                 # AppColors, AppGradients, ThemeData
-│   │   ├── theme_provider.dart            # AppThemeMode @riverpod notifier
+│   │   ├── paleta_vera.dart               # PaletaVera ThemeExtension, context.paleta
+│   │   ├── theme_provider.dart            # AppThemeMode @riverpod notifier, reads TEMA
 │   │   └── theme_provider.g.dart          # generated — do not edit
 │   └── widgets/
 │       ├── auth_background.dart           # dark scaffold with radial glow blobs
@@ -200,7 +201,7 @@ class MyNotifier extends _$MyNotifier {
 
 ### Theme
 
-The app is **dark-only**. `AppTheme.dark` is set for both `theme` and `darkTheme` in `app.dart`. Do not add light theme variants or theme toggle UI.
+The app is **dark by default**. The mode comes from `--dart-define=TEMA=claro|oscuro|sistema` (default `oscuro`), read once by `appThemeModeProvider`, which is the single source of truth for `themeMode` in `app.dart`. Colors that change with the mode go through `context.paleta` (`PaletaVera`), never through `AppColors` directly in widgets. Brand surfaces (gradient cards) keep the dark palette via `ZonaOscura`. Do not add a theme toggle UI.
 
 ---
 

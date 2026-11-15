@@ -8,7 +8,7 @@
 | Estado | `setState` en widgets. `flutter_riverpod` 2.x + `riverpod_annotation` solo para el tema |
 | Navegación | `go_router` 14.x con `MaterialApp.router` |
 | Tipografía | Fuente del sistema; `google_fonts` 6.x solo para Playfair Display (logo) |
-| Tema | Material 3, **dark-only** (`ThemeMode.dark` forzado) |
+| Tema | Material 3, oscuro por defecto. Modo claro opcional con `--dart-define=TEMA=claro` |
 | Org | `com.xisfo` |
 
 ## Comandos esenciales
@@ -44,12 +44,13 @@ flutter emulators
 lib/
 ├── main.dart                              # ProviderScope + runApp
 ├── app/
-│   ├── app.dart                           # MaterialApp.router, dark-only
+│   ├── app.dart                           # MaterialApp.router, modo según TEMA
 │   └── router.dart                        # GoRouter — todas las rutas
 ├── core/
 │   ├── theme/
 │   │   ├── app_theme.dart                 # AppColors, AppGradients, ThemeData
-│   │   ├── theme_provider.dart            # AppThemeMode notifier (@riverpod)
+│   │   ├── paleta_vera.dart               # PaletaVera (ThemeExtension) y context.paleta
+│   │   ├── theme_provider.dart            # AppThemeMode notifier (@riverpod), lee TEMA
 │   │   └── theme_provider.g.dart          # generado — no editar
 │   └── widgets/                           # componentes reutilizables globales
 │       ├── auth_background.dart           # fondo oscuro con blobs de luz
@@ -206,15 +207,20 @@ Ver `docs/conexion-backend-auth.md` y `docs/conexion-backend-nucleo.md`. Los tok
 
 ## Tema
 
-La app usa **dark-only**. `AppTheme.dark` es el único tema activo en `app.dart`:
+La app es **oscura por defecto**. El modo se elige al compilar con `--dart-define=TEMA=claro|oscuro|sistema`
+(sin bandera es `oscuro`, igual que siempre). `app.dart` lee el modo de `appThemeModeProvider`, que es la
+única fuente de verdad, y monta `AppTheme.light` y `AppTheme.dark`.
 
-```dart
-theme: AppTheme.dark,
-darkTheme: AppTheme.dark,
-themeMode: ThemeMode.dark,
+```bash
+flutter run --dart-define=TEMA=claro
 ```
 
-El `theme_provider.dart` existe para futura funcionalidad pero actualmente no se consume.
+Los colores que cambian con el modo (fondos, superficies, bordes, textos, acentos y estados) viven en
+`PaletaVera`, una `ThemeExtension` que se lee con `context.paleta`. Sin la extensión en el árbol (por
+ejemplo un `MaterialApp` pelado en una prueba) devuelve la paleta oscura. Los colores de marca (gradientes,
+tarjeta de saldo, orbe) no cambian: las superficies de marca fuerzan la paleta oscura con `ZonaOscura`.
+El contraste del modo claro (4,5 a 1 en texto y 3 a 1 en componentes) lo vigila
+`test/core/theme/contraste_paleta_test.dart`. El splash y la pantalla nativa de lanzamiento son siempre oscuros.
 
 ## Reglas de código
 
