@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vera/core/format/saludo.dart';
 import 'package:vera/core/network/session_store.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/marca_vera.dart';
 import 'package:vera/core/widgets/tarjeta_vidrio.dart';
 import 'package:vera/features/asistente/data/asistente_repository.dart';
@@ -246,8 +246,8 @@ class _PerfilTabState extends State<PerfilTab> {
                       key: const Key('biometria_switch'),
                       value: _biometriaActiva,
                       onChanged: _cambiandoBiometria ? null : _cambiarBiometria,
-                      activeThumbColor: AppColors.tintaBotonClaro,
-                      activeTrackColor: AppColors.accentGreen,
+                      activeThumbColor: context.paleta.tintaBotonClaro,
+                      activeTrackColor: context.paleta.accentGreen,
                     ),
                   ),
                 if (_consentVera?.autorizado ?? false)
@@ -270,7 +270,7 @@ class _PerfilTabState extends State<PerfilTab> {
               child: TextButton.icon(
                 onPressed: _cerrando ? null : _cerrarSesion,
                 style: TextButton.styleFrom(
-                  foregroundColor: AppColors.gradientStart,
+                  foregroundColor: context.paleta.gradientStart,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 18,
                     vertical: 12,
@@ -310,8 +310,8 @@ class _Cabecera extends StatelessWidget {
           Text(
             nombre ?? 'Mi cuenta',
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
+            style: TextStyle(
+              color: context.paleta.textPrimary,
               fontSize: 28,
               fontWeight: FontWeight.w700,
               letterSpacing: -0.5,
@@ -322,12 +322,12 @@ class _Cabecera extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.borderGlass),
+              border: Border.all(color: context.paleta.borderGlass),
             ),
             child: Text(
               etiquetaCuenta,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.paleta.textSecondary,
                 fontSize: 15,
               ),
             ),
@@ -348,8 +348,8 @@ class _EtiquetaSeccion extends StatelessWidget {
       padding: const EdgeInsets.only(left: 6, bottom: 10),
       child: Text(
         texto,
-        style: const TextStyle(
-          color: AppColors.textSecondary,
+        style: TextStyle(
+          color: context.paleta.textSecondary,
           fontSize: 14,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.6,
@@ -374,7 +374,11 @@ class _GrupoPerfil extends StatelessWidget {
           for (var i = 0; i < children.length; i++) ...[
             children[i],
             if (i < children.length - 1)
-              Divider(color: Colors.white.withAlpha(22), height: 1, indent: 44),
+              Divider(
+                color: context.paleta.velo.withAlpha(22),
+                height: 1,
+                indent: 44,
+              ),
           ],
         ],
       ),
@@ -408,7 +412,7 @@ class _FilaPerfil extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: Row(
           children: [
-            Icon(icono, color: AppColors.gradientStart, size: 24),
+            Icon(icono, color: context.paleta.gradientStart, size: 24),
             const SizedBox(width: 20),
             Expanded(
               child: Wrap(
@@ -418,8 +422,8 @@ class _FilaPerfil extends StatelessWidget {
                 children: [
                   Text(
                     etiqueta,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
+                    style: TextStyle(
+                      color: context.paleta.textPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
@@ -430,9 +434,9 @@ class _FilaPerfil extends StatelessWidget {
             if (derecha != null)
               derecha!
             else
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
-                color: AppColors.textSecondary,
+                color: context.paleta.textSecondary,
                 size: 24,
               ),
           ],

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/features/inteligencia/presentation/chip_senal.dart';
 import 'package:vera/features/home/presentation/movimiento_vista.dart'
     show montoConSigno;
@@ -95,9 +95,13 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.9,
         ),
-        decoration: const BoxDecoration(
-          color: Color(0xFF15202F),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
+        decoration: BoxDecoration(
+          color: context.paleta.esClara
+              ? context.paleta.surface
+              : const Color(0xFF15202F),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(34),
+          ),
         ),
         child: SafeArea(
           top: false,
@@ -112,16 +116,16 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
                     width: 48,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(50),
+                      color: context.paleta.velo.withAlpha(50),
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
                 ),
                 const SizedBox(height: 22),
-                const Text(
+                Text(
                   'Elige la categoría correcta',
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.paleta.textPrimary,
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.4,
@@ -129,10 +133,10 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
                 ),
                 if (sugiere) ...[
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'Vera la sugiere. Confírmala o elige otra.',
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: context.paleta.textSecondary,
                       fontSize: 14,
                     ),
                   ),
@@ -145,19 +149,19 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.accentGreen.withAlpha(24),
+                        color: context.paleta.accentGreen.withAlpha(24),
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(
-                          color: AppColors.accentGreen.withAlpha(90),
+                          color: context.paleta.accentGreen.withAlpha(90),
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.auto_awesome_rounded,
                             size: 13,
-                            color: AppColors.accentGreen,
+                            color: context.paleta.accentGreen,
                           ),
                           const SizedBox(width: 6),
                           Flexible(
@@ -165,8 +169,8 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
                               'Sugerencia: ${widget.movimiento.categoriaNombre}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: AppColors.accentGreen,
+                              style: TextStyle(
+                                color: context.paleta.accentGreen,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -184,7 +188,7 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
                     vertical: 14,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.botonOscuro,
+                    color: context.paleta.botonOscuro,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -194,8 +198,8 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
                           widget.movimiento.titulo,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.textPrimary,
+                          style: TextStyle(
+                            color: context.paleta.textPrimary,
                             fontSize: 17,
                             fontWeight: FontWeight.w600,
                           ),
@@ -204,8 +208,8 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
                       const SizedBox(width: 10),
                       Text(
                         montoConSigno(widget.movimiento.montoConSigno),
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
+                        style: TextStyle(
+                          color: context.paleta.textPrimary,
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
                         ),
@@ -236,10 +240,10 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
                   ],
                 ),
                 const SizedBox(height: 22),
-                const Text(
+                Text(
                   'Nombre que verás en este pago',
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: context.paleta.textSecondary,
                     fontSize: 16,
                   ),
                 ),
@@ -248,15 +252,15 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
                   key: const ValueKey('campo-nombre-comercio'),
                   controller: _nombre,
                   maxLength: 80,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.paleta.textPrimary,
                     fontSize: 18,
                   ),
                   decoration: InputDecoration(
                     counterText: '',
                     hintText: 'Nombre del comercio (opcional)',
-                    hintStyle: const TextStyle(
-                      color: AppColors.textMuted,
+                    hintStyle: TextStyle(
+                      color: context.paleta.textMuted,
                       fontSize: 16,
                     ),
                     filled: true,
@@ -267,17 +271,15 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(24),
-                      borderSide: const BorderSide(color: AppColors.border),
+                      borderSide: BorderSide(color: context.paleta.border),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(24),
-                      borderSide: const BorderSide(color: AppColors.border),
+                      borderSide: BorderSide(color: context.paleta.border),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(24),
-                      borderSide: const BorderSide(
-                        color: AppColors.borderFocus,
-                      ),
+                      borderSide: BorderSide(color: context.paleta.borderFocus),
                     ),
                   ),
                 ),
@@ -291,16 +293,16 @@ class _HojaDeCorreccionState extends State<HojaDeCorreccion> {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: _puedeAplicar
-                          ? AppColors.botonClaro
-                          : Colors.white.withAlpha(18),
+                          ? context.paleta.botonClaro
+                          : context.paleta.velo.withAlpha(18),
                       borderRadius: BorderRadius.circular(31),
                     ),
                     child: Text(
                       _confirmaSugerencia ? 'Confirmar categoría' : 'Aplicar',
                       style: TextStyle(
                         color: _puedeAplicar
-                            ? AppColors.tintaBotonClaro
-                            : AppColors.textMuted,
+                            ? context.paleta.tintaBotonClaro
+                            : context.paleta.textMuted,
                         fontSize: 19,
                         fontWeight: FontWeight.w700,
                       ),
@@ -341,10 +343,14 @@ class _OpcionDeCategoria extends StatelessWidget {
           vertical: 14,
         ),
         decoration: BoxDecoration(
-          color: activa ? const Color(0xFF2F7BD0) : Colors.transparent,
+          color: activa
+              ? (context.paleta.esClara
+                    ? context.paleta.accent
+                    : const Color(0xFF2F7BD0))
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: activa ? Colors.transparent : AppColors.border,
+            color: activa ? Colors.transparent : context.paleta.border,
           ),
         ),
         child: Row(
@@ -357,7 +363,9 @@ class _OpcionDeCategoria extends StatelessWidget {
             Text(
               categoria.nombre,
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: activa && context.paleta.esClara
+                    ? Colors.white
+                    : context.paleta.textPrimary,
                 fontSize: 17,
                 fontWeight: activa ? FontWeight.w700 : FontWeight.w600,
               ),

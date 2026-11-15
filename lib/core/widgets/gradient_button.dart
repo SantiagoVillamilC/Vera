@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 
 class GradientButton extends StatelessWidget {
   const GradientButton({
@@ -17,12 +18,17 @@ class GradientButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final paleta = context.paleta;
+    // En claro, el blanco no se lee sobre el gris del botón deshabilitado.
+    final tinta = onPressed == null && paleta.esClara
+        ? paleta.textMuted
+        : Colors.white;
     return Container(
       height: 58,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
         gradient: onPressed == null ? null : AppGradients.brand,
-        color: onPressed == null ? AppColors.surfaceVariant : null,
+        color: onPressed == null ? context.paleta.surfaceVariant : null,
         boxShadow: onPressed == null
             ? null
             : [
@@ -40,26 +46,26 @@ class GradientButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           child: Center(
             child: loading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
-                      color: Colors.white,
+                      color: tinta,
                     ),
                   )
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       if (icon != null) ...[
-                        Icon(icon, color: Colors.white, size: 20),
+                        Icon(icon, color: tinta, size: 20),
                         const SizedBox(width: 8),
                       ],
                       Text(
                         label,
                         style: TextStyle(
                           color: onPressed == null
-                              ? AppColors.textMuted
+                              ? context.paleta.textMuted
                               : Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,

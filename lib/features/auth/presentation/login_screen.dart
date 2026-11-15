@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/format/celular.dart';
 import 'package:vera/core/network/error_messages.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/auth_background.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
 import 'package:vera/core/widgets/password_field.dart';
@@ -91,10 +91,10 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 32),
               const Center(child: VeraAnimatedLogo()),
               const SizedBox(height: 36),
-              const Text(
+              Text(
                 'Bienvenido\nde nuevo.',
                 style: TextStyle(
-                  color: AppColors.textPrimary,
+                  color: context.paleta.textPrimary,
                   fontSize: 26,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.5,
@@ -102,9 +102,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Ingresa con tu número de celular',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
+                style: TextStyle(
+                  color: context.paleta.textSecondary,
+                  fontSize: 15,
+                ),
               ),
               const SizedBox(height: 28),
               _GlassCard(
@@ -115,8 +118,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   onFieldSubmitted: (_) => _continue(),
                   inputFormatters: const [CelularColombianoFormatter()],
                   autofocus: true,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.paleta.textPrimary,
                     fontSize: 20,
                     fontWeight: FontWeight.w500,
                     letterSpacing: 1.5,
@@ -129,8 +132,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     errorBorder: InputBorder.none,
                     focusedErrorBorder: InputBorder.none,
                     hintText: '300 000 0000',
-                    hintStyle: const TextStyle(
-                      color: AppColors.textMuted,
+                    hintStyle: TextStyle(
+                      color: context.paleta.textMuted,
                       fontSize: 20,
                       fontWeight: FontWeight.w400,
                       letterSpacing: 1.5,
@@ -139,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       horizontal: 20,
                       vertical: 20,
                     ),
-                    prefixIcon: const Padding(
+                    prefixIcon: Padding(
                       padding: EdgeInsets.only(left: 20, right: 12),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -149,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           Text(
                             '+57',
                             style: TextStyle(
-                              color: AppColors.textSecondary,
+                              color: context.paleta.textSecondary,
                               fontSize: 18,
                               fontWeight: FontWeight.w500,
                             ),
@@ -158,7 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           SizedBox(
                             height: 22,
                             child: VerticalDivider(
-                              color: AppColors.border,
+                              color: context.paleta.border,
                               width: 1,
                             ),
                           ),
@@ -187,9 +190,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: TextButton(
                   onPressed: () => context.go('/register'),
                   style: TextButton.styleFrom(
-                    foregroundColor: AppColors.textSecondary,
+                    foregroundColor: context.paleta.textSecondary,
                   ),
-                  child: const Text.rich(
+                  child: Text.rich(
                     TextSpan(
                       text: '¿No tienes cuenta? ',
                       style: TextStyle(fontSize: 15),
@@ -197,7 +200,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextSpan(
                           text: 'Regístrate',
                           style: TextStyle(
-                            color: AppColors.gradientStart,
+                            color: context.paleta.gradientStart,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -220,7 +223,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         : const Icon(Icons.visibility_outlined, size: 18),
                     label: const Text('Entrar a la demo'),
                     style: TextButton.styleFrom(
-                      foregroundColor: AppColors.gradientStart,
+                      foregroundColor: context.paleta.gradientStart,
                     ),
                   ),
                 ),
@@ -228,8 +231,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   Center(
                     child: Text(
                       _showcaseError!,
-                      style: const TextStyle(
-                        color: AppColors.error,
+                      style: TextStyle(
+                        color: context.paleta.error,
                         fontSize: 13,
                       ),
                     ),
@@ -305,9 +308,9 @@ class _PinScreenState extends State<PinScreen> {
                 children: [
                   IconButton(
                     onPressed: () => context.pop(),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.arrow_back_ios_new_rounded,
-                      color: AppColors.textSecondary,
+                      color: context.paleta.textSecondary,
                       size: 20,
                     ),
                     padding: EdgeInsets.zero,
@@ -317,10 +320,10 @@ class _PinScreenState extends State<PinScreen> {
                 ],
               ),
               const SizedBox(height: 48),
-              const Text(
+              Text(
                 'Ingresa tu contraseña',
                 style: TextStyle(
-                  color: AppColors.textPrimary,
+                  color: context.paleta.textPrimary,
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.5,
@@ -329,8 +332,8 @@ class _PinScreenState extends State<PinScreen> {
               const SizedBox(height: 8),
               Text(
                 _maskedPhone,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
+                style: TextStyle(
+                  color: context.paleta.textSecondary,
                   fontSize: 16,
                 ),
               ),
@@ -345,7 +348,7 @@ class _PinScreenState extends State<PinScreen> {
                 const SizedBox(height: 12),
                 Text(
                   _error!,
-                  style: const TextStyle(color: AppColors.error, fontSize: 14),
+                  style: TextStyle(color: context.paleta.error, fontSize: 14),
                 ),
               ],
               const SizedBox(height: 32),
@@ -361,7 +364,7 @@ class _PinScreenState extends State<PinScreen> {
                       ? null
                       : () => context.push('/login/recovery'),
                   style: TextButton.styleFrom(
-                    foregroundColor: AppColors.textSecondary,
+                    foregroundColor: context.paleta.textSecondary,
                   ),
                   child: const Text(
                     '¿Olvidaste tu contraseña?',
@@ -386,9 +389,9 @@ class _GlassCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
+        color: context.paleta.surfaceVariant,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.borderGlass, width: 1),
+        border: Border.all(color: context.paleta.borderGlass, width: 1),
       ),
       child: child,
     );

@@ -143,12 +143,13 @@ flutter test --coverage
 lib/
 ├── main.dart                              # Entry point — ProviderScope + runApp
 ├── app/
-│   ├── app.dart                           # MaterialApp.router, tema dark-only
+│   ├── app.dart                           # MaterialApp.router, modo según TEMA
 │   └── router.dart                        # GoRouter — todas las rutas
 ├── core/
 │   ├── theme/
 │   │   ├── app_theme.dart                 # AppColors, AppGradients, ThemeData
-│   │   ├── theme_provider.dart            # Notifier de ThemeMode (@riverpod)
+│   │   ├── paleta_vera.dart               # PaletaVera (ThemeExtension) y context.paleta
+│   │   ├── theme_provider.dart            # Notifier de ThemeMode (@riverpod), lee TEMA
 │   │   └── theme_provider.g.dart          # Generado — no editar
 │   └── widgets/
 │       ├── auth_background.dart           # Fondo oscuro con blobs de luz

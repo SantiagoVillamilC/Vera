@@ -4,7 +4,7 @@ import 'package:vera/core/format/fechas.dart';
 import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/core/widgets/fondo_vera.dart';
 import 'package:vera/core/widgets/tarjeta_vidrio.dart';
@@ -114,7 +114,7 @@ class _DetalleAvisoScreenState extends State<DetalleAvisoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.paleta.background,
       body: FondoVera(
         child: SafeArea(
           bottom: false,
@@ -149,24 +149,24 @@ class _DetalleAvisoScreenState extends State<DetalleAvisoScreen> {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: AppColors.botonOscuro,
+                  color: context.paleta.botonOscuro,
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.borderGlass),
+                  border: Border.all(color: context.paleta.borderGlass),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.chevron_left_rounded,
-                  color: AppColors.textPrimary,
+                  color: context.paleta.textPrimary,
                   size: 28,
                 ),
               ),
             ),
           ),
           const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
             child: Text(
               'Aviso',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.paleta.textPrimary,
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.4,
@@ -178,8 +178,8 @@ class _DetalleAvisoScreenState extends State<DetalleAvisoScreen> {
           if (aviso != null)
             Text(
               'Prioridad ${aviso.prioridad}',
-              style: const TextStyle(
-                color: AppColors.textMuted,
+              style: TextStyle(
+                color: context.paleta.textMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -218,8 +218,8 @@ class _DetalleAvisoScreenState extends State<DetalleAvisoScreen> {
             child: Text(
               'Aviso de ${_mesLargo(mesDelAviso)}',
               key: const ValueKey('aviso-de-otro-mes'),
-              style: const TextStyle(
-                color: AppColors.textMuted,
+              style: TextStyle(
+                color: context.paleta.textMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.4,
@@ -228,8 +228,8 @@ class _DetalleAvisoScreenState extends State<DetalleAvisoScreen> {
           ),
         Text(
           aviso.titulo,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
+          style: TextStyle(
+            color: context.paleta.textPrimary,
             fontSize: 24,
             fontWeight: FontWeight.w700,
             height: 1.25,
@@ -239,8 +239,8 @@ class _DetalleAvisoScreenState extends State<DetalleAvisoScreen> {
         const SizedBox(height: 10),
         Text(
           aviso.texto,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
+          style: TextStyle(
+            color: context.paleta.textSecondary,
             fontSize: 16,
             height: 1.5,
           ),
@@ -254,10 +254,10 @@ class _DetalleAvisoScreenState extends State<DetalleAvisoScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'POR QUÉ',
                   style: TextStyle(
-                    color: AppColors.textMuted,
+                    color: context.paleta.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.6,
@@ -267,8 +267,8 @@ class _DetalleAvisoScreenState extends State<DetalleAvisoScreen> {
                 Text(
                   aviso.porque,
                   key: const ValueKey('porque-aviso'),
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: context.paleta.textSecondary,
                     fontSize: 14,
                     height: 1.45,
                   ),
@@ -316,8 +316,8 @@ class _DetalleAvisoScreenState extends State<DetalleAvisoScreen> {
               key: const ValueKey('accion-principal'),
               onPressed: () => context.push(destino.ruta),
               style: TextButton.styleFrom(
-                foregroundColor: AppColors.tintaBotonClaro,
-                backgroundColor: AppColors.botonClaro,
+                foregroundColor: context.paleta.tintaBotonClaro,
+                backgroundColor: context.paleta.botonClaro,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18),
@@ -339,7 +339,7 @@ class _DetalleAvisoScreenState extends State<DetalleAvisoScreen> {
             key: const ValueKey('descartar-detalle'),
             onPressed: _descartando ? null : () => _descartar(aviso),
             style: TextButton.styleFrom(
-              foregroundColor: AppColors.textSecondary,
+              foregroundColor: context.paleta.textSecondary,
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
             child: const Text(
@@ -378,20 +378,16 @@ class _Cifra extends StatelessWidget {
   final String rotulo;
   final String valor;
 
-  static const _estiloRotulo = TextStyle(
-    color: AppColors.textSecondary,
-    fontSize: 14,
-  );
-
-  static const _estiloValor = TextStyle(
-    color: AppColors.textPrimary,
-    fontSize: 16,
-    fontWeight: FontWeight.w700,
-  );
-
   @override
   Widget build(BuildContext context) {
-    final rotuloTexto = Text(rotulo, style: _estiloRotulo);
+    final paleta = context.paleta;
+    final estiloRotulo = TextStyle(color: paleta.textSecondary, fontSize: 14);
+    final estiloValor = TextStyle(
+      color: paleta.textPrimary,
+      fontSize: 16,
+      fontWeight: FontWeight.w700,
+    );
+    final rotuloTexto = Text(rotulo, style: estiloRotulo);
 
     // Con la letra del sistema al máximo un peso como «$139.900» ocupa casi
     // todo el ancho y no deja sitio al rótulo. En vez de recortar la cifra,
@@ -400,7 +396,7 @@ class _Cifra extends StatelessWidget {
       builder: (context, restricciones) {
         final escala = MediaQuery.textScalerOf(context);
         final pintor = TextPainter(
-          text: TextSpan(text: valor, style: _estiloValor),
+          text: TextSpan(text: valor, style: estiloValor),
           textScaler: escala,
           textDirection: Directionality.of(context),
         )..layout();
@@ -413,7 +409,7 @@ class _Cifra extends StatelessWidget {
             children: [
               Expanded(child: rotuloTexto),
               const SizedBox(width: 12),
-              Text(valor, textAlign: TextAlign.right, style: _estiloValor),
+              Text(valor, textAlign: TextAlign.right, style: estiloValor),
             ],
           );
         }
@@ -423,7 +419,7 @@ class _Cifra extends StatelessWidget {
           children: [
             rotuloTexto,
             const SizedBox(height: 2),
-            Text(valor, style: _estiloValor),
+            Text(valor, style: estiloValor),
           ],
         );
       },

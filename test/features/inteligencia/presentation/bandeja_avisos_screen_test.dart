@@ -141,6 +141,7 @@ Future<void> _pump(
   Size tamano = const Size(900, 1800),
   double escala = 1,
   bool fuenteReal = false,
+  bool mostrarCupo = false,
 }) async {
   if (fuenteReal) await cargarRoboto();
   tester.view.physicalSize = tamano;
@@ -155,7 +156,11 @@ Future<void> _pump(
         ).copyWith(textScaler: TextScaler.linear(escala)),
         child: child!,
       ),
-      home: BandejaAvisosScreen(repository: repo, ahora: _ahora),
+      home: BandejaAvisosScreen(
+        repository: repo,
+        ahora: _ahora,
+        mostrarCupo: mostrarCupo,
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -365,6 +370,7 @@ void main() {
         enCurso: [_presupuesto()],
         resumen: _resumen(emitidos: 5, cupo: 5),
       ),
+      mostrarCupo: true,
     );
 
     expect(find.byKey(const ValueKey('indicador-cupo')), findsOneWidget);
@@ -380,6 +386,7 @@ void main() {
         enCurso: [_presupuesto()],
         resumen: _resumen(emitidos: 2, cupo: 5),
       ),
+      mostrarCupo: true,
     );
 
     expect(find.text('2 de 5'), findsOneWidget);
@@ -392,6 +399,42 @@ void main() {
     await _pump(
       tester,
       _repo(enCurso: [_presupuesto()], resumen: _resumen()),
+      mostrarCupo: true,
+    );
+
+    expect(find.byKey(const ValueKey('indicador-cupo')), findsNothing);
+    expect(find.byKey(const ValueKey('cupo-lleno')), findsNothing);
+  });
+
+  testWidgets('por defecto no se dibuja el cupo aunque el servidor lo llene', (
+    tester,
+  ) async {
+    final aviso = _presupuesto();
+    final repo = _repo(
+      enCurso: [aviso],
+      resumen: _resumen(emitidos: 5, cupo: 5),
+    );
+    await _pump(tester, repo);
+
+    expect(find.byKey(const ValueKey('indicador-cupo')), findsNothing);
+    expect(find.byKey(const ValueKey('cupo-lleno')), findsNothing);
+    expect(find.text('5 de 5'), findsNothing);
+    // El cupo se sigue leyendo: solo deja de mostrarse.
+    expect(repo.resumenCalls, greaterThan(0));
+    // La lista de avisos no cambia.
+    expect(find.byKey(ValueKey('aviso-${aviso.id}')), findsOneWidget);
+  });
+
+  testWidgets('el parámetro apagado gana aunque el cupo esté lleno', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _repo(
+        enCurso: [_pagoNoAlcanza()],
+        resumen: _resumen(emitidos: 3, cupo: 3),
+      ),
+      mostrarCupo: false,
     );
 
     expect(find.byKey(const ValueKey('indicador-cupo')), findsNothing);
@@ -548,6 +591,7 @@ void main() {
             tamano: Size(ancho, 640),
             escala: 2,
             fuenteReal: true,
+            mostrarCupo: true,
           );
 
           expect(find.byKey(const Key('cupo-lleno')), findsOneWidget);

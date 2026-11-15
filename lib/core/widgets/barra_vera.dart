@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/marca_vera.dart';
 
 /// Barra de navegación flotante de VeraDark: cuatro destinos y el orbe de Vera al centro.
@@ -41,9 +41,9 @@ class BarraVera extends StatelessWidget {
               height: 68,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
-                color: AppColors.barra.withAlpha(235),
+                color: context.paleta.barra.withAlpha(235),
                 borderRadius: BorderRadius.circular(34),
-                border: Border.all(color: AppColors.borderGlass),
+                border: Border.all(color: context.paleta.borderGlass),
               ),
               child: LayoutBuilder(
                 builder: (context, c) {
@@ -51,8 +51,8 @@ class BarraVera extends StatelessWidget {
                   return Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _item(_destinos[0], conEtiqueta),
-                      _item(_destinos[1], conEtiqueta),
+                      _item(context, _destinos[0], conEtiqueta),
+                      _item(context, _destinos[1], conEtiqueta),
                       // El orbe vive en la fila: queda siempre entre dos destinos, aunque la
                       // píldora activa se ensanche y mueva a los demás.
                       SizedBox(
@@ -66,8 +66,8 @@ class BarraVera extends StatelessWidget {
                           ),
                         ),
                       ),
-                      _item(_destinos[2], conEtiqueta),
-                      _item(_destinos[3], conEtiqueta),
+                      _item(context, _destinos[2], conEtiqueta),
+                      _item(context, _destinos[3], conEtiqueta),
                     ],
                   );
                 },
@@ -79,7 +79,11 @@ class BarraVera extends StatelessWidget {
     );
   }
 
-  Widget _item((int, IconData, String, Key) d, bool conEtiqueta) {
+  Widget _item(
+    BuildContext context,
+    (int, IconData, String, Key) d,
+    bool conEtiqueta,
+  ) {
     final (i, icono, etiqueta, llave) = d;
     final activo = indice == i;
     const duracion = Duration(milliseconds: 340);
@@ -100,11 +104,11 @@ class BarraVera extends StatelessWidget {
           height: 52,
           padding: EdgeInsets.symmetric(horizontal: activo ? 14 : 8),
           decoration: BoxDecoration(
-            color: activo ? AppColors.botonClaro : Colors.transparent,
+            color: activo ? context.paleta.botonClaro : Colors.transparent,
             borderRadius: BorderRadius.circular(26),
             boxShadow: [
               BoxShadow(
-                color: AppColors.botonClaro.withAlpha(activo ? 60 : 0),
+                color: context.paleta.botonClaro.withAlpha(activo ? 60 : 0),
                 blurRadius: 16,
               ),
             ],
@@ -120,8 +124,8 @@ class BarraVera extends StatelessWidget {
                   icono,
                   size: 24,
                   color: activo
-                      ? AppColors.tintaBotonClaro
-                      : AppColors.textSecondary,
+                      ? context.paleta.tintaBotonClaro
+                      : context.paleta.textSecondary,
                 ),
               ),
               // El nombre se despliega hacia la derecha mientras se desvanece hacia adentro. El
@@ -148,8 +152,8 @@ class BarraVera extends StatelessWidget {
                   child: Text(
                     etiqueta,
                     maxLines: 1,
-                    style: const TextStyle(
-                      color: AppColors.tintaBotonClaro,
+                    style: TextStyle(
+                      color: context.paleta.tintaBotonClaro,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),

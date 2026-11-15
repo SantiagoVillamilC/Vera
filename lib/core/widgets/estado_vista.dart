@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/cargando_vera.dart';
 
 const mensajeSinRed = 'Sin conexión. Revisa tu internet e intenta de nuevo.';
@@ -65,7 +65,7 @@ class EstadoVista extends StatelessWidget {
         return Center(
           child: Text(
             mensaje!,
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 15),
+            style: TextStyle(color: context.paleta.textMuted, fontSize: 15),
           ),
         );
       case _Tipo.sinRed:
@@ -80,24 +80,24 @@ class EstadoVista extends StatelessWidget {
                   _tipo == _Tipo.sinRed
                       ? Icons.cloud_off_rounded
                       : Icons.error_outline_rounded,
-                  color: AppColors.textMuted,
+                  color: context.paleta.textMuted,
                   size: 44,
                 ),
                 const SizedBox(height: 12),
                 Text(
                   mensaje!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
+                  style: TextStyle(
+                    color: context.paleta.textMuted,
                     fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: onReintentar,
-                  child: const Text(
+                  child: Text(
                     'Reintentar',
-                    style: TextStyle(color: AppColors.gradientStart),
+                    style: TextStyle(color: context.paleta.gradientStart),
                   ),
                 ),
               ],

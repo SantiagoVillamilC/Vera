@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vera/core/network/error_messages.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/auth_background.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
@@ -71,29 +71,32 @@ class _DesbloqueoScreenState extends State<DesbloqueoScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Spacer(),
-            const Center(child: VeraLogo(size: 44)),
+            Center(child: VeraLogo(size: 44)),
             const SizedBox(height: 28),
-            const Text(
+            Text(
               'Desbloquea tu billetera',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.paleta.textPrimary,
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Usa tu huella o tu rostro para entrar.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
+              style: TextStyle(
+                color: context.paleta.textSecondary,
+                fontSize: 15,
+              ),
             ),
             if (_mensaje != null) ...[
               const SizedBox(height: 20),
               Text(
                 _mensaje!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.error, fontSize: 14),
+                style: TextStyle(color: context.paleta.error, fontSize: 14),
               ),
             ],
             const Spacer(),
@@ -108,9 +111,9 @@ class _DesbloqueoScreenState extends State<DesbloqueoScreen> {
               onPressed: _cargando
                   ? null
                   : _repository.abandonarSesionBloqueada,
-              child: const Text(
+              child: Text(
                 'Iniciar sesión con contraseña',
-                style: TextStyle(color: AppColors.textSecondary),
+                style: TextStyle(color: context.paleta.textSecondary),
               ),
             ),
             const SizedBox(height: 24),

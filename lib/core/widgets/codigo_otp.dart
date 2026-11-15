@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/pin_pad.dart';
 
 /// Captura de un código numérico (por defecto 6 dígitos) con teclado propio y reenvío
@@ -98,14 +98,14 @@ class CodigoOtpState extends State<CodigoOtp> {
         if (_restantes > 0)
           Text(
             'Reenviar código en ${_restantes}s',
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+            style: TextStyle(color: context.paleta.textMuted, fontSize: 14),
           )
         else
           TextButton(
             key: const Key('reenviar_codigo'),
             onPressed: _reenviando ? null : _reenviar,
             style: TextButton.styleFrom(
-              foregroundColor: AppColors.gradientStart,
+              foregroundColor: context.paleta.gradientStart,
             ),
             child: const Text(
               'Reenviar código',
