@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 
 /// Texto único de la marca, para que la vista y sus pruebas no se separen.
 const rotuloDatosDeMuestra = 'Datos de muestra';
@@ -27,16 +27,16 @@ class InsigniaMuestra extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
           decoration: BoxDecoration(
-            color: AppColors.surfaceVariant,
+            color: context.paleta.surfaceVariant,
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.paleta.border),
           ),
           child: Text(
             compacta ? 'Muestra' : rotuloDatosDeMuestra,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: context.paleta.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.4,
@@ -63,11 +63,11 @@ class AvisoMuestra extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 2),
             child: Icon(
               Icons.info_outline_rounded,
-              color: AppColors.textMuted,
+              color: context.paleta.textMuted,
               size: 14,
             ),
           ),
@@ -75,8 +75,8 @@ class AvisoMuestra extends StatelessWidget {
           Expanded(
             child: Text(
               '$rotuloDatosDeMuestra: $detalle',
-              style: const TextStyle(
-                color: AppColors.textMuted,
+              style: TextStyle(
+                color: context.paleta.textMuted,
                 fontSize: 12,
                 height: 1.3,
               ),

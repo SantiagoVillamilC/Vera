@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/features/inteligencia/data/modelos.dart';
 
 /// Chip que nombra la señal de la cascada que decidió la categoría.
@@ -20,17 +20,17 @@ class ChipSenal extends StatelessWidget {
     final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
+        color: context.paleta.surfaceVariant,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.paleta.border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.account_tree_outlined,
             size: 12,
-            color: AppColors.textSecondary,
+            color: context.paleta.textSecondary,
           ),
           const SizedBox(width: 5),
           Flexible(
@@ -38,8 +38,8 @@ class ChipSenal extends StatelessWidget {
               senal.chip,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.paleta.textSecondary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -77,7 +77,7 @@ Future<void> mostrarExplicacionDeSenal(
 ) {
   return showModalBottomSheet<void>(
     context: context,
-    backgroundColor: AppColors.surface,
+    backgroundColor: context.paleta.surface,
     showDragHandle: true,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
@@ -98,8 +98,8 @@ Future<void> mostrarExplicacionDeSenal(
             Text(
               senal.chip,
               key: const ValueKey('explicacion-titulo'),
-              style: const TextStyle(
-                color: AppColors.textPrimary,
+              style: TextStyle(
+                color: context.paleta.textPrimary,
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.3,
@@ -109,8 +109,8 @@ Future<void> mostrarExplicacionDeSenal(
             Text(
               senal.explicacion,
               key: const ValueKey('explicacion-texto'),
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.paleta.textSecondary,
                 fontSize: 15,
                 height: 1.45,
               ),

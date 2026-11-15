@@ -7,6 +7,8 @@ import 'package:vera/core/format/saludo.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
+import 'package:vera/core/theme/tintes.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/core/widgets/barra_vera.dart';
 import 'package:vera/core/widgets/cargando_vera.dart';
@@ -225,7 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      backgroundColor: AppColors.background,
+      backgroundColor: context.paleta.background,
       body: FondoVera(child: _body),
       bottomNavigationBar: BarraVera(
         indice: _tab,
@@ -281,8 +283,8 @@ class _InicioTab extends StatelessWidget {
       bottom: false,
       child: RefreshIndicator(
         onRefresh: onRefrescar,
-        color: AppColors.gradientStart,
-        backgroundColor: AppColors.surface,
+        color: context.paleta.gradientStart,
+        backgroundColor: context.paleta.surface,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 140),
@@ -355,8 +357,8 @@ class _Saludo extends StatelessWidget {
             children: [
               Text(
                 saludoDeLaHora(DateTime.now()),
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
+                style: TextStyle(
+                  color: context.paleta.textSecondary,
                   fontSize: 15,
                 ),
               ),
@@ -364,8 +366,8 @@ class _Saludo extends StatelessWidget {
                 nombre ?? saludoGenerico,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: context.paleta.textPrimary,
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.3,
@@ -403,23 +405,23 @@ class _ContadorDeAvisos extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: AppColors.botonOscuro,
+            color: context.paleta.botonOscuro,
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: AppColors.borderGlass),
+            border: Border.all(color: context.paleta.borderGlass),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.lightbulb_outline_rounded,
                 size: 15,
-                color: AppColors.gradientStart,
+                color: context.paleta.gradientStart,
               ),
               const SizedBox(width: 6),
               Text(
                 'Avisos · $cantidad',
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: context.paleta.textPrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
@@ -590,7 +592,7 @@ class _BotonAccion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tinta = claro ? AppColors.tintaBotonClaro : Colors.white;
+    final tinta = claro ? context.paleta.tintaBotonClaro : Colors.white;
     return GestureDetector(
       onTap: alTocar,
       behavior: HitTestBehavior.opaque,
@@ -598,7 +600,7 @@ class _BotonAccion extends StatelessWidget {
         height: 52,
         padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
-          color: claro ? AppColors.botonClaro : AppColors.botonOscuro,
+          color: claro ? context.paleta.botonClaro : context.paleta.botonOscuro,
           borderRadius: BorderRadius.circular(26),
         ),
         child: FittedBox(
@@ -651,8 +653,8 @@ class _BotonRedondo extends StatelessWidget {
           child: Container(
             width: 48,
             height: 48,
-            decoration: const BoxDecoration(
-              color: AppColors.botonOscuro,
+            decoration: BoxDecoration(
+              color: context.paleta.botonOscuro,
               shape: BoxShape.circle,
             ),
             child: Icon(icono, color: Colors.white, size: 21),
@@ -723,6 +725,7 @@ class _AccesosCardState extends State<_AccesosCard>
             descripcion: 'Movimientos con categoría',
             icono: Icons.sell_outlined,
             disco: const Color(0xFF243E5E),
+            tinteClaro: TinteVera.azul,
             punto: (Alignment.topRight, const Color(0xFFCDEFE0)),
             entrada: _entrada,
             reposo: _reposo,
@@ -738,6 +741,7 @@ class _AccesosCardState extends State<_AccesosCard>
             descripcion: 'Estadísticas',
             icono: Icons.bar_chart_rounded,
             disco: const Color(0xFF2B2455),
+            tinteClaro: TinteVera.morado,
             punto: (Alignment.bottomRight, const Color(0xFFC3C0F0)),
             entrada: _entrada,
             reposo: _reposo,
@@ -753,6 +757,7 @@ class _AccesosCardState extends State<_AccesosCard>
             descripcion: 'Historial de Vera',
             icono: Icons.forum_outlined,
             disco: const Color(0xFF4A3322),
+            tinteClaro: TinteVera.naranja,
             punto: (Alignment.topLeft, const Color(0xFFCDEFE0)),
             entrada: _entrada,
             reposo: _reposo,
@@ -777,6 +782,7 @@ class _TeselaAcceso extends StatefulWidget {
     required this.descripcion,
     required this.icono,
     required this.disco,
+    required this.tinteClaro,
     required this.punto,
     required this.entrada,
     required this.reposo,
@@ -791,6 +797,9 @@ class _TeselaAcceso extends StatefulWidget {
   final String descripcion;
   final IconData icono;
   final Color disco;
+
+  /// Tinte del disco en el modo claro.
+  final TinteVera tinteClaro;
   final (Alignment, Color) punto;
 
   /// Animación de entrada compartida por las tres teselas; [orden] decide cuándo arranca cada una.
@@ -863,6 +872,12 @@ class _TeselaAccesoState extends State<_TeselaAcceso>
   }
 
   Widget _tesela(Alignment lugar, Color colorPunto) {
+    final paleta = context.paleta;
+    final claro = paleta.esClara;
+    final tinte = widget.tinteClaro.en(paleta);
+    final disco = claro ? tinte.fondo : widget.disco;
+    final tintaIcono = claro ? tinte.tinta : const Color(0xFFEAF2FF);
+    final punto = claro ? tinte.tinta.withAlpha(110) : colorPunto;
     return Semantics(
       button: true,
       label: widget.descripcion,
@@ -894,17 +909,17 @@ class _TeselaAccesoState extends State<_TeselaAcceso>
                 duration: const Duration(milliseconds: 160),
                 padding: const EdgeInsets.fromLTRB(6, 16, 6, 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF18212E),
+                  color: claro ? paleta.surface : const Color(0xFF18212E),
                   borderRadius: BorderRadius.circular(30),
                   border: Border.all(
                     color: _presionada
-                        ? widget.disco.withAlpha(255)
-                        : const Color(0xFF28364A),
+                        ? disco.withAlpha(255)
+                        : (claro ? paleta.border : const Color(0xFF28364A)),
                     width: 1.5,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: widget.disco.withAlpha(_presionada ? 170 : 0),
+                      color: disco.withAlpha(_presionada ? 170 : 0),
                       blurRadius: 22,
                     ),
                   ],
@@ -926,7 +941,7 @@ class _TeselaAccesoState extends State<_TeselaAcceso>
                                 width: 54,
                                 height: 54,
                                 decoration: BoxDecoration(
-                                  color: widget.disco,
+                                  color: disco,
                                   shape: BoxShape.circle,
                                 ),
                                 child: AnimatedBuilder(
@@ -941,7 +956,7 @@ class _TeselaAccesoState extends State<_TeselaAcceso>
                                   ),
                                   child: Icon(
                                     widget.icono,
-                                    color: const Color(0xFFEAF2FF),
+                                    color: tintaIcono,
                                     size: 27,
                                   ),
                                 ),
@@ -959,7 +974,7 @@ class _TeselaAccesoState extends State<_TeselaAcceso>
                                   width: 15,
                                   height: 15,
                                   decoration: BoxDecoration(
-                                    color: colorPunto,
+                                    color: punto,
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -977,8 +992,10 @@ class _TeselaAccesoState extends State<_TeselaAcceso>
                         child: Text(
                           widget.etiqueta,
                           maxLines: 1,
-                          style: const TextStyle(
-                            color: Color(0xFFEAF2FF),
+                          style: TextStyle(
+                            color: claro
+                                ? paleta.textPrimary
+                                : const Color(0xFFEAF2FF),
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1069,22 +1086,22 @@ class _AvisoRecargaPendiente extends StatelessWidget {
             Container(
               width: 46,
               height: 46,
-              decoration: const BoxDecoration(
-                color: Color(0xFF16304B),
+              decoration: BoxDecoration(
+                color: TinteVera.azul.en(context.paleta).fondo,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.schedule_rounded,
-                color: AppColors.gradientStart,
+                color: context.paleta.gradientStart,
                 size: 22,
               ),
             ),
             const SizedBox(width: 14),
-            const Expanded(
+            Expanded(
               child: Text(
                 'Tienes una recarga pendiente',
                 style: TextStyle(
-                  color: AppColors.textPrimary,
+                  color: context.paleta.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   height: 1.25,
@@ -1092,10 +1109,10 @@ class _AvisoRecargaPendiente extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            const Text(
+            Text(
               'Ver estado',
               style: TextStyle(
-                color: AppColors.gradientStart,
+                color: context.paleta.gradientStart,
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),
@@ -1130,10 +1147,10 @@ class _BloqueBajoMonto extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Depósito de bajo monto',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.paleta.textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
@@ -1172,15 +1189,18 @@ class _BloqueBajoMonto extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: usado,
                     minHeight: 6,
-                    color: AppColors.gradientStart,
-                    backgroundColor: AppColors.surfaceVariant,
+                    color: context.paleta.gradientStart,
+                    backgroundColor: context.paleta.surfaceVariant,
                   ),
                 ),
               ],
             ] else
-              const Text(
+              Text(
                 'Tu cupo mensual aún no está disponible.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                style: TextStyle(
+                  color: context.paleta.textSecondary,
+                  fontSize: 14,
+                ),
               ),
           ],
         ),
@@ -1209,13 +1229,13 @@ class _CifraLimite extends StatelessWidget {
       children: [
         Text(
           etiqueta,
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          style: TextStyle(color: context.paleta.textSecondary, fontSize: 13),
         ),
         const SizedBox(height: 2),
         Text(
           valor,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
+          style: TextStyle(
+            color: context.paleta.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.w700,
           ),
@@ -1255,7 +1275,7 @@ class _MovimientosSection extends StatelessWidget {
               width: 44,
               height: 5,
               decoration: BoxDecoration(
-                color: Colors.white.withAlpha(40),
+                color: context.paleta.velo.withAlpha(40),
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
@@ -1264,13 +1284,13 @@ class _MovimientosSection extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Movimientos recientes',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.paleta.textPrimary,
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.3,
@@ -1280,7 +1300,7 @@ class _MovimientosSection extends StatelessWidget {
               TextButton(
                 onPressed: onVerTodos,
                 style: TextButton.styleFrom(
-                  foregroundColor: AppColors.gradientStart,
+                  foregroundColor: context.paleta.gradientStart,
                   padding: EdgeInsets.zero,
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1316,13 +1336,13 @@ class _MovimientosSection extends StatelessWidget {
                 offset: offsetLocal,
               );
               if (filas.isEmpty) {
-                return const Padding(
+                return Padding(
                   padding: EdgeInsets.all(24),
                   child: Center(
                     child: Text(
                       'Sin movimientos aún',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: context.paleta.textSecondary,
                         fontSize: 14,
                       ),
                     ),

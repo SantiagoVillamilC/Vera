@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 
 class AuthBackground extends StatelessWidget {
   const AuthBackground({super.key, required this.child});
@@ -8,15 +9,21 @@ class AuthBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final paleta = context.paleta;
+    // Los destellos de luz se atenúan en claro para no ensuciar el fondo.
+    final k = paleta.esClara ? 0.5 : 1.0;
+    final segundo = paleta.esClara
+        ? AppColors.gradientMid
+        : AppColors.gradientEnd;
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(child: Container(color: AppColors.background)),
+          Positioned.fill(child: Container(color: paleta.background)),
           Positioned(
             top: -180,
             right: -120,
             child: _GlowBlob(
-              color: AppColors.gradientStart.withAlpha(55),
+              color: paleta.gradientStart.withAlpha((55 * k).round()),
               size: 420,
             ),
           ),
@@ -24,14 +31,17 @@ class AuthBackground extends StatelessWidget {
             top: 200,
             left: -100,
             child: _GlowBlob(
-              color: AppColors.gradientEnd.withAlpha(35),
+              color: segundo.withAlpha((35 * k).round()),
               size: 300,
             ),
           ),
           Positioned(
             bottom: -140,
             right: -60,
-            child: _GlowBlob(color: AppColors.accent.withAlpha(20), size: 320),
+            child: _GlowBlob(
+              color: paleta.accent.withAlpha((20 * k).round()),
+              size: 320,
+            ),
           ),
           SafeArea(child: child),
         ],
@@ -47,12 +57,17 @@ class _GlowBlob extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // En claro el degradado se apaga en el mismo tono: hacia negro transparente
+    // dejaría un halo gris sobre el fondo blanco.
+    final fin = context.paleta.esClara
+        ? color.withAlpha(0)
+        : Colors.transparent;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(colors: [color, Colors.transparent]),
+        gradient: RadialGradient(colors: [color, fin]),
       ),
     );
   }

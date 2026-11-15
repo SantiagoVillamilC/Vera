@@ -10,6 +10,7 @@ import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/marca_vera.dart';
 import 'package:vera/features/asistente/data/asistente_mensajes.dart';
 import 'package:vera/features/asistente/data/asistente_repository.dart';
@@ -541,14 +542,14 @@ class _AsistenteScreenState extends State<AsistenteScreen>
   Future<bool?> _explicarMicrofono() => showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      backgroundColor: AppColors.surface,
-      title: const Text(
+      backgroundColor: context.paleta.surface,
+      title: Text(
         'Vera necesita el micrófono',
-        style: TextStyle(color: AppColors.textPrimary),
+        style: TextStyle(color: context.paleta.textPrimary),
       ),
-      content: const Text(
+      content: Text(
         'Lo usa solo mientras grabas, para escuchar tu pregunta. El audio no queda guardado en tu teléfono.',
-        style: TextStyle(color: AppColors.textSecondary),
+        style: TextStyle(color: context.paleta.textSecondary),
       ),
       actions: [
         TextButton(
@@ -610,7 +611,7 @@ class _AsistenteScreenState extends State<AsistenteScreen>
   Widget build(BuildContext context) {
     final chat = _chatDisponible;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.paleta.background,
       body: Stack(
         children: [
           Positioned.fill(child: FondoAsistente(intenso: _grabando)),
@@ -661,17 +662,17 @@ class _AsistenteScreenState extends State<AsistenteScreen>
                 decoration: BoxDecoration(
                   color: Colors.white.withAlpha(30),
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.borderGlass),
+                  border: Border.all(color: context.paleta.borderGlass),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.close_rounded,
-                  color: AppColors.textPrimary,
+                  color: context.paleta.textPrimary,
                   size: 22,
                 ),
               ),
             ),
           ),
-          const Expanded(
+          Expanded(
             child: Center(
               // En pantallas angostas el nombre se encoge antes que desbordar.
               child: FittedBox(
@@ -684,7 +685,7 @@ class _AsistenteScreenState extends State<AsistenteScreen>
                     Text(
                       'Vera',
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: context.paleta.textPrimary,
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                       ),
@@ -761,9 +762,9 @@ class _AsistenteScreenState extends State<AsistenteScreen>
         avatar: const Icon(Icons.stop_rounded, size: 18),
         label: const Text('Leyendo… Toca para detener'),
         onPressed: _detenerLectura,
-        backgroundColor: AppColors.surfaceVariant,
-        labelStyle: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-        side: const BorderSide(color: AppColors.border),
+        backgroundColor: context.paleta.surfaceVariant,
+        labelStyle: TextStyle(color: context.paleta.textPrimary, fontSize: 13),
+        side: BorderSide(color: context.paleta.border),
       ),
     ),
   );
@@ -771,9 +772,9 @@ class _AsistenteScreenState extends State<AsistenteScreen>
   /// Lo que se ve mientras no hay consentimiento vigente: nada del chat ni de sus envíos.
   Widget _antesDelChat() {
     if (_consultandoConsent) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(
-          color: AppColors.gradientStart,
+          color: context.paleta.gradientStart,
           strokeWidth: 2.5,
         ),
       );
@@ -799,9 +800,9 @@ class _AsistenteScreenState extends State<AsistenteScreen>
 
   Widget _lista() {
     if (_cargandoHistorial) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(
-          color: AppColors.gradientStart,
+          color: context.paleta.gradientStart,
           strokeWidth: 2.5,
         ),
       );
@@ -843,19 +844,19 @@ class _AsistenteScreenState extends State<AsistenteScreen>
                   nombre == null ? 'Hola.' : 'Hola, $nombre.',
                   key: const Key('saludo_vera'),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.paleta.textPrimary,
                     fontSize: 26,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.5,
                     height: 1.15,
                   ),
                 ),
-                const Text(
+                Text(
                   '¿En qué te ayudo hoy?',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.paleta.textPrimary,
                     fontSize: 26,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.5,
@@ -863,10 +864,10 @@ class _AsistenteScreenState extends State<AsistenteScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Háblame o escríbeme.',
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: context.paleta.textSecondary,
                     fontSize: 15,
                   ),
                 ),
@@ -897,12 +898,12 @@ class _AsistenteScreenState extends State<AsistenteScreen>
               label: Text(texto),
               onPressed: _chatDisponible ? () => _enviarTexto(texto) : null,
               backgroundColor: Colors.white.withAlpha(28),
-              labelStyle: const TextStyle(
-                color: AppColors.textPrimary,
+              labelStyle: TextStyle(
+                color: context.paleta.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
-              side: const BorderSide(color: AppColors.borderGlass),
+              side: BorderSide(color: context.paleta.borderGlass),
               shape: const StadiumBorder(),
             ),
           );
@@ -973,16 +974,16 @@ class _AsistenteScreenState extends State<AsistenteScreen>
                   child: Container(
                     width: 82,
                     height: 82,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.botonOscuro,
+                      color: context.paleta.botonOscuro,
                     ),
                     child: Icon(
                       Icons.mic_rounded,
                       size: 34,
                       color: _enviando
-                          ? AppColors.textMuted
-                          : AppColors.gradientStart,
+                          ? context.paleta.textMuted
+                          : context.paleta.gradientStart,
                     ),
                   ),
                 ),
@@ -1006,11 +1007,11 @@ class _AsistenteScreenState extends State<AsistenteScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: Colors.white.withAlpha(30),
-                    border: Border.all(color: AppColors.borderGlass),
+                    border: Border.all(color: context.paleta.borderGlass),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.keyboard_alt_outlined,
-                    color: AppColors.textPrimary,
+                    color: context.paleta.textPrimary,
                     size: 22,
                   ),
                 ),
@@ -1027,13 +1028,13 @@ class _AsistenteScreenState extends State<AsistenteScreen>
   Widget _avisoSinVerificar(Object error) {
     return Row(
       children: [
-        const Icon(Icons.cloud_off_rounded, color: AppColors.textSecondary),
+        Icon(Icons.cloud_off_rounded, color: context.paleta.textSecondary),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
             mensajeDeError(error),
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: context.paleta.textSecondary,
               fontSize: 14,
               height: 1.3,
             ),
@@ -1060,7 +1061,7 @@ class _AsistenteScreenState extends State<AsistenteScreen>
             minLines: 1,
             maxLines: 4,
             textCapitalization: TextCapitalization.sentences,
-            style: const TextStyle(color: AppColors.textPrimary),
+            style: TextStyle(color: context.paleta.textPrimary),
             decoration: const InputDecoration(
               hintText: 'Escribe a Vera',
               counterText: '',
@@ -1093,18 +1094,18 @@ class _AsistenteScreenState extends State<AsistenteScreen>
       children: [
         IconButton(
           tooltip: 'Descartar',
-          icon: const Icon(
+          icon: Icon(
             Icons.delete_outline_rounded,
-            color: AppColors.textSecondary,
+            color: context.paleta.textSecondary,
           ),
           onPressed: _cancelarGrabacion,
         ),
-        const Icon(Icons.fiber_manual_record, color: AppColors.error, size: 14),
+        Icon(Icons.fiber_manual_record, color: context.paleta.error, size: 14),
         const SizedBox(width: 8),
         Text(
           mmss(_tiempoGrabado),
-          style: const TextStyle(
-            color: AppColors.textPrimary,
+          style: TextStyle(
+            color: context.paleta.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -1117,8 +1118,8 @@ class _AsistenteScreenState extends State<AsistenteScreen>
                 : 'Grabando…',
             style: TextStyle(
               color: restante.inSeconds <= 10
-                  ? AppColors.warning
-                  : AppColors.textSecondary,
+                  ? context.paleta.warning
+                  : context.paleta.textSecondary,
               fontSize: 13,
             ),
           ),
@@ -1155,10 +1156,16 @@ class _BotonRedondo extends StatelessWidget {
           height: 48,
           decoration: BoxDecoration(
             gradient: onTap == null ? null : AppGradients.brand,
-            color: onTap == null ? AppColors.surfaceVariant : null,
+            color: onTap == null ? context.paleta.surfaceVariant : null,
             shape: BoxShape.circle,
           ),
-          child: Icon(icono, color: Colors.white, size: 24),
+          child: Icon(
+            icono,
+            color: onTap == null && context.paleta.esClara
+                ? context.paleta.textMuted
+                : Colors.white,
+            size: 24,
+          ),
         ),
       ),
     );
@@ -1180,11 +1187,15 @@ class _BurbujaView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final b = burbuja;
+    // Texto atenuado de la burbuja de voz: blanco 70 % en oscuro.
+    final suave = context.paleta.esClara
+        ? context.paleta.textSecondary
+        : Colors.white70;
     final color = b.esError
-        ? AppColors.error.withAlpha(30)
+        ? context.paleta.error.withAlpha(30)
         : b.esUsuario
-        ? Colors.white.withAlpha(48)
-        : AppColors.surface;
+        ? context.paleta.velo.withAlpha(48)
+        : context.paleta.surface;
     final ancho = MediaQuery.of(context).size.width * 0.82;
     return Align(
       alignment: b.esUsuario ? Alignment.centerRight : Alignment.centerLeft,
@@ -1212,25 +1223,21 @@ class _BurbujaView extends StatelessWidget {
                     bottomRight: Radius.circular(b.esUsuario ? 4 : 18),
                   ),
                   border: b.esError
-                      ? Border.all(color: AppColors.error.withAlpha(90))
+                      ? Border.all(color: context.paleta.error.withAlpha(90))
                       : (b.esUsuario
-                            ? Border.all(color: AppColors.borderGlass)
+                            ? Border.all(color: context.paleta.borderGlass)
                             : null),
                 ),
                 child: b.transcribiendo
-                    ? const Row(
+                    ? Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.mic_rounded,
-                            size: 16,
-                            color: Colors.white70,
-                          ),
-                          SizedBox(width: 8),
+                          Icon(Icons.mic_rounded, size: 16, color: suave),
+                          const SizedBox(width: 8),
                           Text(
                             'Transcribiendo…',
                             style: TextStyle(
-                              color: Colors.white70,
+                              color: suave,
                               fontSize: 15,
                             ),
                           ),
@@ -1241,23 +1248,23 @@ class _BurbujaView extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (b.esVoz) ...[
-                            const Padding(
-                              padding: EdgeInsets.only(top: 3),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 3),
                               child: Icon(
                                 Icons.mic_rounded,
                                 size: 14,
-                                color: Colors.white70,
+                                color: suave,
                               ),
                             ),
                             const SizedBox(width: 6),
                           ],
-                          Flexible(child: _textoDeBurbuja(b)),
+                          Flexible(child: _textoDeBurbuja(context, b)),
                         ],
                       ),
               ),
             ),
             if (b.noEnviado)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 4),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1265,12 +1272,15 @@ class _BurbujaView extends StatelessWidget {
                     Icon(
                       Icons.error_outline_rounded,
                       size: 14,
-                      color: AppColors.error,
+                      color: context.paleta.error,
                     ),
                     SizedBox(width: 4),
                     Text(
                       'No enviado',
-                      style: TextStyle(color: AppColors.error, fontSize: 12),
+                      style: TextStyle(
+                        color: context.paleta.error,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -1283,7 +1293,7 @@ class _BurbujaView extends StatelessWidget {
                     TextButton(
                       onPressed: a.alTocar,
                       style: TextButton.styleFrom(
-                        foregroundColor: AppColors.accentPink,
+                        foregroundColor: context.paleta.accentPink,
                       ),
                       child: Text(a.etiqueta),
                     ),
@@ -1295,7 +1305,7 @@ class _BurbujaView extends StatelessWidget {
                 icon: const Icon(Icons.refresh_rounded, size: 18),
                 label: const Text('Reintentar'),
                 style: TextButton.styleFrom(
-                  foregroundColor: AppColors.accentPink,
+                  foregroundColor: context.paleta.accentPink,
                 ),
               ),
             if (b.accion != null)
@@ -1316,12 +1326,12 @@ class _BurbujaView extends StatelessWidget {
 }
 
 /// Texto de la burbuja. En las respuestas de Vera los montos en pesos van en negrita.
-Widget _textoDeBurbuja(_Burbuja b) {
+Widget _textoDeBurbuja(BuildContext context, _Burbuja b) {
   final texto = b.texto.isEmpty
       ? (b.esVoz && b.esUsuario ? 'Audio sin enviar' : '(sin transcripción)')
       : b.texto;
   final estilo = TextStyle(
-    color: b.esError ? AppColors.error : AppColors.textPrimary,
+    color: b.esError ? context.paleta.error : context.paleta.textPrimary,
     fontSize: 16,
     height: 1.4,
   );
@@ -1354,7 +1364,7 @@ class _Escribiendo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Align(
+    return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
         padding: EdgeInsets.only(top: 12),
@@ -1362,8 +1372,8 @@ class _Escribiendo extends StatelessWidget {
           width: 28,
           height: 14,
           child: LinearProgressIndicator(
-            color: AppColors.gradientStart,
-            backgroundColor: AppColors.border,
+            color: context.paleta.gradientStart,
+            backgroundColor: context.paleta.border,
           ),
         ),
       ),
@@ -1398,13 +1408,13 @@ class _InsigniaBeta extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
-        color: Colors.white.withAlpha(36),
+        color: context.paleta.velo.withAlpha(36),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Text(
+      child: Text(
         'Beta',
         style: TextStyle(
-          color: AppColors.textPrimary,
+          color: context.paleta.textPrimary,
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
@@ -1432,7 +1442,7 @@ class _AccionCabecera extends StatelessWidget {
       tooltip: tooltip,
       onPressed: alTocar,
       visualDensity: VisualDensity.compact,
-      icon: Icon(icono, color: AppColors.textPrimary, size: 22),
+      icon: Icon(icono, color: context.paleta.textPrimary, size: 22),
     );
   }
 }
@@ -1497,7 +1507,7 @@ class _OndasState extends State<_Ondas> with SingleTickerProviderStateMixin {
                                 .abs()),
                 margin: const EdgeInsets.symmetric(horizontal: 3),
                 decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(60),
+                  color: context.paleta.velo.withAlpha(60),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1557,7 +1567,7 @@ class _LatidoMicrofonoState extends State<_LatidoMicrofono>
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.white.withAlpha((90 * (1 - t)).round()),
+                  color: context.paleta.velo.withAlpha((90 * (1 - t)).round()),
                   width: 2,
                 ),
               ),

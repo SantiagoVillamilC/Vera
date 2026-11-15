@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/auth_background.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
 
@@ -40,31 +40,33 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: AppColors.accentGreen.withAlpha(30),
+                color: context.paleta.accentGreen.withAlpha(30),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.accentGreen.withAlpha(80)),
+                border: Border.all(
+                  color: context.paleta.accentGreen.withAlpha(80),
+                ),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.shield_outlined,
-                color: AppColors.accentGreen,
+                color: context.paleta.accentGreen,
                 size: 28,
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'Códigos de respaldo',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.paleta.textPrimary,
                 fontSize: 30,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.6,
               ),
             ),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               'Guarda estos códigos en un lugar seguro. Cada uno solo puede usarse una vez para recuperar tu cuenta si pierdes acceso a tu contraseña.',
               style: TextStyle(
-                color: AppColors.textSecondary,
+                color: context.paleta.textSecondary,
                 fontSize: 15,
                 height: 1.55,
               ),
@@ -77,7 +79,7 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> {
               icon: const Icon(Icons.copy_rounded, size: 18),
               label: const Text('Copiar todos'),
               style: TextButton.styleFrom(
-                foregroundColor: AppColors.accent,
+                foregroundColor: context.paleta.accent,
                 padding: const EdgeInsets.symmetric(horizontal: 4),
               ),
             ),
@@ -112,25 +114,25 @@ class _SinCodigos extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
+            Icon(
               Icons.error_outline_rounded,
-              color: AppColors.error,
+              color: context.paleta.error,
               size: 44,
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'No pudimos mostrar tus códigos de respaldo',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.paleta.textPrimary,
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               'Los códigos no llegaron completos. Inicia sesión para continuar y revisa tu cuenta.',
               style: TextStyle(
-                color: AppColors.textSecondary,
+                color: context.paleta.textSecondary,
                 fontSize: 15,
                 height: 1.55,
               ),
@@ -155,9 +157,9 @@ class _CodesGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.paleta.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.paleta.border),
       ),
       padding: const EdgeInsets.all(16),
       child: GridView.builder(
@@ -173,14 +175,14 @@ class _CodesGrid extends StatelessWidget {
         itemBuilder: (context, i) => Container(
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: AppColors.surfaceVariant,
+            color: context.paleta.surfaceVariant,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.paleta.border),
           ),
           child: Text(
             codes[i],
-            style: const TextStyle(
-              color: AppColors.textPrimary,
+            style: TextStyle(
+              color: context.paleta.textPrimary,
               fontSize: 11,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.5,
@@ -211,19 +213,19 @@ class _ConfirmCheckbox extends StatelessWidget {
             child: Checkbox(
               value: value,
               onChanged: onChanged,
-              activeColor: AppColors.accentGreen,
-              side: const BorderSide(color: AppColors.border, width: 1.5),
+              activeColor: context.paleta.accentGreen,
+              side: BorderSide(color: context.paleta.border, width: 1.5),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(5),
               ),
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Text(
               'Guardé mis códigos de respaldo en un lugar seguro',
               style: TextStyle(
-                color: AppColors.textSecondary,
+                color: context.paleta.textSecondary,
                 fontSize: 14,
                 height: 1.4,
               ),

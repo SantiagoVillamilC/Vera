@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/core/widgets/cargando_vera.dart';
 import 'package:vera/core/widgets/marca_vera.dart';
@@ -203,13 +204,13 @@ class _MovimientosTabState extends State<MovimientosTab> {
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             child: Text(
               'Movimientos',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.paleta.textPrimary,
                 fontSize: 34,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.8,
@@ -250,9 +251,12 @@ class _MovimientosTabState extends State<MovimientosTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Resumen',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 17),
+              style: TextStyle(
+                color: context.paleta.textSecondary,
+                fontSize: 17,
+              ),
             ),
             const SizedBox(height: 10),
             Row(
@@ -262,7 +266,7 @@ class _MovimientosTabState extends State<MovimientosTab> {
                     titulo: 'Entró',
                     centavos: entro,
                     cargando: _loading,
-                    color: AppColors.accentGreen,
+                    color: context.paleta.accentGreen,
                     conSigno: true,
                   ),
                 ),
@@ -271,7 +275,7 @@ class _MovimientosTabState extends State<MovimientosTab> {
                     titulo: 'Salió',
                     centavos: salio,
                     cargando: _loading,
-                    color: AppColors.textPrimary,
+                    color: context.paleta.textPrimary,
                   ),
                 ),
               ],
@@ -284,7 +288,7 @@ class _MovimientosTabState extends State<MovimientosTab> {
                   child: Container(
                     height: 8,
                     decoration: BoxDecoration(
-                      color: AppColors.accentGreen,
+                      color: context.paleta.accentGreen,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -316,9 +320,9 @@ class _MovimientosTabState extends State<MovimientosTab> {
         height: 56,
         padding: const EdgeInsets.all(5),
         decoration: BoxDecoration(
-          color: Colors.white.withAlpha(14),
+          color: context.paleta.vidrio,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: AppColors.borderGlass),
+          border: Border.all(color: context.paleta.borderGlass),
         ),
         child: Row(
           children: List.generate(3, (i) {
@@ -331,15 +335,17 @@ class _MovimientosTabState extends State<MovimientosTab> {
                   duration: const Duration(milliseconds: 180),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: activo ? AppColors.botonOscuro : Colors.transparent,
+                    color: activo
+                        ? context.paleta.botonOscuro
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(23),
                   ),
                   child: Text(
                     labels[i],
                     style: TextStyle(
                       color: activo
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary,
+                          ? context.paleta.textPrimary
+                          : context.paleta.textSecondary,
                       fontSize: 17,
                       fontWeight: activo ? FontWeight.w700 : FontWeight.w600,
                     ),
@@ -378,7 +384,7 @@ class _MovimientosTabState extends State<MovimientosTab> {
                 child: const MarcaVera(tamano: 28),
               ),
               const SizedBox(width: 14),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -387,7 +393,7 @@ class _MovimientosTabState extends State<MovimientosTab> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: context.paleta.textPrimary,
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
                       ),
@@ -395,16 +401,16 @@ class _MovimientosTabState extends State<MovimientosTab> {
                     Text(
                       'Vera clasifica, tú corriges',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: context.paleta.textSecondary,
                         fontSize: 14,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
-                color: AppColors.textSecondary,
+                color: context.paleta.textSecondary,
                 size: 24,
               ),
             ],
@@ -449,8 +455,8 @@ class _MovimientosTabState extends State<MovimientosTab> {
             if (si > 0) const SizedBox(height: 14),
             Text(
               seccion.label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.paleta.textSecondary,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -478,14 +484,14 @@ class _MovimientosTabState extends State<MovimientosTab> {
                 onPressed: _cargarMas,
                 child: Text(
                   _errorMas ? 'Reintentar' : 'Cargar más',
-                  style: const TextStyle(color: AppColors.gradientStart),
+                  style: TextStyle(color: context.paleta.gradientStart),
                 ),
               )
-            : const SizedBox(
+            : SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
-                  color: AppColors.gradientStart,
+                  color: context.paleta.gradientStart,
                   strokeWidth: 2,
                 ),
               ),
@@ -518,7 +524,7 @@ class _Total extends StatelessWidget {
       children: [
         Text(
           titulo,
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
+          style: TextStyle(color: context.paleta.textSecondary, fontSize: 15),
         ),
         const SizedBox(height: 2),
         cargando
@@ -526,7 +532,7 @@ class _Total extends StatelessWidget {
                 width: 70,
                 height: 16,
                 child: LinearProgressIndicator(
-                  backgroundColor: AppColors.surfaceVariant,
+                  backgroundColor: context.paleta.surfaceVariant,
                   color: color,
                 ),
               )
@@ -580,14 +586,20 @@ class _BotonCircular extends StatelessWidget {
           width: 52,
           height: 52,
           decoration: BoxDecoration(
-            color: claro ? AppColors.botonClaro : AppColors.botonOscuro,
+            color: claro
+                ? context.paleta.botonClaro
+                : context.paleta.botonOscuro,
             shape: BoxShape.circle,
-            border: claro ? null : Border.all(color: AppColors.borderGlass),
+            border: claro
+                ? null
+                : Border.all(color: context.paleta.borderGlass),
           ),
           child: Icon(
             icono,
             size: 22,
-            color: claro ? AppColors.tintaBotonClaro : AppColors.textPrimary,
+            color: claro
+                ? context.paleta.tintaBotonClaro
+                : context.paleta.textPrimary,
           ),
         ),
       ),

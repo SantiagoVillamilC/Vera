@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 
 class PinDots extends StatelessWidget {
   const PinDots({super.key, required this.length, required this.filled});
@@ -23,10 +24,10 @@ class PinDots extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: isFilled ? AppGradients.brand : null,
-            color: isFilled ? null : AppColors.surfaceVariant,
+            color: isFilled ? null : context.paleta.surfaceVariant,
             border: isFilled
                 ? null
-                : Border.all(color: AppColors.border, width: 1.5),
+                : Border.all(color: context.paleta.border, width: 1.5),
             boxShadow: isFilled
                 ? [
                     BoxShadow(
@@ -111,14 +112,14 @@ class _NumKey extends StatelessWidget {
           height: 76,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.surfaceVariant,
-            border: Border.all(color: AppColors.border, width: 1),
+            color: context.paleta.surfaceVariant,
+            border: Border.all(color: context.paleta.border, width: 1),
           ),
           child: Center(
             child: Text(
               label,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
+              style: TextStyle(
+                color: context.paleta.textPrimary,
                 fontSize: 28,
                 fontWeight: FontWeight.w300,
                 letterSpacing: -0.5,
@@ -149,9 +150,9 @@ class _DeleteKey extends StatelessWidget {
           width: 76,
           height: 76,
           decoration: const BoxDecoration(shape: BoxShape.circle),
-          child: const Icon(
+          child: Icon(
             Icons.backspace_outlined,
-            color: AppColors.textSecondary,
+            color: context.paleta.textSecondary,
             size: 26,
           ),
         ),
@@ -179,9 +180,9 @@ class _BiometricKey extends StatelessWidget {
           width: 76,
           height: 76,
           decoration: const BoxDecoration(shape: BoxShape.circle),
-          child: const Icon(
+          child: Icon(
             Icons.fingerprint_rounded,
-            color: AppColors.gradientStart,
+            color: context.paleta.gradientStart,
             size: 34,
           ),
         ),

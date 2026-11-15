@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:vera/core/format/fechas.dart';
 import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/network/error_messages.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/core/widgets/cargando_vera.dart';
 import 'package:vera/core/widgets/insignia_muestra.dart';
@@ -182,9 +182,9 @@ class _EstadisticasScreenState extends State<EstadisticasScreen>
     final ingresos = _suma(serie.ingresos);
     final gastos = _suma(serie.gastos);
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.paleta.background,
       body: Container(
-        decoration: const BoxDecoration(gradient: AppGradients.fondoAzul),
+        decoration: BoxDecoration(gradient: context.paleta.fondoAzul),
         child: SingleChildScrollView(
           padding: const EdgeInsets.only(bottom: 40),
           child: Column(
@@ -209,24 +209,26 @@ class _EstadisticasScreenState extends State<EstadisticasScreen>
                           decoration: BoxDecoration(
                             color: Colors.white.withAlpha(20),
                             shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.borderGlass),
+                            border: Border.all(
+                              color: context.paleta.borderGlass,
+                            ),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.chevron_left_rounded,
-                            color: AppColors.textPrimary,
+                            color: context.paleta.textPrimary,
                             size: 28,
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 16),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Estadísticas',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: context.paleta.textPrimary,
                           fontSize: 26,
                           fontWeight: FontWeight.w700,
                           letterSpacing: -0.4,
@@ -279,7 +281,7 @@ class _EstadisticasScreenState extends State<EstadisticasScreen>
                         label: 'Ingresos',
                         valorKey: const ValueKey('total-ingresos'),
                         centavos: ingresos,
-                        color: AppColors.accentGreen,
+                        color: context.paleta.accentGreen,
                         icon: Icons.arrow_upward_rounded,
                       ),
                     ),
@@ -289,7 +291,7 @@ class _EstadisticasScreenState extends State<EstadisticasScreen>
                         label: 'Gastos',
                         valorKey: const ValueKey('total-gastos'),
                         centavos: gastos,
-                        color: AppColors.accentPink,
+                        color: context.paleta.accentPink,
                         icon: Icons.arrow_downward_rounded,
                       ),
                     ),
@@ -318,7 +320,8 @@ class _EstadisticasScreenState extends State<EstadisticasScreen>
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
                 child: AvisoMuestra(
-                  detalle: 'los totales de ingresos y gastos y la curva de este '
+                  detalle:
+                      'los totales de ingresos y gastos y la curva de este '
                       'período son de ejemplo. Tu balance, el gasto por '
                       'categoría y los movimientos son reales.',
                 ),
@@ -337,13 +340,13 @@ class _EstadisticasScreenState extends State<EstadisticasScreen>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Últimos movimientos',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: context.paleta.textPrimary,
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
                         ),
@@ -354,7 +357,7 @@ class _EstadisticasScreenState extends State<EstadisticasScreen>
                         if (context.canPop()) context.pop();
                       },
                       style: TextButton.styleFrom(
-                        foregroundColor: AppColors.gradientStart,
+                        foregroundColor: context.paleta.gradientStart,
                         padding: EdgeInsets.zero,
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -404,21 +407,21 @@ class _PildoraMes extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withAlpha(18),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.borderGlass),
+        border: Border.all(color: context.paleta.borderGlass),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.calendar_today_outlined,
             size: 16,
-            color: AppColors.textPrimary,
+            color: context.paleta.textPrimary,
           ),
           const SizedBox(width: 8),
           Text(
             '${nombre[0].toUpperCase()}${nombre.substring(1)}',
-            style: const TextStyle(
-              color: AppColors.textPrimary,
+            style: TextStyle(
+              color: context.paleta.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -449,7 +452,7 @@ class _HeroGasto extends StatelessWidget {
       children: [
         Text(
           'Gastaste en $nombre',
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 17),
+          style: TextStyle(color: context.paleta.textSecondary, fontSize: 17),
         ),
         const SizedBox(height: 4),
         FutureBuilder<ResumenDelMes>(
@@ -466,9 +469,9 @@ class _HeroGasto extends StatelessWidget {
             }
             if (snap.hasError) {
               // El error y el reintento viven en la sección de categorías, más abajo.
-              return const Text(
+              return Text(
                 'No pudimos cargarlo',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 18),
+                style: TextStyle(color: context.paleta.textMuted, fontSize: 18),
               );
             }
             final total = snap.data!.totalCentavos.abs();
@@ -510,8 +513,8 @@ class _MontoConCentavos extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const estilo = TextStyle(
-      color: AppColors.textPrimary,
+    final estilo = TextStyle(
+      color: context.paleta.textPrimary,
       fontSize: 44,
       fontWeight: FontWeight.w700,
       letterSpacing: -1.5,
@@ -532,7 +535,7 @@ class _MontoConCentavos extends StatelessWidget {
             TextSpan(text: enteros),
             TextSpan(
               text: resto,
-              style: estilo.copyWith(color: Colors.white.withAlpha(110)),
+              style: estilo.copyWith(color: context.paleta.velo.withAlpha(110)),
             ),
           ],
         ),
@@ -574,20 +577,20 @@ class _ChipComparacion extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withAlpha(18),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.borderGlass),
+        border: Border.all(color: context.paleta.borderGlass),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icono, size: 16, color: AppColors.textPrimary),
+          Icon(icono, size: 16, color: context.paleta.textPrimary),
           const SizedBox(width: 8),
           Flexible(
             child: Text(
               texto,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
+              style: TextStyle(
+                color: context.paleta.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -615,11 +618,11 @@ class _SeccionCategorias extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 '¿En qué se fue?',
                 style: TextStyle(
-                  color: AppColors.textPrimary,
+                  color: context.paleta.textPrimary,
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
                 ),
@@ -630,7 +633,7 @@ class _SeccionCategorias extends StatelessWidget {
               // Lleva a "Movimientos con categoría", donde se ve y corrige cada gasto.
               onPressed: () => GoRouter.maybeOf(context)?.push('/inteligencia'),
               style: TextButton.styleFrom(
-                foregroundColor: AppColors.gradientStart,
+                foregroundColor: context.paleta.gradientStart,
                 padding: EdgeInsets.zero,
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -643,9 +646,9 @@ class _SeccionCategorias extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'Tus gastos de este mes por categoría',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          style: TextStyle(color: context.paleta.textSecondary, fontSize: 13),
         ),
         const SizedBox(height: 16),
         FutureBuilder<ResumenDelMes>(
@@ -671,12 +674,15 @@ class _SeccionCategorias extends StatelessWidget {
             if (resumen.categorias.every(
               (c) => c.totalCentavos == BigInt.zero,
             )) {
-              return const Padding(
+              return Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Text(
                   'Aún no tienes gastos este mes.',
                   key: Key('sin_gastos_mes'),
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+                  style: TextStyle(
+                    color: context.paleta.textMuted,
+                    fontSize: 14,
+                  ),
                 ),
               );
             }
@@ -700,9 +706,9 @@ class _Balance extends StatelessWidget {
   Widget build(BuildContext context) {
     final Widget valor;
     if (error) {
-      valor = const Text(
+      valor = Text(
         'Error al cargar',
-        style: TextStyle(color: AppColors.textMuted, fontSize: 20),
+        style: TextStyle(color: context.paleta.textMuted, fontSize: 20),
       );
     } else if (saldoCentavos == null) {
       valor = const Align(
@@ -715,8 +721,8 @@ class _Balance extends StatelessWidget {
         alignment: Alignment.centerLeft,
         child: Text(
           formatPesos(saldoCentavos!),
-          style: const TextStyle(
-            color: AppColors.textPrimary,
+          style: TextStyle(
+            color: context.paleta.textPrimary,
             fontSize: 44,
             fontWeight: FontWeight.w700,
             letterSpacing: -1.5,
@@ -727,9 +733,9 @@ class _Balance extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Balance',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 17),
+          style: TextStyle(color: context.paleta.textSecondary, fontSize: 17),
         ),
         const SizedBox(height: 4),
         valor,
@@ -777,13 +783,16 @@ class _ListaMovimientos extends StatelessWidget {
           offset: offsetLocal,
         ).take(_maxFilas).toList();
         if (filas.isEmpty) {
-          return const TarjetaVidrio(
+          return TarjetaVidrio(
             radio: 24,
             padding: EdgeInsets.all(24),
             child: Center(
               child: Text(
                 'Sin movimientos aún',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                style: TextStyle(
+                  color: context.paleta.textSecondary,
+                  fontSize: 14,
+                ),
               ),
             ),
           );
@@ -821,7 +830,7 @@ class _PeriodoSelector extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withAlpha(20),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppColors.borderGlass),
+        border: Border.all(color: context.paleta.borderGlass),
       ),
       child: Row(
         children: List.generate(3, (i) {
@@ -834,15 +843,17 @@ class _PeriodoSelector extends StatelessWidget {
                 duration: const Duration(milliseconds: 200),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: active ? AppColors.botonOscuro : Colors.transparent,
+                  color: active
+                      ? context.paleta.botonOscuro
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(23),
                 ),
                 child: Text(
                   _labels[i],
                   style: TextStyle(
                     color: active
-                        ? AppColors.textPrimary
-                        : AppColors.textSecondary,
+                        ? context.paleta.textPrimary
+                        : context.paleta.textSecondary,
                     fontSize: 17,
                     fontWeight: active ? FontWeight.w700 : FontWeight.w600,
                   ),
@@ -898,8 +909,8 @@ class _StatChip extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: context.paleta.textSecondary,
                     fontSize: 13,
                   ),
                 ),
@@ -957,7 +968,13 @@ class _AreaChart extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(0, 0, 0, 28),
               child: CustomPaint(
                 size: const Size(double.infinity, 192),
-                painter: _ChartPainter(points: points, progress: progress),
+                painter: _ChartPainter(
+                  points: points,
+                  progress: progress,
+                  tinta: context.paleta.esClara
+                      ? context.paleta.accent
+                      : Colors.white,
+                ),
               ),
             ),
             for (var i = 0; i < labels.length; i++)
@@ -970,8 +987,8 @@ class _AreaChart extends StatelessWidget {
                   textAlign: TextAlign.center,
                   softWrap: false,
                   overflow: TextOverflow.visible,
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
+                  style: TextStyle(
+                    color: context.paleta.textMuted,
                     fontSize: 11,
                   ),
                 ),
@@ -985,7 +1002,7 @@ class _AreaChart extends StatelessWidget {
                   child: _Bubble(
                     valueKey: const ValueKey('burbuja-ingresos'),
                     label: burbujaIngresos,
-                    color: AppColors.accentGreen,
+                    color: context.paleta.accentGreen,
                   ),
                 ),
               ),
@@ -998,7 +1015,7 @@ class _AreaChart extends StatelessWidget {
                   child: _Bubble(
                     valueKey: const ValueKey('burbuja-gastos'),
                     label: burbujaGastos,
-                    color: AppColors.accentPink,
+                    color: context.paleta.accentPink,
                   ),
                 ),
               ),
@@ -1025,9 +1042,9 @@ class _Bubble extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.botonOscuro,
+        color: context.paleta.botonOscuro,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.borderGlass),
+        border: Border.all(color: context.paleta.borderGlass),
       ),
       child: Text(
         label,
@@ -1043,10 +1060,17 @@ class _Bubble extends StatelessWidget {
 }
 
 class _ChartPainter extends CustomPainter {
-  const _ChartPainter({required this.points, required this.progress});
+  const _ChartPainter({
+    required this.points,
+    required this.progress,
+    required this.tinta,
+  });
 
   final List<double> points;
   final double progress;
+
+  /// Color de la curva, la rejilla y el punto: blanco en oscuro, azul de marca en claro.
+  final Color tinta;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1110,11 +1134,7 @@ class _ChartPainter extends CustomPainter {
 
     final fillPaint = Paint()
       ..shader = LinearGradient(
-        colors: [
-          Colors.white.withAlpha(110),
-          Colors.white.withAlpha(36),
-          Colors.white.withAlpha(0),
-        ],
+        colors: [tinta.withAlpha(110), tinta.withAlpha(36), tinta.withAlpha(0)],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
@@ -1123,7 +1143,7 @@ class _ChartPainter extends CustomPainter {
     canvas.drawPath(fillPath, fillPaint);
 
     final linePaint = Paint()
-      ..color = Colors.white
+      ..color = tinta
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round
@@ -1132,7 +1152,7 @@ class _ChartPainter extends CustomPainter {
     canvas.drawPath(curvePath, linePaint);
 
     final gridPaint = Paint()
-      ..color = Colors.white.withAlpha(36)
+      ..color = tinta.withAlpha(36)
       ..strokeWidth = 1;
 
     for (int i = 1; i <= 3; i++) {
@@ -1142,24 +1162,24 @@ class _ChartPainter extends CustomPainter {
 
     if (progress > 0.05) {
       final glowPaint = Paint()
-        ..color = Colors.white.withAlpha(40)
+        ..color = tinta.withAlpha(40)
         ..style = PaintingStyle.fill;
       canvas.drawCircle(currentTip, 14, glowPaint);
 
       final outerPaint = Paint()
-        ..color = Colors.white.withAlpha(70)
+        ..color = tinta.withAlpha(70)
         ..style = PaintingStyle.fill;
       canvas.drawCircle(currentTip, 8, outerPaint);
 
       final dotPaint = Paint()
-        ..color = Colors.white
+        ..color = tinta
         ..style = PaintingStyle.fill;
       canvas.drawCircle(currentTip, 4.5, dotPaint);
     }
 
     if (progress > 0.1) {
       final dashPaint = Paint()
-        ..color = Colors.white.withAlpha(70)
+        ..color = tinta.withAlpha(70)
         ..strokeWidth = 1;
 
       double y = currentTip.dy + 10;
@@ -1176,5 +1196,5 @@ class _ChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ChartPainter old) =>
-      old.progress != progress || old.points != points;
+      old.progress != progress || old.points != points || old.tinta != tinta;
 }
