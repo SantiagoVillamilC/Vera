@@ -660,7 +660,7 @@ class _AsistenteScreenState extends State<AsistenteScreen>
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(30),
+                  color: context.paleta.velo.withAlpha(30),
                   shape: BoxShape.circle,
                   border: Border.all(color: context.paleta.borderGlass),
                 ),
@@ -897,7 +897,7 @@ class _AsistenteScreenState extends State<AsistenteScreen>
             child: ActionChip(
               label: Text(texto),
               onPressed: _chatDisponible ? () => _enviarTexto(texto) : null,
-              backgroundColor: Colors.white.withAlpha(28),
+              backgroundColor: context.paleta.velo.withAlpha(28),
               labelStyle: TextStyle(
                 color: context.paleta.textPrimary,
                 fontSize: 14,
@@ -968,7 +968,7 @@ class _AsistenteScreenState extends State<AsistenteScreen>
                   height: 112,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withAlpha(34),
+                    color: context.paleta.velo.withAlpha(34),
                   ),
                   alignment: Alignment.center,
                   child: Container(
@@ -1006,7 +1006,7 @@ class _AsistenteScreenState extends State<AsistenteScreen>
                   height: 50,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withAlpha(30),
+                    color: context.paleta.velo.withAlpha(30),
                     border: Border.all(color: context.paleta.borderGlass),
                   ),
                   child: Icon(

@@ -207,7 +207,7 @@ class _EstadisticasScreenState extends State<EstadisticasScreen>
                           width: 50,
                           height: 50,
                           decoration: BoxDecoration(
-                            color: Colors.white.withAlpha(20),
+                            color: context.paleta.velo.withAlpha(20),
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: context.paleta.borderGlass,
@@ -405,7 +405,7 @@ class _PildoraMes extends StatelessWidget {
       key: const Key('pildora_mes'),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withAlpha(18),
+        color: context.paleta.velo.withAlpha(18),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: context.paleta.borderGlass),
       ),
@@ -575,7 +575,7 @@ class _ChipComparacion extends StatelessWidget {
       key: const Key('chip_comparacion'),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       decoration: BoxDecoration(
-        color: Colors.white.withAlpha(18),
+        color: context.paleta.velo.withAlpha(18),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: context.paleta.borderGlass),
       ),
@@ -828,7 +828,7 @@ class _PeriodoSelector extends StatelessWidget {
       height: 56,
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: Colors.white.withAlpha(20),
+        color: context.paleta.velo.withAlpha(20),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: context.paleta.borderGlass),
       ),

@@ -46,12 +46,12 @@ class GradientButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           child: Center(
             child: loading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
-                      color: Colors.white,
+                      color: tinta,
                     ),
                   )
                 : Row(

@@ -156,9 +156,15 @@ class PaletaVera extends ThemeExtension<PaletaVera> {
   static PaletaVera de(BuildContext context) =>
       Theme.of(context).extension<PaletaVera>() ?? oscura;
 
+  // copyWith y lerp son marcadores de posicion: ThemeExtension los exige, pero
+  // la app no tiene un interruptor de tema en tiempo de ejecucion (el modo se
+  // fija por dart-define al compilar), asi que nunca se mezclan dos paletas ni
+  // se copia una con cambios. Si algun dia hay interruptor, deben implementarse
+  // campo por campo.
   @override
   PaletaVera copyWith() => this;
 
+  // Salta de una paleta a la otra a la mitad de la transicion (t = 0,5).
   @override
   PaletaVera lerp(ThemeExtension<PaletaVera>? other, double t) {
     if (other is! PaletaVera) return this;
