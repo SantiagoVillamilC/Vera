@@ -9,7 +9,8 @@ import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/platform/url_opener.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
+import 'package:vera/core/theme/tintes.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/core/widgets/fondo_vera.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
@@ -335,13 +336,13 @@ class _RecargarScreenState extends State<RecargarScreen>
                     width: 46,
                     height: 46,
                     decoration: BoxDecoration(
-                      color: AppColors.botonOscuro,
+                      color: context.paleta.botonOscuro,
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.borderGlass),
+                      border: Border.all(color: context.paleta.borderGlass),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.chevron_left_rounded,
-                      color: AppColors.textPrimary,
+                      color: context.paleta.textPrimary,
                       size: 26,
                     ),
                   ),
@@ -351,8 +352,8 @@ class _RecargarScreenState extends State<RecargarScreen>
           ),
           title: Text(
             enSeguimiento ? 'Tu recarga' : 'Recargar saldo',
-            style: const TextStyle(
-              color: AppColors.textPrimary,
+            style: TextStyle(
+              color: context.paleta.textPrimary,
               fontSize: 19,
               fontWeight: FontWeight.w700,
             ),
@@ -388,9 +389,12 @@ class _RecargarScreenState extends State<RecargarScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Monto a recargar (COP)',
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  style: TextStyle(
+                    color: context.paleta.textMuted,
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 TextField(
@@ -403,12 +407,12 @@ class _RecargarScreenState extends State<RecargarScreen>
                     LengthLimitingTextInputFormatter(15),
                   ],
                   onChanged: (_) => setState(() {}),
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.paleta.textPrimary,
                     fontSize: 36,
                     fontWeight: FontWeight.w800,
                   ),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -416,7 +420,7 @@ class _RecargarScreenState extends State<RecargarScreen>
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
                     hintText: '\$0',
-                    hintStyle: TextStyle(color: AppColors.textMuted),
+                    hintStyle: TextStyle(color: context.paleta.textMuted),
                   ),
                 ),
               ],
@@ -426,7 +430,7 @@ class _RecargarScreenState extends State<RecargarScreen>
             const SizedBox(height: 16),
             Text(
               _error!,
-              style: const TextStyle(color: AppColors.error, fontSize: 14),
+              style: TextStyle(color: context.paleta.error, fontSize: 14),
             ),
           ],
           const SizedBox(height: 32),
@@ -464,8 +468,8 @@ class _RecargarScreenState extends State<RecargarScreen>
                     child: Text(
                       formatPesos(d.montoCentavos),
                       key: const Key('monto-recarga'),
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        color: context.paleta.textPrimary,
                         fontSize: 44,
                         fontWeight: FontWeight.w700,
                         letterSpacing: -1.5,
@@ -477,8 +481,8 @@ class _RecargarScreenState extends State<RecargarScreen>
                 Text(
                   _mensaje(estado),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: context.paleta.textSecondary,
                     fontSize: 16,
                     height: 1.35,
                   ),
@@ -492,10 +496,7 @@ class _RecargarScreenState extends State<RecargarScreen>
                   Text(
                     _error!,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: AppColors.error,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: context.paleta.error, fontSize: 14),
                   ),
                 ],
                 const SizedBox(height: 22),
@@ -568,22 +569,22 @@ class _RecargarScreenState extends State<RecargarScreen>
       key: const Key('respaldo-enlace'),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
+        color: context.paleta.surfaceVariant,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.warning),
+        border: Border.all(color: context.paleta.warning),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             inseguro ? mensajeEnlaceInseguro : mensajeEnlaceNoAbrio,
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+            style: TextStyle(color: context.paleta.textPrimary, fontSize: 14),
           ),
           if (!inseguro && _urlPago != null) ...[
             const SizedBox(height: 8),
             SelectableText(
               _urlPago!,
-              style: const TextStyle(color: AppColors.accent, fontSize: 13),
+              style: TextStyle(color: context.paleta.accent, fontSize: 13),
             ),
           ],
         ],
@@ -617,9 +618,9 @@ class _Tarjeta extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.paleta.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.paleta.border),
       ),
       child: child,
     );
@@ -627,12 +628,13 @@ class _Tarjeta extends StatelessWidget {
 }
 
 /// Colores y marca de cada estado de la recarga.
-(IconData, Color) _marcaDeEstado(EstadoDeposito estado) => switch (estado) {
-  EstadoDeposito.confirmada => (Icons.check_rounded, AppColors.accentGreen),
-  EstadoDeposito.rechazada => (Icons.close_rounded, AppColors.error),
-  EstadoDeposito.expirada => (Icons.timer_off_rounded, AppColors.warning),
-  _ => (Icons.hourglass_top_rounded, AppColors.gradientStart),
-};
+(IconData, Color) _marcaDeEstado(EstadoDeposito estado, PaletaVera p) =>
+    switch (estado) {
+      EstadoDeposito.confirmada => (Icons.check_rounded, p.accentGreen),
+      EstadoDeposito.rechazada => (Icons.close_rounded, p.error),
+      EstadoDeposito.expirada => (Icons.timer_off_rounded, p.warning),
+      _ => (Icons.hourglass_top_rounded, p.gradientStart),
+    };
 
 /// Círculo claro con la marca del estado y un aro de avance alrededor.
 class _AroDeEstado extends StatelessWidget {
@@ -642,7 +644,7 @@ class _AroDeEstado extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (icono, color) = _marcaDeEstado(estado);
+    final (icono, color) = _marcaDeEstado(estado, context.paleta);
     final terminal = estado.esTerminal;
     return SizedBox(
       key: const Key('aro-estado'),
@@ -656,7 +658,7 @@ class _AroDeEstado extends StatelessWidget {
             height: 190,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withAlpha(30)),
+              border: Border.all(color: context.paleta.velo.withAlpha(30)),
             ),
           ),
           CustomPaint(
@@ -719,11 +721,12 @@ class _ChipDeEstado extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (_, color) = _marcaDeEstado(estado);
+    final (_, color) = _marcaDeEstado(estado, context.paleta);
+    final paleta = context.paleta;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF16304B),
+        color: TinteVera.azul.en(paleta).fondo,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -737,8 +740,8 @@ class _ChipDeEstado extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             texto,
-            style: const TextStyle(
-              color: Color(0xFFCFE3F8),
+            style: TextStyle(
+              color: paleta.esClara ? paleta.accent : const Color(0xFFCFE3F8),
               fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
@@ -866,8 +869,8 @@ class _Paso extends StatelessWidget {
                     titulo,
                     style: TextStyle(
                       color: pendiente
-                          ? AppColors.textSecondary
-                          : AppColors.textPrimary,
+                          ? context.paleta.textSecondary
+                          : context.paleta.textPrimary,
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                     ),
@@ -875,8 +878,8 @@ class _Paso extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     detalle,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: context.paleta.textSecondary,
                       fontSize: 13,
                     ),
                   ),
@@ -901,16 +904,18 @@ class _Marcador extends StatelessWidget {
       case _PasoEstado.hecho:
         return _circulo(const Color(0xFF3E8F5C), Icons.check_rounded);
       case _PasoEstado.fallo:
-        return _circulo(AppColors.error, Icons.close_rounded);
+        return _circulo(context.paleta.error, Icons.close_rounded);
       case _PasoEstado.aviso:
-        return _circulo(AppColors.warning, Icons.timer_off_rounded);
+        return _circulo(context.paleta.warning, Icons.timer_off_rounded);
       case _PasoEstado.pendiente:
         return Container(
           width: 34,
           height: 34,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Color(0xFF26354A),
+            color: context.paleta.esClara
+                ? const Color(0xFFC9D5E4)
+                : const Color(0xFF26354A),
           ),
         );
       case _PasoEstado.enCurso:
@@ -919,15 +924,15 @@ class _Marcador extends StatelessWidget {
           height: 34,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: AppColors.gradientStart, width: 2.5),
+            border: Border.all(color: context.paleta.gradientStart, width: 2.5),
           ),
           alignment: Alignment.center,
           child: Container(
             width: 14,
             height: 14,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.gradientStart,
+              color: context.paleta.gradientStart,
             ),
           ),
         );
@@ -965,22 +970,22 @@ class _BotonSecundario extends StatelessWidget {
         height: 56,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: AppColors.botonOscuro,
+          color: context.paleta.botonOscuro,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: AppColors.borderGlass),
+          border: Border.all(color: context.paleta.borderGlass),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icono, color: AppColors.gradientStart, size: 19),
+            Icon(icono, color: context.paleta.gradientStart, size: 19),
             const SizedBox(width: 8),
             Flexible(
               child: Text(
                 etiqueta,
                 textAlign: TextAlign.center,
                 maxLines: 2,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: context.paleta.textPrimary,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                   height: 1.15,
@@ -1015,13 +1020,13 @@ class _BotonPrincipal extends StatelessWidget {
         height: 58,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.botonClaro,
+          color: context.paleta.botonClaro,
           borderRadius: BorderRadius.circular(29),
         ),
         child: Text(
           etiqueta,
-          style: const TextStyle(
-            color: AppColors.tintaBotonClaro,
+          style: TextStyle(
+            color: context.paleta.tintaBotonClaro,
             fontSize: 18,
             fontWeight: FontWeight.w700,
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 
 abstract final class AppColors {
   // Backgrounds
@@ -68,11 +69,7 @@ abstract final class AppGradients {
 
   /// Fondo de las pantallas principales: azul acerado arriba que cae a casi negro.
   static const fondo = LinearGradient(
-    colors: [
-      AppColors.fondoArriba,
-      AppColors.fondoMedio,
-      AppColors.fondoAbajo,
-    ],
+    colors: [AppColors.fondoArriba, AppColors.fondoMedio, AppColors.fondoAbajo],
     stops: [0.0, 0.42, 1.0],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
@@ -103,11 +100,9 @@ abstract final class AppGradients {
 }
 
 abstract final class AppTheme {
-  static ThemeData get dark => ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.dark,
-    scaffoldBackgroundColor: AppColors.background,
-    colorScheme: const ColorScheme(
+  static ThemeData get dark => _tema(
+    paleta: PaletaVera.oscura,
+    esquema: const ColorScheme(
       brightness: Brightness.dark,
       primary: AppColors.gradientMid,
       onPrimary: AppColors.textPrimary,
@@ -124,91 +119,132 @@ abstract final class AppTheme {
       outline: AppColors.border,
       outlineVariant: AppColors.border,
     ),
-    appBarTheme: const AppBarTheme(
+  );
+
+  /// Modo claro: mismos azules de marca, fondos y superficies claros.
+  static ThemeData get light => _tema(
+    paleta: PaletaVera.clara,
+    esquema: const ColorScheme(
+      brightness: Brightness.light,
+      primary: Color(0xFF214E8C),
+      onPrimary: Color(0xFFFFFFFF),
+      primaryContainer: Color(0xFFD6E6F8),
+      onPrimaryContainer: Color(0xFF0E1A2B),
+      secondary: Color(0xFF1D5FB0),
+      onSecondary: Color(0xFFFFFFFF),
+      secondaryContainer: Color(0xFFE1ECF9),
+      onSecondaryContainer: Color(0xFF0E1A2B),
+      surface: Color(0xFFFFFFFF),
+      onSurface: Color(0xFF0E1A2B),
+      error: Color(0xFFC0283F),
+      onError: Color(0xFFFFFFFF),
+      outline: Color(0xFFD3DDEA),
+      outlineVariant: Color(0xFFD3DDEA),
+    ),
+  );
+
+  static ThemeData _tema({
+    required PaletaVera paleta,
+    required ColorScheme esquema,
+  }) => ThemeData(
+    useMaterial3: true,
+    brightness: esquema.brightness,
+    scaffoldBackgroundColor: paleta.background,
+    colorScheme: esquema,
+    extensions: [paleta],
+    appBarTheme: AppBarTheme(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      systemOverlayStyle: SystemUiOverlayStyle.light,
-      iconTheme: IconThemeData(color: AppColors.textPrimary),
+      systemOverlayStyle: paleta.esClara
+          ? SystemUiOverlayStyle.dark
+          : SystemUiOverlayStyle.light,
+      iconTheme: IconThemeData(color: paleta.textPrimary),
     ),
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: AppColors.surfaceVariant,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: AppColors.border),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: AppColors.border),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: AppColors.borderFocus, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: AppColors.error),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: AppColors.error, width: 1.5),
-      ),
-      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 15),
-      prefixIconColor: AppColors.textMuted,
-      suffixIconColor: AppColors.textMuted,
-    ),
-    textTheme: const TextTheme(
-      displayLarge: TextStyle(
-        color: AppColors.textPrimary,
-        fontSize: 42,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -1.2,
-        height: 1.1,
-      ),
-      displayMedium: TextStyle(
-        color: AppColors.textPrimary,
-        fontSize: 34,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.8,
-      ),
-      headlineLarge: TextStyle(
-        color: AppColors.textPrimary,
-        fontSize: 28,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.5,
-      ),
-      headlineMedium: TextStyle(
-        color: AppColors.textPrimary,
-        fontSize: 22,
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.3,
-      ),
-      titleLarge: TextStyle(
-        color: AppColors.textPrimary,
-        fontSize: 18,
-        fontWeight: FontWeight.w600,
-      ),
-      bodyLarge: TextStyle(
-        color: AppColors.textSecondary,
-        fontSize: 16,
-        height: 1.5,
-      ),
-      bodyMedium: TextStyle(
-        color: AppColors.textSecondary,
-        fontSize: 14,
-        height: 1.5,
-      ),
-      bodySmall: TextStyle(color: AppColors.textMuted, fontSize: 12),
-    ),
-    dividerTheme: const DividerThemeData(color: AppColors.border, thickness: 1),
+    inputDecorationTheme: _campos(paleta),
+    textTheme: _textos(paleta),
+    dividerTheme: DividerThemeData(color: paleta.border, thickness: 1),
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: AppColors.surfaceVariant,
-      contentTextStyle: const TextStyle(color: AppColors.textPrimary),
+      backgroundColor: paleta.surfaceVariant,
+      contentTextStyle: TextStyle(color: paleta.textPrimary),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       behavior: SnackBarBehavior.floating,
     ),
   );
 
-  static ThemeData get light => dark;
+  static InputDecorationTheme _campos(PaletaVera paleta) =>
+      InputDecorationTheme(
+        filled: true,
+        fillColor: paleta.surfaceVariant,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 18,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: paleta.bordeCampo),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: paleta.bordeCampo),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: paleta.borderFocus, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: paleta.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: paleta.error, width: 1.5),
+        ),
+        hintStyle: TextStyle(color: paleta.textMuted, fontSize: 15),
+        prefixIconColor: paleta.textMuted,
+        suffixIconColor: paleta.textMuted,
+      );
+
+  static TextTheme _textos(PaletaVera paleta) => TextTheme(
+    displayLarge: TextStyle(
+      color: paleta.textPrimary,
+      fontSize: 42,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -1.2,
+      height: 1.1,
+    ),
+    displayMedium: TextStyle(
+      color: paleta.textPrimary,
+      fontSize: 34,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.8,
+    ),
+    headlineLarge: TextStyle(
+      color: paleta.textPrimary,
+      fontSize: 28,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.5,
+    ),
+    headlineMedium: TextStyle(
+      color: paleta.textPrimary,
+      fontSize: 22,
+      fontWeight: FontWeight.w600,
+      letterSpacing: -0.3,
+    ),
+    titleLarge: TextStyle(
+      color: paleta.textPrimary,
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
+    ),
+    bodyLarge: TextStyle(
+      color: paleta.textSecondary,
+      fontSize: 16,
+      height: 1.5,
+    ),
+    bodyMedium: TextStyle(
+      color: paleta.textSecondary,
+      fontSize: 14,
+      height: 1.5,
+    ),
+    bodySmall: TextStyle(color: paleta.textMuted, fontSize: 12),
+  );
 }

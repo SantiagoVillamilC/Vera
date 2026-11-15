@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/core/widgets/fondo_vera.dart';
 import 'package:vera/core/widgets/tarjeta_vidrio.dart';
@@ -194,17 +194,17 @@ class _EnviarLlaveScreenState extends State<EnviarLlaveScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back_ios_new_rounded,
-              color: AppColors.textPrimary,
+              color: context.paleta.textPrimary,
               size: 20,
             ),
             onPressed: () => Navigator.of(context).maybePop(),
           ),
-          title: const Text(
+          title: Text(
             'Enviar por llave',
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: context.paleta.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
@@ -227,15 +227,15 @@ class _EnviarLlaveScreenState extends State<EnviarLlaveScreen> {
                   _error!,
                   key: const Key('error-envio'),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.error, fontSize: 14),
+                  style: TextStyle(color: context.paleta.error, fontSize: 14),
                 ),
                 if (_reintentable)
                   TextButton(
                     key: const Key('reintentar'),
                     onPressed: _enviando ? null : _enviar,
-                    child: const Text(
+                    child: Text(
                       'Reintentar',
-                      style: TextStyle(color: AppColors.gradientStart),
+                      style: TextStyle(color: context.paleta.gradientStart),
                     ),
                   ),
               ],
@@ -259,9 +259,9 @@ class _EnviarLlaveScreenState extends State<EnviarLlaveScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Tipo de llave',
-          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+          style: TextStyle(color: context.paleta.textMuted, fontSize: 12),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -287,9 +287,9 @@ class _EnviarLlaveScreenState extends State<EnviarLlaveScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Llave',
-          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+          style: TextStyle(color: context.paleta.textMuted, fontSize: 12),
         ),
         const SizedBox(height: 6),
         TextField(
@@ -300,8 +300,8 @@ class _EnviarLlaveScreenState extends State<EnviarLlaveScreen> {
           autocorrect: false,
           onChanged: (_) => setState(() {}),
           inputFormatters: [LengthLimitingTextInputFormatter(254)],
-          style: const TextStyle(
-            color: AppColors.gradientStart,
+          style: TextStyle(
+            color: context.paleta.gradientStart,
             fontSize: 17,
             fontWeight: FontWeight.w600,
           ),
@@ -313,8 +313,8 @@ class _EnviarLlaveScreenState extends State<EnviarLlaveScreen> {
             isDense: true,
             contentPadding: EdgeInsets.zero,
             hintText: _pistaDeTipo(_tipo),
-            hintStyle: const TextStyle(
-              color: AppColors.textMuted,
+            hintStyle: TextStyle(
+              color: context.paleta.textMuted,
               fontSize: 17,
               fontWeight: FontWeight.w400,
             ),
@@ -325,7 +325,7 @@ class _EnviarLlaveScreenState extends State<EnviarLlaveScreen> {
           Text(
             _errorDeTipo(_tipo),
             key: const Key('llave-error'),
-            style: const TextStyle(color: AppColors.error, fontSize: 13),
+            style: TextStyle(color: context.paleta.error, fontSize: 13),
           ),
         ],
       ],
@@ -336,9 +336,9 @@ class _EnviarLlaveScreenState extends State<EnviarLlaveScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Monto en pesos (COP)',
-          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+          style: TextStyle(color: context.paleta.textMuted, fontSize: 12),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -351,12 +351,12 @@ class _EnviarLlaveScreenState extends State<EnviarLlaveScreen> {
             LengthLimitingTextInputFormatter(17),
           ],
           onChanged: (_) => setState(() {}),
-          style: const TextStyle(
-            color: AppColors.textPrimary,
+          style: TextStyle(
+            color: context.paleta.textPrimary,
             fontSize: 36,
             fontWeight: FontWeight.w800,
           ),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             border: InputBorder.none,
             enabledBorder: InputBorder.none,
             focusedBorder: InputBorder.none,
@@ -364,7 +364,7 @@ class _EnviarLlaveScreenState extends State<EnviarLlaveScreen> {
             isDense: true,
             contentPadding: EdgeInsets.zero,
             hintText: '\$0',
-            hintStyle: TextStyle(color: AppColors.textMuted),
+            hintStyle: TextStyle(color: context.paleta.textMuted),
           ),
         ),
       ],

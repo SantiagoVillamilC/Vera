@@ -6,6 +6,7 @@ import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/core/widgets/fondo_vera.dart';
 import 'package:vera/core/widgets/tarjeta_vidrio.dart';
@@ -116,7 +117,7 @@ class _EnviarScreenState extends State<EnviarScreen> {
     if (!_canSend || destino == null || monto == null) return;
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.paleta.surface,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -159,6 +160,9 @@ class _EnviarScreenState extends State<EnviarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tintaRevisar = !_canSend && context.paleta.esClara
+        ? context.paleta.textMuted
+        : Colors.white;
     return FondoVera(
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -166,17 +170,17 @@ class _EnviarScreenState extends State<EnviarScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back_ios_new_rounded,
-              color: AppColors.textPrimary,
+              color: context.paleta.textPrimary,
               size: 20,
             ),
             onPressed: () => context.pop(),
           ),
-          title: const Text(
+          title: Text(
             'Enviar dinero',
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: context.paleta.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
@@ -198,10 +202,10 @@ class _EnviarScreenState extends State<EnviarScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Para',
                             style: TextStyle(
-                              color: AppColors.textMuted,
+                              color: context.paleta.textMuted,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
@@ -216,12 +220,12 @@ class _EnviarScreenState extends State<EnviarScreen> {
                                 maxLongitudDestino,
                               ),
                             ],
-                            style: const TextStyle(
-                              color: AppColors.gradientStart,
+                            style: TextStyle(
+                              color: context.paleta.gradientStart,
                               fontSize: 17,
                               fontWeight: FontWeight.w600,
                             ),
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               border: InputBorder.none,
                               enabledBorder: InputBorder.none,
                               focusedBorder: InputBorder.none,
@@ -230,7 +234,7 @@ class _EnviarScreenState extends State<EnviarScreen> {
                               contentPadding: EdgeInsets.zero,
                               hintText: 'Celular',
                               hintStyle: TextStyle(
-                                color: AppColors.textMuted,
+                                color: context.paleta.textMuted,
                                 fontSize: 17,
                                 fontWeight: FontWeight.w400,
                               ),
@@ -244,13 +248,13 @@ class _EnviarScreenState extends State<EnviarScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceVariant,
+                        color: context.paleta.surfaceVariant,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: context.paleta.border),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.contacts_rounded,
-                        color: AppColors.textSecondary,
+                        color: context.paleta.textSecondary,
                         size: 20,
                       ),
                     ),
@@ -268,10 +272,10 @@ class _EnviarScreenState extends State<EnviarScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'Monto',
                           style: TextStyle(
-                            color: AppColors.textMuted,
+                            color: context.paleta.textMuted,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -282,14 +286,14 @@ class _EnviarScreenState extends State<EnviarScreen> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceVariant,
+                            color: context.paleta.surfaceVariant,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: AppColors.border),
+                            border: Border.all(color: context.paleta.border),
                           ),
-                          child: const Text(
+                          child: Text(
                             'COP',
                             style: TextStyle(
-                              color: AppColors.textSecondary,
+                              color: context.paleta.textSecondary,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -303,13 +307,13 @@ class _EnviarScreenState extends State<EnviarScreen> {
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       onChanged: (_) => setState(() => _montoExacto = null),
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        color: context.paleta.textPrimary,
                         fontSize: 40,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -1,
                       ),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -318,7 +322,7 @@ class _EnviarScreenState extends State<EnviarScreen> {
                         contentPadding: EdgeInsets.zero,
                         hintText: '\$0',
                         hintStyle: TextStyle(
-                          color: AppColors.textMuted,
+                          color: context.paleta.textMuted,
                           fontSize: 40,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -1,
@@ -334,22 +338,22 @@ class _EnviarScreenState extends State<EnviarScreen> {
                           minimumSize: const Size(0, 32),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: const Text(
+                        child: Text(
                           'Enviar el máximo',
-                          style: TextStyle(color: AppColors.gradientStart),
+                          style: TextStyle(color: context.paleta.gradientStart),
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Divider(color: AppColors.border, height: 1),
+                    Divider(color: context.paleta.border, height: 1),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _noteCtrl,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        color: context.paleta.textSecondary,
                         fontSize: 14,
                       ),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -358,14 +362,14 @@ class _EnviarScreenState extends State<EnviarScreen> {
                         contentPadding: EdgeInsets.zero,
                         hintText: 'Nota (opcional)',
                         hintStyle: TextStyle(
-                          color: AppColors.textMuted,
+                          color: context.paleta.textMuted,
                           fontSize: 14,
                         ),
                         prefixIcon: Padding(
                           padding: EdgeInsets.only(right: 8),
                           child: Icon(
                             Icons.edit_note_rounded,
-                            color: AppColors.textMuted,
+                            color: context.paleta.textMuted,
                             size: 18,
                           ),
                         ),
@@ -379,6 +383,7 @@ class _EnviarScreenState extends State<EnviarScreen> {
               const SizedBox(height: 48),
 
               // ── Review button ───────────────────────────────────
+              // Deshabilitado en claro, el blanco no se leería sobre el gris.
               GestureDetector(
                 onTap: _canSend ? _onRevisar : null,
                 child: Container(
@@ -387,23 +392,23 @@ class _EnviarScreenState extends State<EnviarScreen> {
                   decoration: BoxDecoration(
                     gradient: _canSend
                         ? AppGradients.brand
-                        : const LinearGradient(
+                        : LinearGradient(
                             colors: [
-                              AppColors.surfaceVariant,
-                              AppColors.surfaceVariant,
+                              context.paleta.surfaceVariant,
+                              context.paleta.surfaceVariant,
                             ],
                           ),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.send_rounded, color: Colors.white, size: 18),
-                      SizedBox(width: 10),
+                      Icon(Icons.send_rounded, color: tintaRevisar, size: 18),
+                      const SizedBox(width: 10),
                       Text(
                         'Revisar envío',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: tintaRevisar,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
@@ -509,15 +514,15 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.border,
+                color: context.paleta.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 28),
-            const Text(
+            Text(
               'Confirmando envío',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.paleta.textPrimary,
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
               ),
@@ -527,16 +532,16 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
+                color: context.paleta.surfaceVariant,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.paleta.border),
               ),
               child: Column(
                 children: [
                   Text(
                     formatPesos(widget.monto),
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
+                    style: TextStyle(
+                      color: context.paleta.textPrimary,
                       fontSize: 36,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -1,
@@ -552,7 +557,7 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
               Text(
                 _errorEnvio!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.error, fontSize: 14),
+                style: TextStyle(color: context.paleta.error, fontSize: 14),
               ),
             ],
             const SizedBox(height: 24),
@@ -566,24 +571,24 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
   Widget _destinatario() {
     switch (_consulta) {
       case _Consulta.cargando:
-        return const SizedBox(
+        return SizedBox(
           width: 20,
           height: 20,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: AppColors.gradientStart,
+            color: context.paleta.gradientStart,
           ),
         );
       case _Consulta.ok:
         return Text(
           _nombre!,
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
+          style: TextStyle(color: context.paleta.textSecondary, fontSize: 15),
         );
       case _Consulta.noEncontrado:
         return Text(
           _mensajeConsulta!,
           textAlign: TextAlign.center,
-          style: const TextStyle(color: AppColors.error, fontSize: 14),
+          style: TextStyle(color: context.paleta.error, fontSize: 14),
         );
       case _Consulta.falla:
         return Column(
@@ -591,13 +596,13 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
             Text(
               _mensajeConsulta ?? mensajeSinRed,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.error, fontSize: 14),
+              style: TextStyle(color: context.paleta.error, fontSize: 14),
             ),
             TextButton(
               onPressed: _consultar,
-              child: const Text(
+              child: Text(
                 'Reintentar',
-                style: TextStyle(color: AppColors.gradientStart),
+                style: TextStyle(color: context.paleta.gradientStart),
               ),
             ),
           ],
@@ -613,8 +618,8 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
           child: OutlinedButton(
             onPressed: enviando ? null : () => Navigator.pop(context),
             style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.textSecondary,
-              side: const BorderSide(color: AppColors.border),
+              foregroundColor: context.paleta.textSecondary,
+              side: BorderSide(color: context.paleta.border),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),

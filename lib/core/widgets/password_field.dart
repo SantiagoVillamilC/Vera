@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 
 const contrasenaMinima = 8;
 const contrasenaMaxima = 64;
@@ -60,7 +60,7 @@ class _PasswordFieldState extends State<PasswordField> {
       onFieldSubmitted: widget.onSubmitted,
       autofocus: widget.autofocus,
       validator: widget.validator,
-      style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
+      style: TextStyle(color: context.paleta.textPrimary, fontSize: 16),
       decoration: InputDecoration(
         hintText: widget.hintText,
         prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),

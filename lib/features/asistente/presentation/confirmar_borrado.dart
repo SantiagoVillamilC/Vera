@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 
 /// Diálogo de confirmación de un borrado del historial de Vera. Las etiquetas se pueden
 /// cambiar para reusarlo en otras decisiones de sí o no sobre los datos del asistente.
@@ -12,11 +12,11 @@ Future<bool?> confirmarBorrado(
 }) => showDialog<bool>(
   context: context,
   builder: (ctx) => AlertDialog(
-    backgroundColor: AppColors.surface,
-    title: Text(titulo, style: const TextStyle(color: AppColors.textPrimary)),
+    backgroundColor: context.paleta.surface,
+    title: Text(titulo, style: TextStyle(color: context.paleta.textPrimary)),
     content: Text(
       detalle,
-      style: const TextStyle(color: AppColors.textSecondary),
+      style: TextStyle(color: context.paleta.textSecondary),
     ),
     actions: [
       TextButton(
@@ -27,7 +27,7 @@ Future<bool?> confirmarBorrado(
         onPressed: () => Navigator.pop(ctx, true),
         child: Text(
           etiquetaConfirmar,
-          style: const TextStyle(color: AppColors.error),
+          style: TextStyle(color: context.paleta.error),
         ),
       ),
     ],

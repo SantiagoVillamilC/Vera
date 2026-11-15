@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/format/fechas.dart';
 import 'package:vera/core/format/pesos.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/fondo_vera.dart';
 import 'package:vera/core/widgets/marca_vera.dart';
 import 'package:vera/core/widgets/tarjeta_vidrio.dart';
@@ -10,15 +10,18 @@ import 'package:vera/features/home/presentation/movimiento_vista.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
 
 /// Texto y color con que se rotula el estado de un envío.
-(String, Color) etiquetaDeEstado(EstadoTransferencia estado) => switch (estado) {
-  EstadoTransferencia.confirmada => ('Exitoso', AppColors.accentGreen),
-  EstadoTransferencia.creada => ('Creado', AppColors.warning),
-  EstadoTransferencia.reservada => ('Reservado', AppColors.warning),
-  EstadoTransferencia.despachada => ('En camino', AppColors.warning),
-  EstadoTransferencia.fallida => ('Fallido', AppColors.error),
-  EstadoTransferencia.compensada => ('Compensado', AppColors.warning),
+(String, Color) etiquetaDeEstado(
+  EstadoTransferencia estado, [
+  PaletaVera p = PaletaVera.oscura,
+]) => switch (estado) {
+  EstadoTransferencia.confirmada => ('Exitoso', p.accentGreen),
+  EstadoTransferencia.creada => ('Creado', p.warning),
+  EstadoTransferencia.reservada => ('Reservado', p.warning),
+  EstadoTransferencia.despachada => ('En camino', p.warning),
+  EstadoTransferencia.fallida => ('Fallido', p.error),
+  EstadoTransferencia.compensada => ('Compensado', p.warning),
   EstadoTransferencia.indeterminada ||
-  EstadoTransferencia.desconocido => ('Por confirmar', AppColors.warning),
+  EstadoTransferencia.desconocido => ('Por confirmar', p.warning),
 };
 
 /// «+57 310 ••• 4821» a partir de un celular E.164. Nunca muestra el número completo.
@@ -74,9 +77,9 @@ class ResultadoEnvioScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (textoEstado, colorEstado) = etiquetaDeEstado(estado);
+    final (textoEstado, colorEstado) = etiquetaDeEstado(estado, context.paleta);
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.paleta.background,
       body: FondoVera(
         child: SafeArea(
           child: Column(
@@ -91,8 +94,8 @@ class ResultadoEnvioScreen extends StatelessWidget {
                       Text(
                         titulo,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
+                        style: TextStyle(
+                          color: context.paleta.textPrimary,
                           fontSize: 26,
                           fontWeight: FontWeight.w700,
                           letterSpacing: -0.5,
@@ -103,8 +106,8 @@ class ResultadoEnvioScreen extends StatelessWidget {
                         mensaje,
                         key: const Key('resultado_mensaje'),
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
+                        style: TextStyle(
+                          color: context.paleta.textSecondary,
                           fontSize: 15,
                           height: 1.35,
                         ),
@@ -113,8 +116,8 @@ class ResultadoEnvioScreen extends StatelessWidget {
                       Text(
                         formatPesos(montoCentavos),
                         key: const Key('resultado_monto'),
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
+                        style: TextStyle(
+                          color: context.paleta.textPrimary,
                           fontSize: 44,
                           fontWeight: FontWeight.w700,
                           letterSpacing: -1.5,
@@ -159,13 +162,13 @@ class ResultadoEnvioScreen extends StatelessWidget {
                           height: 56,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: AppColors.botonClaro,
+                            color: context.paleta.botonClaro,
                             borderRadius: BorderRadius.circular(28),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Volver al inicio',
                             style: TextStyle(
-                              color: AppColors.tintaBotonClaro,
+                              color: context.paleta.tintaBotonClaro,
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
                             ),
@@ -195,11 +198,12 @@ class _Cabecera extends StatelessWidget {
   Widget build(BuildContext context) {
     final fallo = estado == EstadoTransferencia.fallida;
     final color = exito
-        ? AppColors.gradientStart
-        : (fallo ? AppColors.error : AppColors.warning);
+        ? context.paleta.gradientStart
+        : (fallo ? context.paleta.error : context.paleta.warning);
     final icono = exito
         ? Icons.check_rounded
         : (fallo ? Icons.close_rounded : Icons.schedule_rounded);
+    final claro = context.paleta.esClara;
     return SizedBox(
       width: 260,
       height: 170,
@@ -211,7 +215,7 @@ class _Cabecera extends StatelessWidget {
             height: 150,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withAlpha(36),
+              color: claro ? color.withAlpha(28) : Colors.white.withAlpha(36),
             ),
           ),
           Container(
@@ -219,7 +223,7 @@ class _Cabecera extends StatelessWidget {
             height: 112,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withAlpha(120),
+              color: claro ? color.withAlpha(56) : Colors.white.withAlpha(120),
             ),
           ),
           Container(
@@ -229,15 +233,15 @@ class _Cabecera extends StatelessWidget {
             decoration: BoxDecoration(shape: BoxShape.circle, color: color),
             child: Icon(icono, color: Colors.white, size: 40),
           ),
-          const Positioned(
+          Positioned(
             left: 22,
             top: 22,
-            child: ChispaVera(tamano: 22, color: AppColors.accentGreen),
+            child: ChispaVera(tamano: 22, color: context.paleta.accentGreen),
           ),
-          const Positioned(
+          Positioned(
             right: 24,
             top: 56,
-            child: ChispaVera(tamano: 22, color: AppColors.gradientStart),
+            child: ChispaVera(tamano: 22, color: context.paleta.gradientStart),
           ),
           Positioned(
             right: 34,
@@ -245,9 +249,9 @@ class _Cabecera extends StatelessWidget {
             child: Container(
               width: 9,
               height: 9,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.gradientStart,
+                color: context.paleta.gradientStart,
               ),
             ),
           ),
@@ -257,9 +261,9 @@ class _Cabecera extends StatelessWidget {
             child: Container(
               width: 8,
               height: 8,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.accentGreen,
+                color: context.paleta.accentGreen,
               ),
             ),
           ),
@@ -273,7 +277,7 @@ class _Fila extends StatelessWidget {
   const _Fila(
     this.etiqueta,
     this.valor, {
-    this.colorValor = AppColors.textPrimary,
+    this.colorValor,
     this.conPunto = false,
     this.llave,
     this.ultima = false,
@@ -281,13 +285,14 @@ class _Fila extends StatelessWidget {
 
   final String etiqueta;
   final String valor;
-  final Color colorValor;
+  final Color? colorValor;
   final bool conPunto;
   final Key? llave;
   final bool ultima;
 
   @override
   Widget build(BuildContext context) {
+    final tintaValor = colorValor ?? context.paleta.textPrimary;
     return Column(
       children: [
         Padding(
@@ -296,8 +301,8 @@ class _Fila extends StatelessWidget {
             children: [
               Text(
                 etiqueta,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
+                style: TextStyle(
+                  color: context.paleta.textSecondary,
                   fontSize: 15,
                 ),
               ),
@@ -316,7 +321,7 @@ class _Fila extends StatelessWidget {
                             width: 8,
                             height: 8,
                             decoration: BoxDecoration(
-                              color: colorValor,
+                              color: tintaValor,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -326,7 +331,7 @@ class _Fila extends StatelessWidget {
                           valor,
                           key: llave,
                           style: TextStyle(
-                            color: colorValor,
+                            color: tintaValor,
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -339,7 +344,7 @@ class _Fila extends StatelessWidget {
             ],
           ),
         ),
-        if (!ultima) Divider(color: Colors.white.withAlpha(22), height: 1),
+        if (!ultima) Divider(color: context.paleta.velo.withAlpha(22), height: 1),
       ],
     );
   }

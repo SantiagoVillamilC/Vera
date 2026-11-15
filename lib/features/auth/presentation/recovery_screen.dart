@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/auth_background.dart';
 import 'package:vera/core/widgets/auth_scroll_body.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
@@ -76,9 +77,9 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
                   children: [
                     IconButton(
                       onPressed: () => context.pop(),
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.arrow_back_ios_new_rounded,
-                        color: AppColors.textSecondary,
+                        color: context.paleta.textSecondary,
                         size: 20,
                       ),
                       padding: EdgeInsets.zero,
@@ -98,27 +99,27 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
                       color: AppColors.gradientMid.withAlpha(80),
                     ),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.lock_reset_rounded,
-                    color: AppColors.gradientStart,
+                    color: context.paleta.gradientStart,
                     size: 28,
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'Recuperar contraseña',
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.paleta.textPrimary,
                     fontSize: 30,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.6,
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
+                Text(
                   'Ingresa el correo electrónico de tu cuenta. Enviaremos un código de verificación por WhatsApp.',
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: context.paleta.textSecondary,
                     fontSize: 15,
                     height: 1.55,
                   ),
@@ -130,8 +131,8 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _sendOtp(),
                   autofocus: true,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.paleta.textPrimary,
                     fontSize: 15,
                   ),
                   decoration: const InputDecoration(
@@ -297,7 +298,7 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
           TextButton(
             onPressed: () => context.go('/login/recovery'),
             style: TextButton.styleFrom(
-              foregroundColor: AppColors.gradientStart,
+              foregroundColor: context.paleta.gradientStart,
             ),
             child: const Text(
               'Volver a empezar',
@@ -307,7 +308,7 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
           TextButton(
             onPressed: () => context.go('/login'),
             style: TextButton.styleFrom(
-              foregroundColor: AppColors.textSecondary,
+              foregroundColor: context.paleta.textSecondary,
             ),
             child: const Text('Iniciar sesión'),
           ),
@@ -317,12 +318,14 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
     if (_resendSeconds > 0) {
       return Text(
         'Reenviar código en ${_resendSeconds}s',
-        style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+        style: TextStyle(color: context.paleta.textMuted, fontSize: 14),
       );
     }
     return TextButton(
       onPressed: _resending ? null : _resend,
-      style: TextButton.styleFrom(foregroundColor: AppColors.gradientStart),
+      style: TextButton.styleFrom(
+        foregroundColor: context.paleta.gradientStart,
+      ),
       child: const Text(
         'Reenviar código',
         style: TextStyle(fontWeight: FontWeight.w600),
@@ -350,9 +353,9 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
                     children: [
                       IconButton(
                         onPressed: () => context.pop(),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back_ios_new_rounded,
-                          color: AppColors.textSecondary,
+                          color: context.paleta.textSecondary,
                           size: 20,
                         ),
                         padding: EdgeInsets.zero,
@@ -384,10 +387,10 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'Código de restablecimiento',
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.paleta.textPrimary,
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.5,
@@ -397,17 +400,17 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
                 Text(
                   'Enviamos un código por WhatsApp al celular\nregistrado en ${widget.correo}',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: context.paleta.textSecondary,
                     fontSize: 15,
                     height: 1.5,
                   ),
                 ),
                 const SizedBox(height: 40),
                 _loading
-                    ? const CircularProgressIndicator(
+                    ? CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation(
-                          AppColors.gradientStart,
+                          context.paleta.gradientStart,
                         ),
                       )
                     : PinDots(length: _otpLength, filled: _otp.length),
@@ -417,10 +420,10 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Código de respaldo',
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: context.paleta.textSecondary,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),
@@ -429,8 +432,8 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
                       TextField(
                         controller: _codigoRespaldoCtrl,
                         textInputAction: TextInputAction.done,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
+                        style: TextStyle(
+                          color: context.paleta.textPrimary,
                           fontSize: 15,
                           letterSpacing: 1.5,
                         ),
@@ -440,10 +443,10 @@ class _RecoveryOtpScreenState extends State<RecoveryOtpScreen> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      const Text(
+                      Text(
                         'Uno de los 8 códigos de respaldo que recibiste al registrarte.',
                         style: TextStyle(
-                          color: AppColors.textMuted,
+                          color: context.paleta.textMuted,
                           fontSize: 12,
                         ),
                       ),
@@ -536,9 +539,9 @@ class _NewPinScreenState extends State<NewPinScreen> {
                 children: [
                   IconButton(
                     onPressed: _loading ? null : () => context.pop(),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.arrow_back_ios_new_rounded,
-                      color: AppColors.textSecondary,
+                      color: context.paleta.textSecondary,
                       size: 20,
                     ),
                     padding: EdgeInsets.zero,
@@ -548,20 +551,20 @@ class _NewPinScreenState extends State<NewPinScreen> {
                 ],
               ),
               const SizedBox(height: 48),
-              const Text(
+              Text(
                 'Crea tu nueva contraseña',
                 style: TextStyle(
-                  color: AppColors.textPrimary,
+                  color: context.paleta.textPrimary,
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.5,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Usa entre 8 y 64 caracteres. Puedes incluir letras, números y símbolos.',
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color: context.paleta.textSecondary,
                   fontSize: 15,
                   height: 1.5,
                 ),
@@ -586,7 +589,7 @@ class _NewPinScreenState extends State<NewPinScreen> {
                 const SizedBox(height: 12),
                 Text(
                   _error!,
-                  style: const TextStyle(color: AppColors.error, fontSize: 14),
+                  style: TextStyle(color: context.paleta.error, fontSize: 14),
                 ),
               ],
               const SizedBox(height: 32),

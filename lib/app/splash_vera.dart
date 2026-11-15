@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/cargando_vera.dart';
 import 'package:vera/core/widgets/fondo_vera.dart';
 
@@ -28,7 +29,7 @@ class SplashVera extends StatelessWidget {
                 opacity: v,
                 child: Transform.scale(scale: 0.86 + 0.14 * v, child: hijo),
               ),
-              child: const Column(
+              child: Column(
                 key: Key('splash_vera'),
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -37,7 +38,7 @@ class SplashVera extends StatelessWidget {
                   Text(
                     'vera',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: context.paleta.textPrimary,
                       fontSize: 44,
                       fontWeight: FontWeight.w700,
                       letterSpacing: -1,

@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/marca_vera.dart';
 
 /// Indicador de carga de Vera: el logo flota dentro de un halo que respira y un anillo que gira.
@@ -61,7 +61,11 @@ class _CargandoVeraState extends State<CargandoVera>
                   final fase = _c.value * 2 * math.pi;
                   final respiro = 0.5 + 0.5 * math.sin(fase);
                   return CustomPaint(
-                    painter: _AnilloPainter(giro: fase, respiro: respiro),
+                    painter: _AnilloPainter(
+                      giro: fase,
+                      respiro: respiro,
+                      paleta: context.paleta,
+                    ),
                     child: Center(
                       child: Transform.translate(
                         offset: Offset(0, -math.sin(fase) * t * 0.04),
@@ -77,8 +81,8 @@ class _CargandoVeraState extends State<CargandoVera>
               Text(
                 widget.mensaje!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
+                style: TextStyle(
+                  color: context.paleta.textSecondary,
                   fontSize: 14,
                 ),
               ),
@@ -91,10 +95,15 @@ class _CargandoVeraState extends State<CargandoVera>
 }
 
 class _AnilloPainter extends CustomPainter {
-  const _AnilloPainter({required this.giro, required this.respiro});
+  const _AnilloPainter({
+    required this.giro,
+    required this.respiro,
+    required this.paleta,
+  });
 
   final double giro;
   final double respiro;
+  final PaletaVera paleta;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -107,8 +116,8 @@ class _AnilloPainter extends CustomPainter {
       Paint()
         ..shader = RadialGradient(
           colors: [
-            AppColors.gradientStart.withAlpha((70 + 50 * respiro).round()),
-            AppColors.gradientStart.withAlpha(0),
+            paleta.gradientStart.withAlpha((70 + 50 * respiro).round()),
+            paleta.gradientStart.withAlpha(0),
           ],
         ).createShader(Rect.fromCircle(center: centro, radius: radio)),
     );
@@ -120,7 +129,7 @@ class _AnilloPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2
-        ..color = Colors.white.withAlpha(22),
+        ..color = paleta.velo.withAlpha(22),
     );
     canvas.drawArc(
       rect,
@@ -134,10 +143,7 @@ class _AnilloPainter extends CustomPainter {
         ..shader = SweepGradient(
           startAngle: giro,
           endAngle: giro + math.pi * 1.1,
-          colors: [
-            AppColors.gradientStart.withAlpha(0),
-            AppColors.gradientStart,
-          ],
+          colors: [paleta.gradientStart.withAlpha(0), paleta.gradientStart],
           transform: GradientRotation(giro),
         ).createShader(rect),
     );
@@ -145,7 +151,7 @@ class _AnilloPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_AnilloPainter old) =>
-      old.giro != giro || old.respiro != respiro;
+      old.giro != giro || old.respiro != respiro || old.paleta != paleta;
 }
 
 /// Bloque gris con un brillo que lo recorre: lo que se ve mientras llega una lista.
@@ -208,9 +214,9 @@ class _EsqueletoVeraState extends State<EsqueletoVera>
               begin: Alignment(x - 0.6, 0),
               end: Alignment(x + 0.6, 0),
               colors: [
-                Colors.white.withAlpha(16),
-                Colors.white.withAlpha(40),
-                Colors.white.withAlpha(16),
+                context.paleta.velo.withAlpha(16),
+                context.paleta.velo.withAlpha(40),
+                context.paleta.velo.withAlpha(16),
               ],
             ),
           ),

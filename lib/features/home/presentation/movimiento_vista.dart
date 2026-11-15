@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vera/core/format/fechas.dart';
 import 'package:vera/core/format/pesos.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/theme/tintes.dart';
 import 'package:vera/features/nucleo/data/movimiento_filas.dart';
 import 'package:vera/features/nucleo/data/nucleo_repository.dart';
@@ -133,8 +133,8 @@ class MovimientoFilaTile extends StatelessWidget {
                   fila.etiqueta,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.paleta.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -142,8 +142,8 @@ class MovimientoFilaTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   subtitulo,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: context.paleta.textSecondary,
                     fontSize: 13,
                   ),
                 ),
@@ -158,8 +158,8 @@ class MovimientoFilaTile extends StatelessWidget {
                 montoConSigno(fila.montoCentavos),
                 style: TextStyle(
                   color: esIngreso
-                      ? AppColors.accentGreen
-                      : AppColors.textPrimary,
+                      ? context.paleta.accentGreen
+                      : context.paleta.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
@@ -168,8 +168,8 @@ class MovimientoFilaTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   esIngreso ? 'Ingreso' : 'Gasto',
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
+                  style: TextStyle(
+                    color: context.paleta.textMuted,
                     fontSize: 11,
                   ),
                 ),

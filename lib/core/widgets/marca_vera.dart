@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 
 /// Ilustración de Vera: las tarjetas con el punto, en versión estática para iconos pequeños.
 class MarcaVera extends StatelessWidget {
@@ -16,6 +17,7 @@ class MarcaVera extends StatelessWidget {
   Widget build(BuildContext context) {
     final w = tamano * 0.62;
     final h = tamano * 0.44;
+    final claro = context.paleta.esClara;
     return SizedBox(
       width: tamano,
       height: tamano,
@@ -44,7 +46,9 @@ class MarcaVera extends StatelessWidget {
             child: _Tarjeta(
               ancho: w,
               alto: h,
-              colores: const [Color(0xFFEAF2FF), Color(0xFFBFD2F5)],
+              colores: claro
+                  ? const [Color(0xFFD9E6FB), Color(0xFFA9C3EE)]
+                  : const [Color(0xFFEAF2FF), Color(0xFFBFD2F5)],
               punto: true,
             ),
           ),
@@ -54,7 +58,9 @@ class MarcaVera extends StatelessWidget {
               right: -tamano * 0.04,
               child: CustomPaint(
                 size: Size.square(tamano * 0.3),
-                painter: const _ChispaPainter(),
+                painter: _ChispaPainter(
+                  color: claro ? context.paleta.accent : Colors.white,
+                ),
               ),
             ),
         ],
@@ -140,7 +146,8 @@ class _ChispaPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ChispaPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 /// Botón central de la barra: el orbe con el micrófono que abre a Vera por voz o texto.
@@ -165,7 +172,7 @@ class OrbeVera extends StatelessWidget {
           height: tamano,
           padding: const EdgeInsets.all(5),
           decoration: BoxDecoration(
-            color: AppColors.barra,
+            color: context.paleta.barra,
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
@@ -210,7 +217,7 @@ class AvatarVera extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: AppColors.accentGreen.withAlpha(150),
+          color: context.paleta.accentGreen.withAlpha(150),
           width: 2,
         ),
       ),
@@ -375,12 +382,13 @@ class _OndaExpansiva extends StatelessWidget {
   Widget build(BuildContext context) {
     final tamano = diametro * (1.02 + 0.42 * progreso);
     final alfa = (110 * intensidad * (1 - progreso)).round().clamp(0, 255);
+    final aro = context.paleta.esClara ? context.paleta.accent : Colors.white;
     return Container(
       width: tamano,
       height: tamano,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withAlpha(alfa), width: 1.6),
+        border: Border.all(color: aro.withAlpha(alfa), width: 1.6),
       ),
     );
   }

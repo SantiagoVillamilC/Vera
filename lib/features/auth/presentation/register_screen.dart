@@ -6,6 +6,7 @@ import 'package:vera/core/format/nit.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/auth_background.dart';
 import 'package:vera/core/widgets/auth_scroll_body.dart';
 import 'package:vera/core/widgets/gradient_button.dart';
@@ -201,13 +202,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
             if (_step == 3 && !_consentimientosCompletos)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.fromLTRB(28, 12, 28, 0),
                 child: Text(
                   'Marca las dos casillas para crear la cuenta.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: context.paleta.textSecondary,
                     fontSize: 13,
                   ),
                 ),
@@ -311,9 +312,9 @@ class _TopBar extends StatelessWidget {
             children: [
               IconButton(
                 onPressed: onBack,
-                icon: const Icon(
+                icon: Icon(
                   Icons.arrow_back_ios_new_rounded,
-                  color: AppColors.textSecondary,
+                  color: context.paleta.textSecondary,
                   size: 20,
                 ),
                 padding: EdgeInsets.zero,
@@ -329,8 +330,8 @@ class _TopBar extends StatelessWidget {
           const SizedBox(height: 28),
           Text(
             _titles[step],
-            style: const TextStyle(
-              color: AppColors.textPrimary,
+            style: TextStyle(
+              color: context.paleta.textPrimary,
               fontSize: 30,
               fontWeight: FontWeight.w700,
               letterSpacing: -0.6,
@@ -339,10 +340,7 @@ class _TopBar extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             _subtitle(step),
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 15,
-            ),
+            style: TextStyle(color: context.paleta.textSecondary, fontSize: 15),
           ),
           const SizedBox(height: 8),
         ],
@@ -383,7 +381,7 @@ class _StepBar extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(2),
               gradient: active ? AppGradients.brand : null,
-              color: active ? null : AppColors.border,
+              color: active ? null : context.paleta.border,
             ),
           ),
         );
@@ -451,9 +449,9 @@ class _TypeCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: selected ? AppGradients.brand : null,
-        color: selected ? null : AppColors.surfaceVariant,
+        color: selected ? null : context.paleta.surfaceVariant,
         border: Border.all(
-          color: selected ? Colors.transparent : AppColors.border,
+          color: selected ? Colors.transparent : context.paleta.border,
           width: 1,
         ),
         boxShadow: selected
@@ -481,12 +479,14 @@ class _TypeCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: selected
                         ? Colors.white.withAlpha(30)
-                        : AppColors.border,
+                        : context.paleta.border,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(
                     icon,
-                    color: selected ? Colors.white : AppColors.textSecondary,
+                    color: selected
+                        ? Colors.white
+                        : context.paleta.textSecondary,
                     size: 28,
                   ),
                 ),
@@ -500,7 +500,7 @@ class _TypeCard extends StatelessWidget {
                         style: TextStyle(
                           color: selected
                               ? Colors.white
-                              : AppColors.textPrimary,
+                              : context.paleta.textPrimary,
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
                         ),
@@ -511,7 +511,7 @@ class _TypeCard extends StatelessWidget {
                         style: TextStyle(
                           color: selected
                               ? Colors.white.withAlpha(180)
-                              : AppColors.textSecondary,
+                              : context.paleta.textSecondary,
                           fontSize: 14,
                         ),
                       ),
@@ -522,7 +522,7 @@ class _TypeCard extends StatelessWidget {
                   selected
                       ? Icons.check_circle_rounded
                       : Icons.radio_button_unchecked_rounded,
-                  color: selected ? Colors.white : AppColors.textMuted,
+                  color: selected ? Colors.white : context.paleta.textMuted,
                   size: 22,
                 ),
               ],
@@ -851,7 +851,7 @@ class _PasswordStep extends StatelessWidget {
           obscureText: obscurePass,
           textInputAction: TextInputAction.next,
           maxLength: _maxContrasena,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+          style: TextStyle(color: context.paleta.textPrimary, fontSize: 15),
           decoration: InputDecoration(
             counterText: '',
             hintText: 'Entre 8 y 64 caracteres',
@@ -887,7 +887,7 @@ class _PasswordStep extends StatelessWidget {
           obscureText: obscureConfirm,
           textInputAction: TextInputAction.done,
           maxLength: _maxContrasena,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+          style: TextStyle(color: context.paleta.textPrimary, fontSize: 15),
           decoration: InputDecoration(
             counterText: '',
             hintText: 'Repite tu contraseña',
@@ -1051,25 +1051,25 @@ class _OtpRegisterScreenState extends State<OtpRegisterScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.error_outline_rounded,
-            color: AppColors.error,
+            color: context.paleta.error,
             size: 44,
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'Esta verificación ya no puede continuar',
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: context.paleta.textPrimary,
               fontSize: 24,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'Pediste demasiados códigos o el código ya no es válido. Inicia sesión o recupera tu cuenta para seguir.',
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: context.paleta.textSecondary,
               fontSize: 15,
               height: 1.55,
             ),
@@ -1083,7 +1083,7 @@ class _OtpRegisterScreenState extends State<OtpRegisterScreen> {
           TextButton(
             onPressed: () => context.go('/login/recovery'),
             style: TextButton.styleFrom(
-              foregroundColor: AppColors.gradientStart,
+              foregroundColor: context.paleta.gradientStart,
             ),
             child: const Text(
               'Recuperar mi cuenta',
@@ -1105,7 +1105,7 @@ class _OtpRegisterScreenState extends State<OtpRegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Padding(
+                Padding(
                   padding: EdgeInsets.fromLTRB(28, 0, 28, 40),
                   child: Align(
                     alignment: Alignment.centerRight,
@@ -1155,10 +1155,10 @@ class _OtpRegisterScreenState extends State<OtpRegisterScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'Verifica tu número',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.paleta.textPrimary,
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.5,
@@ -1168,16 +1168,18 @@ class _OtpRegisterScreenState extends State<OtpRegisterScreen> {
             Text(
               'Enviamos un código por WhatsApp a\n$_maskedCelular',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.paleta.textSecondary,
                 fontSize: 15,
                 height: 1.5,
               ),
             ),
             const SizedBox(height: 48),
             _loading
-                ? const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation(AppColors.gradientStart),
+                ? CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation(
+                      context.paleta.gradientStart,
+                    ),
                   )
                 : PinDots(length: _otpLength, filled: _otp.length),
             const EspacioFlexible(flex: 1, minimo: 24),
@@ -1189,15 +1191,15 @@ class _OtpRegisterScreenState extends State<OtpRegisterScreen> {
             _resendSeconds > 0
                 ? Text(
                     'Reenviar en ${_resendSeconds}s',
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
+                    style: TextStyle(
+                      color: context.paleta.textMuted,
                       fontSize: 14,
                     ),
                   )
                 : TextButton(
                     onPressed: _resending ? null : _resend,
                     style: TextButton.styleFrom(
-                      foregroundColor: AppColors.gradientStart,
+                      foregroundColor: context.paleta.gradientStart,
                     ),
                     child: const Text(
                       'Reenviar código',
@@ -1234,12 +1236,12 @@ class _ConsentTile extends StatelessWidget {
       onChanged: onChanged,
       contentPadding: EdgeInsets.zero,
       controlAffinity: ListTileControlAffinity.leading,
-      activeColor: AppColors.accentGreen,
-      side: const BorderSide(color: AppColors.border, width: 1.5),
+      activeColor: context.paleta.accentGreen,
+      side: BorderSide(color: context.paleta.border, width: 1.5),
       title: Text(
         label,
-        style: const TextStyle(
-          color: AppColors.textSecondary,
+        style: TextStyle(
+          color: context.paleta.textSecondary,
           fontSize: 14,
           height: 1.4,
         ),
@@ -1256,8 +1258,8 @@ class _Label extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
-        color: AppColors.textSecondary,
+      style: TextStyle(
+        color: context.paleta.textSecondary,
         fontSize: 13,
         fontWeight: FontWeight.w500,
         letterSpacing: 0.2,
@@ -1296,7 +1298,7 @@ class _Field extends StatelessWidget {
       textInputAction: TextInputAction.next,
       textCapitalization: capitalization,
       inputFormatters: formatters,
-      style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+      style: TextStyle(color: context.paleta.textPrimary, fontSize: 15),
       decoration: InputDecoration(
         counterText: '',
         hintText: hint,
@@ -1318,8 +1320,8 @@ class _PhoneField extends StatelessWidget {
       keyboardType: TextInputType.phone,
       textInputAction: TextInputAction.next,
       inputFormatters: const [CelularColombianoFormatter()],
-      style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
-      decoration: const InputDecoration(
+      style: TextStyle(color: context.paleta.textPrimary, fontSize: 15),
+      decoration: InputDecoration(
         hintText: '300 000 0000',
         prefixIcon: Padding(
           padding: EdgeInsets.only(left: 16, right: 12),
@@ -1330,12 +1332,15 @@ class _PhoneField extends StatelessWidget {
               SizedBox(width: 8),
               Text(
                 '+57',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                style: TextStyle(
+                  color: context.paleta.textSecondary,
+                  fontSize: 14,
+                ),
               ),
               SizedBox(width: 8),
               SizedBox(
                 height: 18,
-                child: VerticalDivider(color: AppColors.border, width: 1),
+                child: VerticalDivider(color: context.paleta.border, width: 1),
               ),
             ],
           ),
@@ -1361,26 +1366,23 @@ class _DocTypeDropdown extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: value,
       onChanged: onChanged,
-      dropdownColor: AppColors.surfaceVariant,
-      style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+      dropdownColor: context.paleta.surfaceVariant,
+      style: TextStyle(color: context.paleta.textPrimary, fontSize: 15),
       decoration: InputDecoration(
         prefixIcon: const Icon(Icons.badge_outlined, size: 20),
         filled: true,
-        fillColor: AppColors.surfaceVariant,
+        fillColor: context.paleta.surfaceVariant,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: context.paleta.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: context.paleta.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(
-            color: AppColors.borderFocus,
-            width: 1.5,
-          ),
+          borderSide: BorderSide(color: context.paleta.borderFocus, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 20,
@@ -1406,14 +1408,21 @@ class _InfoBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.gradientMid.withAlpha(50)),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.shield_outlined, color: AppColors.gradientStart, size: 20),
+          Icon(
+            Icons.shield_outlined,
+            color: context.paleta.gradientStart,
+            size: 20,
+          ),
           SizedBox(width: 12),
           Expanded(
             child: Text(
               'Tu información está protegida con encriptación de 256 bits.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style: TextStyle(
+                color: context.paleta.textSecondary,
+                fontSize: 13,
+              ),
             ),
           ),
         ],
@@ -1456,13 +1465,15 @@ class _StrengthBarState extends State<_StrengthBar> {
     return s;
   }
 
-  static const _colors = [
-    AppColors.border,
-    Color(0xFFFF5B79),
-    Color(0xFFFFB347),
-    Color(0xFF00D4FF),
-    Color(0xFF00E5A0),
-  ];
+  static List<Color> _colors(PaletaVera p) => p.esClara
+      ? [p.border, p.error, p.warning, p.accent, p.accentGreen]
+      : [
+          p.border,
+          const Color(0xFFFF5B79),
+          const Color(0xFFFFB347),
+          const Color(0xFF00D4FF),
+          const Color(0xFF00E5A0),
+        ];
   static const _labels = ['', 'Débil', 'Regular', 'Buena', 'Fuerte'];
 
   @override
@@ -1479,7 +1490,9 @@ class _StrengthBarState extends State<_StrengthBar> {
                 height: 3,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(2),
-                  color: i < s ? _colors[s] : AppColors.border,
+                  color: i < s
+                      ? _colors(context.paleta)[s]
+                      : context.paleta.border,
                 ),
               ),
             );
@@ -1491,7 +1504,7 @@ class _StrengthBarState extends State<_StrengthBar> {
             child: Text(
               'Contraseña ${_labels[s]}',
               style: TextStyle(
-                color: _colors[s],
+                color: _colors(context.paleta)[s],
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),

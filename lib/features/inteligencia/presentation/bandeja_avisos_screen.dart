@@ -4,7 +4,7 @@ import 'package:vera/core/format/fechas.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/core/network/app_config.dart';
 import 'package:vera/core/network/error_messages.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/core/widgets/fondo_vera.dart';
 import 'package:vera/core/widgets/tarjeta_vidrio.dart';
@@ -197,7 +197,7 @@ class _BandejaAvisosScreenState extends State<BandejaAvisosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.paleta.background,
       body: FondoVera(
         child: SafeArea(
           bottom: false,
@@ -234,20 +234,20 @@ class _BandejaAvisosScreenState extends State<BandejaAvisosScreen> {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: AppColors.botonOscuro,
+                  color: context.paleta.botonOscuro,
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.borderGlass),
+                  border: Border.all(color: context.paleta.borderGlass),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.chevron_left_rounded,
-                  color: AppColors.textPrimary,
+                  color: context.paleta.textPrimary,
                   size: 28,
                 ),
               ),
             ),
           ),
           const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -258,7 +258,7 @@ class _BandejaAvisosScreenState extends State<BandejaAvisosScreen> {
                     'Avisos',
                     maxLines: 1,
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: context.paleta.textPrimary,
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.4,
@@ -268,7 +268,7 @@ class _BandejaAvisosScreenState extends State<BandejaAvisosScreen> {
                 Text(
                   'Lo que Vera notó en tu plata',
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: context.paleta.textSecondary,
                     fontSize: 15,
                   ),
                 ),
@@ -282,14 +282,14 @@ class _BandejaAvisosScreenState extends State<BandejaAvisosScreen> {
               key: const ValueKey('indicador-cupo'),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
+                color: context.paleta.surfaceVariant,
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.paleta.border),
               ),
               child: Text(
                 '$emitidos de $cupo',
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
+                style: TextStyle(
+                  color: context.paleta.textSecondary,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -327,8 +327,8 @@ class _BandejaAvisosScreenState extends State<BandejaAvisosScreen> {
 
     return RefreshIndicator(
       onRefresh: _cargar,
-      color: AppColors.gradientStart,
-      backgroundColor: AppColors.surface,
+      color: context.paleta.gradientStart,
+      backgroundColor: context.paleta.surface,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
         children: [
@@ -370,8 +370,8 @@ class _TituloDeMes extends StatelessWidget {
       child: Text(
         esElMesEnCurso ? '$titulo · mes en curso' : '$titulo · mes anterior',
         key: ValueKey('mes-$mes'),
-        style: const TextStyle(
-          color: AppColors.textMuted,
+        style: TextStyle(
+          color: context.paleta.textMuted,
           fontSize: 12,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.4,
@@ -393,13 +393,13 @@ class _AvisoDeCupoLleno extends StatelessWidget {
         radio: 20,
         opaca: true,
         padding: const EdgeInsets.all(16),
-        child: const Row(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(
               Icons.inbox_rounded,
               size: 18,
-              color: AppColors.textSecondary,
+              color: context.paleta.textSecondary,
             ),
             SizedBox(width: 10),
             Expanded(
@@ -407,7 +407,7 @@ class _AvisoDeCupoLleno extends StatelessWidget {
                 'Llegaste al tope de avisos de este mes. Descartar uno libera '
                 'espacio para el siguiente.',
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color: context.paleta.textSecondary,
                   fontSize: 14,
                   height: 1.4,
                 ),
@@ -455,8 +455,8 @@ class _TarjetaDeAviso extends StatelessWidget {
                   children: [
                     Text(
                       aviso.titulo,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        color: context.paleta.textPrimary,
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
                         letterSpacing: -0.2,
@@ -465,8 +465,8 @@ class _TarjetaDeAviso extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       aviso.texto,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        color: context.paleta.textSecondary,
                         fontSize: 14,
                         height: 1.45,
                       ),
@@ -489,8 +489,8 @@ class _TarjetaDeAviso extends StatelessWidget {
                     onPressed: () =>
                         context.push(destinoDe(aviso)!.ruta),
                     style: TextButton.styleFrom(
-                      foregroundColor: AppColors.tintaBotonClaro,
-                      backgroundColor: AppColors.botonClaro,
+                      foregroundColor: context.paleta.tintaBotonClaro,
+                      backgroundColor: context.paleta.botonClaro,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
                         vertical: 10,
@@ -520,7 +520,7 @@ class _TarjetaDeAviso extends StatelessWidget {
                     key: ValueKey('descartar-${aviso.id}'),
                     onPressed: onDescartar,
                     style: TextButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary,
+                      foregroundColor: context.paleta.textSecondary,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 10,

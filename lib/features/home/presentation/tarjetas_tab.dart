@@ -3,6 +3,7 @@ import 'package:vera/core/format/pesos.dart';
 import 'package:vera/core/format/tarjeta_muestra.dart';
 import 'package:vera/core/network/session_store.dart';
 import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/theme/tintes.dart';
 import 'package:vera/core/widgets/adornos_vera.dart';
 import 'package:vera/core/widgets/marca_vera.dart';
@@ -52,7 +53,7 @@ class _TarjetasTabState extends State<TarjetasTab> {
           children: [
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
@@ -60,7 +61,7 @@ class _TarjetasTabState extends State<TarjetasTab> {
                       'Mis tarjetas',
                       maxLines: 1,
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: context.paleta.textPrimary,
                         fontSize: 34,
                         fontWeight: FontWeight.w700,
                         letterSpacing: -0.8,
@@ -118,11 +119,11 @@ class _TarjetasTabState extends State<TarjetasTab> {
             const SizedBox(height: 26),
             Row(
               children: [
-                const Flexible(
+                Flexible(
                   child: Text(
                     'Movimientos con tarjeta',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: context.paleta.textPrimary,
                       fontSize: 21,
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.3,
@@ -153,7 +154,8 @@ class _TarjetaVisual extends StatelessWidget {
     return MediaQuery.withClampedTextScaling(
       minScaleFactor: 1,
       maxScaleFactor: 1,
-      child: _cuerpo(),
+      // Tarjeta de marca: su contenido conserva la paleta oscura en claro.
+      child: ZonaOscura(child: _cuerpo()),
     );
   }
 
@@ -334,8 +336,8 @@ class _PuntosPaginacion extends StatelessWidget {
         Container(
           width: 7,
           height: 7,
-          decoration: const BoxDecoration(
-            color: AppColors.textMuted,
+          decoration: BoxDecoration(
+            color: context.paleta.textMuted,
             shape: BoxShape.circle,
           ),
         ),
@@ -350,7 +352,7 @@ class _Separador extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Divider(
-      color: Colors.white.withAlpha(22),
+      color: context.paleta.velo.withAlpha(22),
       height: 1,
       indent: 16,
       endIndent: 16,
@@ -372,8 +374,8 @@ class _DetailRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: context.paleta.textSecondary,
               fontSize: 14,
             ),
           ),
@@ -384,8 +386,8 @@ class _DetailRow extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: Text(
                 value,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: context.paleta.textPrimary,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -412,8 +414,8 @@ class _DetailRowEstado extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: context.paleta.textSecondary,
               fontSize: 14,
             ),
           ),
@@ -422,16 +424,16 @@ class _DetailRowEstado extends StatelessWidget {
               Container(
                 width: 8,
                 height: 8,
-                decoration: const BoxDecoration(
-                  color: AppColors.accentGreen,
+                decoration: BoxDecoration(
+                  color: context.paleta.accentGreen,
                   shape: BoxShape.circle,
                 ),
               ),
               const SizedBox(width: 6),
-              const Text(
+              Text(
                 tarjetaMuestraEstado,
                 style: TextStyle(
-                  color: AppColors.accentGreen,
+                  color: context.paleta.accentGreen,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -457,7 +459,7 @@ class _TxItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tinte = _tinteDeConcepto(datos.concepto);
+    final tinte = _tinteDeConcepto(datos.concepto).en(context.paleta);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 9),
       child: Row(
@@ -478,8 +480,8 @@ class _TxItem extends StatelessWidget {
               children: [
                 Text(
                   datos.concepto,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.paleta.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -487,8 +489,8 @@ class _TxItem extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   datos.fecha,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: context.paleta.textSecondary,
                     fontSize: 13,
                   ),
                 ),
@@ -498,8 +500,8 @@ class _TxItem extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             '-${formatPesosInt(datos.centavos)}',
-            style: const TextStyle(
-              color: AppColors.textPrimary,
+            style: TextStyle(
+              color: context.paleta.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),

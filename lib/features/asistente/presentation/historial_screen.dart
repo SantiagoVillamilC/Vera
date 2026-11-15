@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/network/error_messages.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/core/widgets/fondo_vera.dart';
 import 'package:vera/features/asistente/data/asistente_repository.dart';
@@ -198,40 +198,37 @@ class _HistorialAsistenteScreenState extends State<HistorialAsistenteScreen> {
               alignment: Alignment.centerRight,
               padding: const EdgeInsets.only(right: 20),
               decoration: BoxDecoration(
-                color: AppColors.error.withAlpha(40),
+                color: context.paleta.error.withAlpha(40),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.delete_outline_rounded,
-                color: AppColors.error,
+                color: context.paleta.error,
               ),
             ),
             child: ListTile(
               onTap: () => context.pop(c.id),
-              tileColor: Colors.white.withAlpha(14),
+              tileColor: context.paleta.vidrio,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: AppColors.borderGlass),
+                side: BorderSide(color: context.paleta.borderGlass),
               ),
               title: Text(
                 c.titulo.isEmpty ? 'Conversación' : c.titulo,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: context.paleta.textPrimary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               subtitle: Text(
                 _fecha(c.ultimaActividad),
-                style: const TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: context.paleta.textMuted, fontSize: 12),
               ),
-              trailing: const Icon(
+              trailing: Icon(
                 Icons.chevron_right_rounded,
-                color: AppColors.textMuted,
+                color: context.paleta.textMuted,
               ),
             ),
           );
@@ -247,7 +244,7 @@ class _HistorialAsistenteScreenState extends State<HistorialAsistenteScreen> {
           Text(
             mensajeDeError(_errorMas!),
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.error, fontSize: 13),
+            style: TextStyle(color: context.paleta.error, fontSize: 13),
           ),
           TextButton(onPressed: _cargar, child: const Text('Reintentar')),
         ],

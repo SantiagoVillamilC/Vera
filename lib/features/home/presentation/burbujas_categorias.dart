@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:vera/core/theme/app_theme.dart';
+import 'package:vera/core/theme/paleta_vera.dart';
 import 'package:vera/core/theme/tintes.dart';
 import 'package:vera/features/inteligencia/data/modelos.dart';
 
@@ -116,7 +116,7 @@ class _Burbuja extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tinte = tinteDeCategoria(gasto.nombre);
+    final tinte = tinteDeCategoria(gasto.nombre).en(context.paleta);
     final grueso = diametro > 120;
     return Semantics(
       label: '${gasto.nombre}, ${porcentajeDe(parte)} del gasto del mes',
@@ -126,9 +126,10 @@ class _Burbuja extends StatelessWidget {
           parte: parte * progreso,
           relleno: Color.alphaBlend(
             tinte.fondo.withAlpha(150),
-            Colors.white.withAlpha(18),
+            context.paleta.velo.withAlpha(18),
           ),
-          aro: AppColors.textPrimary,
+          aro: context.paleta.textPrimary,
+          borde: context.paleta.borderGlass,
         ),
         child: Padding(
           padding: EdgeInsets.all(diametro * 0.14),
@@ -141,7 +142,7 @@ class _Burbuja extends StatelessWidget {
                 Icon(
                   iconoDeCategoria(gasto.nombre),
                   size: grueso ? 26 : 20,
-                  color: AppColors.textPrimary,
+                  color: context.paleta.textPrimary,
                 ),
                 if (grande) ...[
                   const SizedBox(height: 4),
@@ -150,7 +151,7 @@ class _Burbuja extends StatelessWidget {
                     maxLines: 2,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: context.paleta.textPrimary,
                       fontSize: grueso ? 15 : 13,
                       fontWeight: FontWeight.w500,
                     ),
@@ -159,7 +160,7 @@ class _Burbuja extends StatelessWidget {
                 Text(
                   porcentajeDe(parte),
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.paleta.textPrimary,
                     fontSize: grueso ? 24 : 15,
                     fontWeight: FontWeight.w800,
                   ),
@@ -178,11 +179,13 @@ class _AroPainter extends CustomPainter {
     required this.parte,
     required this.relleno,
     required this.aro,
+    required this.borde,
   });
 
   final double parte;
   final Color relleno;
   final Color aro;
+  final Color borde;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -195,7 +198,7 @@ class _AroPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1
-        ..color = AppColors.borderGlass,
+        ..color = borde,
     );
     // El aro arranca arriba y avanza en sentido horario.
     canvas.drawArc(
@@ -213,5 +216,8 @@ class _AroPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_AroPainter old) =>
-      old.parte != parte || old.relleno != relleno;
+      old.parte != parte ||
+      old.relleno != relleno ||
+      old.aro != aro ||
+      old.borde != borde;
 }
