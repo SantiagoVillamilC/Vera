@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vera/core/format/fechas.dart';
 import 'package:vera/core/network/api_client.dart';
+import 'package:vera/core/network/app_config.dart';
 import 'package:vera/core/network/error_messages.dart';
 import 'package:vera/core/theme/app_theme.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
@@ -48,13 +49,23 @@ Future<List<Aviso>> _leerDosMeses(
 /// servidor y permite descartarlos. La persistencia del descarte la garantiza
 /// el servidor: aquí no se guarda nada.
 class BandejaAvisosScreen extends StatefulWidget {
-  const BandejaAvisosScreen({super.key, this.repository, this.ahora});
+  const BandejaAvisosScreen({
+    super.key,
+    this.repository,
+    this.ahora,
+    this.mostrarCupo = AppConfig.mostrarCupoAvisos,
+  });
 
   /// Por defecto el repositorio real.
   final InteligenciaRepository? repository;
 
   /// Solo para pruebas: reloj fijo en lugar del del equipo.
   final DateTime? ahora;
+
+  /// Dibuja el indicador «n de N» y el aviso de tope. Por defecto sigue la
+  /// bandera `MOSTRAR_CUPO_AVISOS`, apagada: el cupo se sigue leyendo, solo
+  /// no se muestra.
+  final bool mostrarCupo;
 
   @override
   State<BandejaAvisosScreen> createState() => _BandejaAvisosScreenState();
@@ -266,7 +277,7 @@ class _BandejaAvisosScreenState extends State<BandejaAvisosScreen> {
           ),
           // «n de N» con los valores del servidor: el cupo se configura por
           // entorno, así que la app no fija el número.
-          if (emitidos != null && cupo != null)
+          if (widget.mostrarCupo && emitidos != null && cupo != null)
             Container(
               key: const ValueKey('indicador-cupo'),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -321,7 +332,8 @@ class _BandejaAvisosScreenState extends State<BandejaAvisosScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
         children: [
-          if (_resumen?.cupoLleno ?? false) const _AvisoDeCupoLleno(),
+          if (widget.mostrarCupo && (_resumen?.cupoLleno ?? false))
+            const _AvisoDeCupoLleno(),
           for (final mes in meses) ...[
             _TituloDeMes(mes: mes, esElMesEnCurso: mes == enCurso),
             for (final aviso in grupos[mes]!)
