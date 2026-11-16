@@ -87,6 +87,41 @@ class AsistenteRepository {
     return RespuestaAsistente.fromJson(raw);
   }
 
+  // ── Síntesis de voz ───────────────────────────────────────────
+
+  /// Plazo del cliente para la síntesis: el backend corta a los 25 s, pero la espera de la voz
+  /// de respaldo del teléfono no puede ser tan larga.
+  static const timeoutSintesis = Duration(seconds: 11);
+
+  /// POST /v1/vera/sintetizar. Devuelve el WAV (PCM16 mono 24 kHz) de [texto], de 1 a 400
+  /// caracteres, o null cuando el backend no tiene audio: el 200 JSON degradado con
+  /// `X-Vera-Audio: no-disponible` (pod apagado o síntesis caída), o un cuerpo que no es WAV.
+  /// Los demás fallos (401, 403, 422, 429, 503, red, plazo) se lanzan.
+  /// Cada llamada, incluida la que sale de la caché, descuenta de la cuota de voz del usuario.
+  Future<Uint8List?> sintetizar(
+    String texto, {
+    Duration timeout = timeoutSintesis,
+  }) async {
+    final r = await _client.postBinario(
+      '/v1/vera/sintetizar',
+      {'texto': texto},
+      timeout: timeout,
+      headers: {'Accept': 'audio/wav, application/json'},
+    );
+    final tipo = r.headers['content-type']?.toLowerCase() ?? '';
+    if (r.headers['x-vera-audio'] == 'no-disponible' ||
+        !tipo.startsWith('audio/')) {
+      return null;
+    }
+    return _esWavConAudio(r.bodyBytes) ? r.bodyBytes : null;
+  }
+
+  /// Cabecera RIFF/WAVE de 44 bytes y al menos una muestra de audio.
+  static bool _esWavConAudio(Uint8List b) =>
+      b.length > 44 &&
+      String.fromCharCodes(b.sublist(0, 4)) == 'RIFF' &&
+      String.fromCharCodes(b.sublist(8, 12)) == 'WAVE';
+
   // ── Conversaciones ────────────────────────────────────────────
 
   /// GET /v1/vera/conversaciones?limit=&cursor=
