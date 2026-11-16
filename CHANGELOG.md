@@ -5,6 +5,24 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Unreleased] respuesta hablada con la voz Kokoro del backend
+
+### Added
+- `LectorKokoro`: pide el audio de la respuesta a `POST /v1/vera/sintetizar` (WAV PCM16 mono 24 kHz), lo reproduce desde memoria con `audioplayers` 6.8.1 y cae en silencio a la voz del teléfono (`flutter_tts`) si el backend no da audio: 200 JSON degradado con `X-Vera-Audio: no-disponible`, 401, 403, 413, 422, 429, 503, plazo de 11 s, fallo de red o WAV inválido. Solo deja un registro de depuración, sin el texto.
+- `partirEnTrozos`: los textos se parten en frases de hasta 240 caracteres (el backend rechaza más de 400) sin cortar palabras ni decimales como `3.5` o `1.250.000`. Se piden como máximo 2 trozos a Kokoro, el siguiente mientras suena el actual y sin solapar audio. Lo que sobra lo lee el teléfono al final.
+- `PausaDeSintesis`: tras un fallo no se vuelve a pedir audio al backend durante un tiempo (45 s en general, `Retry-After` en un 429, 5 minutos en un 401 o 403). La cuota de voz es de 10 por hora por usuario y la comparte el micrófono, y cada petición la gasta.
+- `ApiClient.postBinario` y `AsistenteRepository.sintetizar`, con el mismo Bearer, refresh y base URL del resto.
+- Pruebas del troceado, del lector (orden, prefetch, tope, cancelación, pausas y respaldo), de la síntesis contra el contrato y de la pantalla.
+
+### Changed
+- La respuesta hablada ya no está apagada por defecto: sin elección guardada se habla la respuesta a los turnos de micrófono (con Kokoro y respaldo del teléfono) y no la de los mensajes escritos. Con el interruptor de la cabecera encendido por el usuario se hablan ambas, y apagado ninguna. `PreferenciaLectura.activada()` pasa a `elegida()` (null si nunca se tocó). Una elección `false` ya guardada en un teléfono se respeta.
+- Un turno nuevo, apagar el interruptor, el segundo plano o salir de la pantalla cortan el audio en curso.
+
+### No verificado
+- La reproducción real en un teléfono y la latencia contra un pod: no se ejecutaron.
+
+---
+
 ## [Unreleased] controles sin destino marcados (WIP)
 
 ### Added

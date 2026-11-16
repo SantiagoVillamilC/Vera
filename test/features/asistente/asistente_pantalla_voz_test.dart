@@ -139,7 +139,7 @@ void main() {
       expect(find.text('Beta'), findsOneWidget);
       expect(find.byTooltip('Nueva conversación'), findsOneWidget);
       expect(find.byTooltip('Historial'), findsOneWidget);
-      expect(find.byTooltip('Leer las respuestas en voz alta'), findsOneWidget);
+      expect(find.byTooltip('Apagar la respuesta hablada'), findsOneWidget);
     },
   );
 

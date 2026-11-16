@@ -104,6 +104,29 @@ class ApiClient {
     return _parseMap(response);
   }
 
+  /// POST con cuerpo JSON cuya respuesta 2xx no es JSON (por ejemplo un WAV). Devuelve la respuesta
+  /// tal cual para que quien llama decida por `content-type` y cabeceras, con el mismo Bearer,
+  /// refresh y plazos que el resto. Un estado fuera de 2xx se lanza como [ApiException].
+  Future<http.Response> postBinario(
+    String path,
+    Map<String, dynamic> body, {
+    Duration? timeout,
+    Map<String, String>? headers,
+  }) async {
+    final response = await _request(
+      'POST',
+      Uri.parse('$baseUrl$path'),
+      path: path,
+      body: jsonEncode(body),
+      timeout: timeout,
+      extraHeaders: headers,
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _toException(response);
+    }
+    return response;
+  }
+
   Future<Map<String, dynamic>> get(
     String path, {
     Map<String, String?>? queryParams,

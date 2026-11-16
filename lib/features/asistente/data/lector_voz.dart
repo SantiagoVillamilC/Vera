@@ -64,8 +64,13 @@ class LectorFlutterTts implements LectorDeVoz {
 }
 
 /// Preferencia de lectura en voz alta, guardada en el dispositivo.
+///
+/// Tiene tres estados: nunca elegida (null), apagada y encendida. Sin elección, Vera habla las
+/// respuestas a los turnos de micrófono y no las de los mensajes escritos. Encendida habla ambas
+/// y apagada ninguna.
 abstract interface class PreferenciaLectura {
-  Future<bool> activada();
+  /// La elección guardada, o null si la persona nunca tocó el interruptor.
+  Future<bool?> elegida();
 
   Future<void> guardar(bool activada);
 }
@@ -79,9 +84,12 @@ class PreferenciaLecturaSegura implements PreferenciaLectura {
 
   static const clave = 'asistente_leer_en_voz_alta';
 
-  /// Apagada hasta que la persona la activa: que el teléfono hable solo sorprende.
   @override
-  Future<bool> activada() async => await _storage.read(key: clave) == 'true';
+  Future<bool?> elegida() async => switch (await _storage.read(key: clave)) {
+    'true' => true,
+    'false' => false,
+    _ => null,
+  };
 
   @override
   Future<void> guardar(bool activada) =>
