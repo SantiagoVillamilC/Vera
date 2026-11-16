@@ -3,6 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  audioplayers_linux
   biometric_storage
   flutter_secure_storage_linux
   record_linux
