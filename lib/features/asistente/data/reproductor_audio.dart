@@ -39,6 +39,12 @@ class ReproductorAudioplayers implements ReproductorDeAudio {
     });
     try {
       await player.play(BytesSource(wav, mimeType: 'audio/wav'));
+      // `play` carga la fuente y luego reanuda: un `detener` que llegó durante la carga ya
+      // pasó antes del `resume`, así que el audio arrancó pese a la cancelación.
+      if (!identical(_enCurso, completer)) {
+        await player.stop();
+        return;
+      }
       final duracion = Duration(
         milliseconds: (wav.length * 1000 / _bytesPorSegundo).ceil(),
       );
