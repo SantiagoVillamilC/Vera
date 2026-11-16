@@ -15,7 +15,9 @@ import 'package:vera/core/widgets/marca_vera.dart';
 import 'package:vera/features/asistente/data/asistente_mensajes.dart';
 import 'package:vera/features/asistente/data/asistente_repository.dart';
 import 'package:vera/features/asistente/data/grabador_voz.dart';
+import 'package:vera/features/asistente/data/lector_kokoro.dart';
 import 'package:vera/features/asistente/data/lector_voz.dart';
+import 'package:vera/features/asistente/data/reproductor_audio.dart';
 import 'package:vera/core/widgets/estado_vista.dart';
 import 'package:vera/features/asistente/presentation/accion_card.dart';
 import 'package:vera/features/asistente/presentation/activacion_vera_view.dart';
@@ -82,6 +84,8 @@ class AsistenteScreen extends StatefulWidget {
     this.repository,
     this.grabador,
     this.lector,
+    this.reproductor,
+    this.lectorRespaldo,
     this.preferenciaLectura,
     this.abrirAjustes,
     this.session,
@@ -94,8 +98,14 @@ class AsistenteScreen extends StatefulWidget {
   /// Solo para pruebas; por defecto el micrófono real.
   final GrabadorDeVoz? grabador;
 
-  /// Solo para pruebas; por defecto la voz del sistema.
+  /// Solo para pruebas, por defecto la voz de Kokoro del backend con la del sistema de respaldo.
   final LectorDeVoz? lector;
+
+  /// Solo para pruebas, por defecto reproduce el audio del backend con `audioplayers`.
+  final ReproductorDeAudio? reproductor;
+
+  /// Solo para pruebas, por defecto la voz del sistema, que lee cuando el backend no da audio.
+  final LectorDeVoz? lectorRespaldo;
 
   /// Solo para pruebas; por defecto el almacenamiento seguro del dispositivo.
   final PreferenciaLectura? preferenciaLectura;
@@ -115,7 +125,13 @@ class _AsistenteScreenState extends State<AsistenteScreen>
   late final AsistenteRepository _repo =
       widget.repository ?? AsistenteRepository();
   late final GrabadorDeVoz _grabador = widget.grabador ?? GrabadorVoz();
-  late final LectorDeVoz _lector = widget.lector ?? LectorFlutterTts();
+  late final LectorDeVoz _lector =
+      widget.lector ??
+      LectorKokoro(
+        sintetizar: _repo.sintetizar,
+        reproductor: widget.reproductor ?? ReproductorAudioplayers(),
+        respaldo: widget.lectorRespaldo ?? LectorFlutterTts(),
+      );
   late final PreferenciaLectura _preferencia =
       widget.preferenciaLectura ?? const PreferenciaLecturaSegura();
   final _foco = FocusNode();
@@ -127,7 +143,10 @@ class _AsistenteScreenState extends State<AsistenteScreen>
   bool _cargandoHistorial = false;
   bool _enviando = false;
   bool _grabando = false;
-  bool _leerEnVozAlta = false;
+
+  /// La elección guardada de la respuesta hablada: null mientras no se haya tocado el interruptor
+  /// (se hablan los turnos de micrófono y no los escritos), true (se hablan todos) o false (ninguno).
+  bool? _eleccionLectura;
   bool _leyendo = false;
 
   /// Con el teclado abierto se escribe; por defecto se habla.
@@ -177,8 +196,8 @@ class _AsistenteScreenState extends State<AsistenteScreen>
 
   Future<void> _cargarPreferencia() async {
     try {
-      final activada = await _preferencia.activada();
-      if (mounted) setState(() => _leerEnVozAlta = activada);
+      final elegida = await _preferencia.elegida();
+      if (mounted) setState(() => _eleccionLectura = elegida);
     } catch (_) {
       // Sin preferencia legible la lectura queda apagada.
     }
@@ -392,7 +411,7 @@ class _AsistenteScreenState extends State<AsistenteScreen>
             ..transcribiendo = false;
         });
       }
-      _agregarRespuesta(r);
+      _agregarRespuesta(r, porVoz: envio.bytes != null);
     } on AudioFueraDeLimiteException {
       _pendiente = null;
       _quitar(burbuja);
@@ -448,7 +467,7 @@ class _AsistenteScreenState extends State<AsistenteScreen>
     }
   }
 
-  void _agregarRespuesta(RespuestaAsistente r) {
+  void _agregarRespuesta(RespuestaAsistente r, {required bool porVoz}) {
     if (!mounted) return;
     setState(() {
       _conversacionId = r.conversacionId;
@@ -463,7 +482,9 @@ class _AsistenteScreenState extends State<AsistenteScreen>
       );
     });
     _irAlFinal();
-    if (_leerEnVozAlta) _leerRespuesta(r.texto);
+    if (_eleccionLectura == true || (_eleccionLectura == null && porVoz)) {
+      _leerRespuesta(r.texto);
+    }
   }
 
   // ── Lectura en voz alta ─────────────────────────────────────
@@ -485,9 +506,11 @@ class _AsistenteScreenState extends State<AsistenteScreen>
     if (mounted) setState(() => _leyendo = false);
   }
 
+  /// Sin elección guardada el interruptor se ve encendido, así que tocarlo apaga. Apagado se
+  /// enciende para todas las respuestas, también las de los mensajes escritos.
   Future<void> _alternarLectura() async {
-    final nueva = !_leerEnVozAlta;
-    setState(() => _leerEnVozAlta = nueva);
+    final nueva = _eleccionLectura == false;
+    setState(() => _eleccionLectura = nueva);
     if (!nueva) await _detenerLectura();
     try {
       await _preferencia.guardar(nueva);
@@ -699,10 +722,12 @@ class _AsistenteScreenState extends State<AsistenteScreen>
           ),
           if (chat) ...[
             _AccionCabecera(
-              tooltip: _leerEnVozAlta
-                  ? 'Dejar de leer las respuestas en voz alta'
-                  : 'Leer las respuestas en voz alta',
-              icono: _leerEnVozAlta
+              tooltip: switch (_eleccionLectura) {
+                null => 'Apagar la respuesta hablada',
+                true => 'Dejar de leer las respuestas en voz alta',
+                false => 'Leer las respuestas en voz alta',
+              },
+              icono: _eleccionLectura != false
                   ? Icons.volume_up_rounded
                   : Icons.volume_off_rounded,
               alTocar: _alternarLectura,
@@ -1236,10 +1261,7 @@ class _BurbujaView extends StatelessWidget {
                           const SizedBox(width: 8),
                           Text(
                             'Transcribiendo…',
-                            style: TextStyle(
-                              color: suave,
-                              fontSize: 15,
-                            ),
+                            style: TextStyle(color: suave, fontSize: 15),
                           ),
                         ],
                       )

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -8,7 +9,9 @@ import 'package:http/testing.dart';
 import 'package:vera/core/network/api_client.dart';
 import 'package:vera/features/asistente/data/asistente_repository.dart';
 import 'package:vera/features/asistente/data/grabador_voz.dart';
+import 'package:vera/features/asistente/data/lector_kokoro.dart';
 import 'package:vera/features/asistente/data/lector_voz.dart';
+import 'package:vera/features/asistente/data/reproductor_audio.dart';
 import 'package:vera/features/asistente/presentation/asistente_screen.dart';
 
 import '../home/presentation/cargar_roboto.dart';
@@ -58,6 +61,7 @@ class _GrabadorFalso implements GrabadorDeVoz {
 class _LectorFalso implements LectorDeVoz {
   final leidos = <String>[];
   int detenciones = 0;
+  int disposes = 0;
   void Function()? _fin;
 
   @override
@@ -79,15 +83,51 @@ class _LectorFalso implements LectorDeVoz {
   }
 
   @override
+  Future<void> dispose() async => disposes++;
+}
+
+class _ReproductorFalso implements ReproductorDeAudio {
+  final reproducidos = <Uint8List>[];
+  int detenciones = 0;
+
+  /// Con [sonando] el audio no termina solo: dura hasta que alguien lo detiene.
+  bool sonando = false;
+  Completer<void>? _enCurso;
+
+  @override
+  Future<void> reproducir(Uint8List wav) async {
+    reproducidos.add(wav);
+    if (!sonando) return;
+    final c = _enCurso = Completer<void>();
+    await c.future;
+  }
+
+  @override
+  Future<void> detener() async {
+    detenciones++;
+    final c = _enCurso;
+    _enCurso = null;
+    if (c != null && !c.isCompleted) c.complete();
+  }
+
+  @override
   Future<void> dispose() async {}
+}
+
+/// WAV mínimo válido para el contrato del cliente: cabecera RIFF/WAVE y algo de audio.
+Uint8List _wavMinimo() {
+  final b = Uint8List(100);
+  b.setRange(0, 4, 'RIFF'.codeUnits);
+  b.setRange(8, 12, 'WAVE'.codeUnits);
+  return b;
 }
 
 class _PreferenciaFalsa implements PreferenciaLectura {
   _PreferenciaFalsa(this.valor);
-  bool valor;
+  bool? valor;
 
   @override
-  Future<bool> activada() async => valor;
+  Future<bool?> elegida() async => valor;
 
   @override
   Future<void> guardar(bool activada) async => valor = activada;
@@ -107,11 +147,21 @@ Map<String, Object?> _respuesta(String texto, {String? transcripcion}) => {
 };
 
 class _Montaje {
-  _Montaje(this.vistos, this.grabador, this.lector, this.preferencia);
+  _Montaje(
+    this.vistos,
+    this.grabador,
+    this.lector,
+    this.preferencia,
+    this.reproductor,
+  );
   final List<http.Request> vistos;
   final _GrabadorFalso grabador;
   final _LectorFalso lector;
   final _PreferenciaFalsa preferencia;
+  final _ReproductorFalso reproductor;
+
+  Iterable<http.Request> get sintesis =>
+      vistos.where((r) => r.url.path == '/v1/vera/sintetizar');
 
   Iterable<http.Request> get voz =>
       vistos.where((r) => r.url.path == '/v1/vera/mensajes/voz');
@@ -120,7 +170,8 @@ class _Montaje {
 Future<_Montaje> _montar(
   WidgetTester t, {
   List<http.Response Function(http.Request)> sobre = const [],
-  bool leer = false,
+  bool? leer = false,
+  bool kokoro = false,
   bool permiso = true,
   Future<void> Function()? abrirAjustes,
   Size tamano = const Size(800, 1600),
@@ -152,6 +203,7 @@ Future<_Montaje> _montar(
   });
   final grabador = _GrabadorFalso()..permiso = permiso;
   final lector = _LectorFalso();
+  final reproductor = _ReproductorFalso();
   final preferencia = _PreferenciaFalsa(leer);
   await t.pumpWidget(
     MaterialApp(
@@ -167,7 +219,10 @@ Future<_Montaje> _montar(
           client: ApiClient(baseUrl: 'http://x', clientFactory: () => mock),
         ),
         grabador: grabador,
-        lector: lector,
+        // Con [kokoro] se prueba el lector real del backend, con el teléfono como respaldo.
+        lector: kokoro ? null : lector,
+        reproductor: kokoro ? reproductor : null,
+        lectorRespaldo: kokoro ? lector : null,
         preferenciaLectura: preferencia,
         abrirAjustes: abrirAjustes,
       ),
@@ -175,7 +230,7 @@ Future<_Montaje> _montar(
   );
   await t.pump();
   await t.pump();
-  return _Montaje(vistos, grabador, lector, preferencia);
+  return _Montaje(vistos, grabador, lector, preferencia, reproductor);
 }
 
 Future<void> _tocarMicrofono(WidgetTester t) async {
@@ -195,7 +250,21 @@ Future<void> _grabarYEnviar(WidgetTester t, {int segundos = 3}) async {
   }
 }
 
+Future<void> _escribirYEnviar(WidgetTester t, String m) async {
+  if (find.byType(TextField).evaluate().isEmpty) {
+    await t.tap(find.byKey(const Key('abrir_teclado')));
+    await t.pump();
+  }
+  await t.enterText(find.byType(TextField), m);
+  await t.pump();
+  await t.testTextInput.receiveAction(TextInputAction.done);
+  await t.pump();
+  await t.pump();
+}
+
 void main() {
+  setUp(() => PausaDeSintesis.compartida.reanudar());
+
   group('grabación', () {
     testWidgets('graba con indicador y tiempo, y permite cancelar', (t) async {
       final m = await _montar(t);
@@ -429,6 +498,256 @@ void main() {
         find.byTooltip('Dejar de leer las respuestas en voz alta'),
         findsOneWidget,
       );
+    });
+  });
+
+  group('respuesta hablada por defecto', () {
+    testWidgets('sin elección, el turno de micrófono se habla', (t) async {
+      final m = await _montar(
+        t,
+        leer: null,
+        sobre: [
+          (_) => _json(_respuesta('Tienes mucho', transcripcion: 'x'), 200),
+        ],
+      );
+      await _grabarYEnviar(t);
+
+      expect(m.lector.leidos, ['Tienes mucho']);
+    });
+
+    testWidgets('sin elección, el turno escrito no se habla', (t) async {
+      final m = await _montar(
+        t,
+        leer: null,
+        sobre: [(_) => _json(_respuesta('Tienes mucho'), 200)],
+      );
+      await _escribirYEnviar(t, 'cuánto tengo');
+
+      expect(find.text('Tienes mucho'), findsOneWidget);
+      expect(m.lector.leidos, isEmpty);
+    });
+
+    testWidgets('con la lectura encendida también se habla el turno escrito', (
+      t,
+    ) async {
+      final m = await _montar(
+        t,
+        leer: true,
+        sobre: [(_) => _json(_respuesta('Tienes mucho'), 200)],
+      );
+      await _escribirYEnviar(t, 'cuánto tengo');
+
+      expect(m.lector.leidos, ['Tienes mucho']);
+    });
+
+    testWidgets('con la lectura apagada ni el micrófono se habla', (t) async {
+      final m = await _montar(
+        t,
+        leer: false,
+        sobre: [
+          (_) => _json(_respuesta('Tienes mucho', transcripcion: 'x'), 200),
+        ],
+      );
+      await _grabarYEnviar(t);
+
+      expect(m.lector.leidos, isEmpty);
+    });
+
+    testWidgets(
+      'sin elección el interruptor se ve encendido y al tocarlo apaga',
+      (t) async {
+        final m = await _montar(t, leer: null);
+        expect(find.byIcon(Icons.volume_up_rounded), findsOneWidget);
+
+        await t.tap(find.byTooltip('Apagar la respuesta hablada'));
+        await t.pump();
+        await t.pump();
+
+        expect(m.preferencia.valor, isFalse);
+        expect(find.byIcon(Icons.volume_off_rounded), findsOneWidget);
+
+        await t.tap(find.byTooltip('Leer las respuestas en voz alta'));
+        await t.pump();
+        await t.pump();
+        expect(m.preferencia.valor, isTrue);
+      },
+    );
+
+    testWidgets('apagar el interruptor corta la lectura en curso', (t) async {
+      final m = await _montar(
+        t,
+        leer: null,
+        sobre: [(_) => _json(_respuesta('Hola', transcripcion: 'x'), 200)],
+      );
+      await _grabarYEnviar(t);
+      expect(find.byKey(const Key('detener_lectura')), findsOneWidget);
+
+      await t.tap(find.byTooltip('Apagar la respuesta hablada'));
+      await t.pump();
+      await t.pump();
+
+      expect(m.lector.detenciones, 1);
+      expect(find.byKey(const Key('detener_lectura')), findsNothing);
+    });
+
+    testWidgets('un turno nuevo corta la lectura que sigue sonando', (t) async {
+      final m = await _montar(
+        t,
+        leer: true,
+        sobre: [
+          (_) => _json(_respuesta('Primera'), 200),
+          (_) => _json(_respuesta('Segunda'), 200),
+        ],
+      );
+      await _escribirYEnviar(t, 'uno');
+      expect(m.lector.leidos, ['Primera']);
+
+      await _escribirYEnviar(t, 'dos');
+
+      expect(m.lector.detenciones, 1);
+      expect(m.lector.leidos, ['Primera', 'Segunda']);
+    });
+
+    testWidgets('salir de la pantalla libera y corta el lector', (t) async {
+      final m = await _montar(t, leer: true);
+
+      await t.pumpWidget(const SizedBox());
+
+      expect(m.lector.disposes, 1);
+    });
+  });
+
+  group('respuesta hablada por el backend (Kokoro)', () {
+    testWidgets('el turno de micrófono pide /sintetizar y reproduce el WAV', (
+      t,
+    ) async {
+      final wav = _wavMinimo();
+      final m = await _montar(
+        t,
+        leer: null,
+        kokoro: true,
+        sobre: [
+          (_) => _json(_respuesta('Tienes mucho', transcripcion: 'x'), 200),
+          (_) => http.Response.bytes(
+            wav,
+            200,
+            headers: {'content-type': 'audio/wav'},
+          ),
+        ],
+      );
+      await _grabarYEnviar(t);
+      await t.pump();
+      await t.pump();
+
+      expect(m.sintesis, hasLength(1));
+      expect(jsonDecode(m.sintesis.single.body), {'texto': 'Tienes mucho'});
+      expect(m.reproductor.reproducidos, [wav]);
+      expect(m.lector.leidos, isEmpty);
+    });
+
+    testWidgets('con el backend degradado habla el teléfono', (t) async {
+      final m = await _montar(
+        t,
+        leer: null,
+        kokoro: true,
+        sobre: [
+          (_) => _json(_respuesta('Tienes mucho', transcripcion: 'x'), 200),
+          (_) => http.Response(
+            jsonEncode({
+              'success': true,
+              'data': {'audio_disponible': false, 'voz_local': true},
+              'error': null,
+              'meta': null,
+            }),
+            200,
+            headers: {
+              'content-type': 'application/json',
+              'x-vera-audio': 'no-disponible',
+            },
+          ),
+        ],
+      );
+      await _grabarYEnviar(t);
+      await t.pump();
+      await t.pump();
+
+      expect(m.reproductor.reproducidos, isEmpty);
+      expect(m.lector.leidos, ['Tienes mucho']);
+    });
+
+    testWidgets('un 503 del backend también cae al teléfono sin avisar', (
+      t,
+    ) async {
+      final m = await _montar(
+        t,
+        leer: null,
+        kokoro: true,
+        sobre: [
+          (_) => _json(_respuesta('Tienes mucho', transcripcion: 'x'), 200),
+          (_) => _json({
+            'success': false,
+            'data': null,
+            'error': {'code': 'AssistantUnavailable', 'message': 'x'},
+            'meta': null,
+          }, 503),
+        ],
+      );
+      await _grabarYEnviar(t);
+      await t.pump();
+      await t.pump();
+
+      expect(m.lector.leidos, ['Tienes mucho']);
+      expect(find.textContaining('AssistantUnavailable'), findsNothing);
+    });
+
+    testWidgets('el turno escrito sin elección no toca /sintetizar', (t) async {
+      final m = await _montar(
+        t,
+        leer: null,
+        kokoro: true,
+        sobre: [(_) => _json(_respuesta('Tienes mucho'), 200)],
+      );
+      await _escribirYEnviar(t, 'cuánto tengo');
+      await t.pump();
+
+      expect(m.sintesis, isEmpty);
+      expect(m.reproductor.reproducidos, isEmpty);
+      expect(m.lector.leidos, isEmpty);
+    });
+
+    testWidgets('un turno nuevo corta el audio que suena', (t) async {
+      final m = await _montar(
+        t,
+        leer: true,
+        kokoro: true,
+        sobre: [
+          (_) => _json(_respuesta('Primera'), 200),
+          (_) => http.Response.bytes(
+            _wavMinimo(),
+            200,
+            headers: {'content-type': 'audio/wav'},
+          ),
+          (_) => _json(_respuesta('Segunda'), 200),
+          (_) => http.Response.bytes(
+            _wavMinimo(),
+            200,
+            headers: {'content-type': 'audio/wav'},
+          ),
+        ],
+      );
+      m.reproductor.sonando = true;
+      await _escribirYEnviar(t, 'uno');
+      await t.pump();
+      await t.pump();
+      expect(m.reproductor.reproducidos, hasLength(1));
+      expect(m.reproductor.detenciones, 0);
+
+      await _escribirYEnviar(t, 'dos');
+      await t.pump();
+      await t.pump();
+
+      expect(m.reproductor.detenciones, greaterThan(0));
+      expect(m.reproductor.reproducidos, hasLength(2));
     });
   });
 
