@@ -6,6 +6,7 @@ import FlutterMacOS
 import Foundation
 
 import app_settings
+import audioplayers_darwin
 import biometric_storage
 import flutter_secure_storage_macos
 import flutter_tts
@@ -15,6 +16,7 @@ import url_launcher_macos
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   AppSettingsPlugin.register(with: registry.registrar(forPlugin: "AppSettingsPlugin"))
+  AudioplayersDarwinPlugin.register(with: registry.registrar(forPlugin: "AudioplayersDarwinPlugin"))
   BiometricStorageMacOSPlugin.register(with: registry.registrar(forPlugin: "BiometricStorageMacOSPlugin"))
   FlutterSecureStoragePlugin.register(with: registry.registrar(forPlugin: "FlutterSecureStoragePlugin"))
   FlutterTtsPlugin.register(with: registry.registrar(forPlugin: "FlutterTtsPlugin"))
